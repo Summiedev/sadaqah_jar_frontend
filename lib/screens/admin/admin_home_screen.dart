@@ -1,0 +1,86 @@
+import 'package:flutter/material.dart';
+
+class AdminHomeScreen extends StatelessWidget {
+  const AdminHomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Admin Panel'),
+        backgroundColor: const Color(0xFFE5D6C3),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _AdminTile(
+            icon: Icons.volunteer_activism_outlined,
+            title: 'Charities',
+            subtitle: 'Manage charity records and verification status',
+            onTap: () => Navigator.of(context).pushNamed('/admin/charities'),
+          ),
+          const SizedBox(height: 12),
+          _AdminTile(
+            icon: Icons.menu_book_outlined,
+            title: 'Evidence',
+            subtitle: 'Review and maintain act evidence entries',
+            onTap: () => Navigator.of(context).pushNamed('/admin/evidence'),
+          ),
+          const SizedBox(height: 12),
+          _AdminTile(
+            icon: Icons.insights_outlined,
+            title: 'Analytics',
+            subtitle: 'View admin metrics and live summaries',
+            onTap: () => Navigator.of(context).pushNamed('/admin/analytics'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AdminTile extends StatelessWidget {
+  const _AdminTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFF4EFE6),
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(icon, color: const Color(0xFF8B6842)),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: const TextStyle(color: Color(0xFF6C6258))),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
