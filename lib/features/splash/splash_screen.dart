@@ -1,5 +1,6 @@
 ﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -79,7 +80,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Beautiful Logo Box
+                  // Actual Mizan logo
                   Container(
                     width: 180,
                     height: 180,
@@ -89,61 +90,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(44),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Container(
-                            decoration: const BoxDecoration(
-                              gradient: RadialGradient(
-                                center: Alignment.center,
-                                radius: 0.9,
-                                colors: [
-                                  Color(0xFF2C1D14),
-                                  Color(0xFF1F150E),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Concentric rotated square (Diamond) pattern
-                          Center(
-                            child: Transform.rotate(
-                              angle: math.pi / 4,
-                              child: Container(
-                                width: 72,
-                                height: 72,
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: const Color(0xFFE7DFCF).withValues(alpha: 0.8),
-                                    width: 1.5,
-                                  ),
-                                ),
-                                padding: const EdgeInsets.all(10),
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    border: Border.all(
-                                      color: const Color(0xFFE7DFCF).withValues(alpha: 0.4),
-                                      width: 1.0,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    // Non-rotated inner gold dot
-                                    child: Transform.rotate(
-                                      angle: -math.pi / 4,
-                                      child: Container(
-                                        width: 5,
-                                        height: 5,
-                                        decoration: const BoxDecoration(
-                                          color: Color(0xFFC09B6F), // Golden accent dot
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: SvgPicture.asset(
+                        'lib/assets/images/mizan_logo.svg',
+                        width: 180,
+                        height: 180,
+                        fit: BoxFit.cover,
                       ),
                     ),
                   ),

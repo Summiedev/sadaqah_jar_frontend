@@ -83,7 +83,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   sliver: SliverList.list(children: [
                     const _HomeHeader(),
                     const SizedBox(height: 22),
-                     _JarHero(totalActs: 12 + acts.total, progress: acts.progress, onAdd: () => AddActScreen.show(context)),
+                     _JarHero(totalActs: acts.totalStars, progress: acts.progress, onAdd: () => AddActScreen.show(context), remainingActs: acts.remainingActs),
                     const SizedBox(height: 24),
                      _AddTodayCard(onTap: () => AddActScreen.show(context)),
                     const SizedBox(height: 24),
@@ -183,10 +183,12 @@ class _StreakPill extends StatelessWidget {
 }
 
 class _JarHero extends StatelessWidget {
-  const _JarHero({required this.totalActs, required this.progress, required this.onAdd});
+  const _JarHero({required this.totalActs, required this.progress, required this.onAdd, required this.remainingActs});
   final int totalActs;
   final double progress;
   final VoidCallback onAdd;
+  final int remainingActs;
+
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
@@ -205,7 +207,7 @@ class _JarHero extends StatelessWidget {
             const SizedBox(height: 18),
             ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress, minHeight: 7, color: const Color(0xFFE5B877), backgroundColor: const Color(0xFF59483D))),
             const SizedBox(height: 8),
-            const Text('8 more acts to reach your intention', style: TextStyle(color: Color(0xFFE1D5CA), fontSize: 11.5)),
+            Text('$remainingActs more acts to reach your intention', style: const TextStyle(color: Color(0xFFE1D5CA), fontSize: 11.5)),
           ])),
           const SizedBox(width: 8),
           ExcludeSemantics(child: SizedBox(width: 110, height: 166, child: FamilyJarView(fill: progress, size: 108, glow: .9))),

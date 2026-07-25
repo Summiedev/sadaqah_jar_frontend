@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../services/backend_api.dart';
+
 class ActStore extends ChangeNotifier {
   static const _key = 'mizan.local_acts';
   final List<Map<String, dynamic>> _acts = [];
@@ -18,7 +20,32 @@ class ActStore extends ChangeNotifier {
     return stamp != null && stamp.year == now.year && stamp.month == now.month && stamp.day == now.day;
   }).length;
 
-  double get progress => (0.58 + total * .02).clamp(0.0, 1.0);
+  int get totalStars => _jarCurrentStars ?? _acts.length;
+
+  int get remainingActs {
+    if (_jarCapacity == null || _jarCurrentStars == null) return 0;
+    return (_jarCapacity! - _jarCurrentStars!).clamp(0, _jarCapacity!);
+  }
+
+  double get progress {
+    if (_jarCurrentStars == null || _jarCapacity == null || _jarCapacity == 0) return 0.0;
+    return (_jarCurrentStars! / _jarCapacity!).clamp(0.0, 1.0);
+  }
+
+  int? _jarCurrentStars;
+  int? _jarCapacity;
+
+  Future<void> _refreshJarProgress() async {
+    try {
+      final jar = await BackendApi.instance.getJar();
+      _jarCurrentStars = jar.currentStars;
+      _jarCapacity = jar.capacity;
+    } catch (_) {
+      _jarCurrentStars = null;
+      _jarCapacity = null;
+    }
+    notifyListeners();
+  }
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -32,7 +59,7 @@ class ActStore extends ChangeNotifier {
       } catch (_) {}
     }
     _loaded = true;
-    notifyListeners();
+    _refreshJarProgress();
   }
 
   Future<void> add({required String type, String? note}) async {
@@ -44,6 +71,7 @@ class ActStore extends ChangeNotifier {
       await prefs.setString(_key, jsonEncode(_acts));
     }).catchError((_) {});
     await _writeQueue;
+    _refreshJarProgress();
   }
 }
 
