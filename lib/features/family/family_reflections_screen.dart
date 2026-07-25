@@ -74,10 +74,10 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
 
   void _loadMock() {
     _reflections.addAll([
-      _FReflection('Fatimah Ahmad', fOlive, 'Alhamdulillah for another week together.', '2h'),
-      _FReflection('Yusuf Ahmad', fBronze, 'May Allah accept our efforts this month.', '5h'),
-      _FReflection('Maryam Ahmad', fBronzeDark, 'Grateful we could help someone today.', 'Yesterday'),
-      _FReflection('Hafsa Ahmad', fOlive, 'Small things, done with love, are never small.', 'Yesterday'),
+      _FReflection('A family member', fOlive, 'Alhamdulillah for another week together.', '2h'),
+      _FReflection('A family member', fBronze, 'May Allah accept our efforts this month.', '5h'),
+      _FReflection('A family member', fBronzeDark, 'Grateful we could help someone today.', 'Yesterday'),
+      _FReflection('A family member', fOlive, 'Small things, done with love, are never small.', 'Yesterday'),
     ]);
   }
 

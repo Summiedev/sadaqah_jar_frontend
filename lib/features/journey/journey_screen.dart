@@ -104,7 +104,7 @@ class _JourneyScreenState extends State<JourneyScreen>
         ],
         body: TabBarView(
             controller: _tabsController,
-            children: [_ReflectionsTab(), _AdhkarTab(key: _adhkarTabKey), _ReadingTab(), _SavedTab(), _HistoryTab()],
+            children: [_ReflectionsTab(), _AdhkarTab(key: _adhkarTabKey), _ReadingTab(), _SavedTab(), _HistorialTab()],
           ),
       ),
     );
@@ -144,41 +144,95 @@ class _JourneySegments extends StatelessWidget {
       );
 }
 
-class _ReflectionsTab extends StatelessWidget {
+class _ReflectionsTab extends StatefulWidget {
   const _ReflectionsTab();
-  static final entries = [
-    _Reflection('Grateful', 'Service at home', 'I prepared breakfast quietly for my parents. May our home stay gentle and grateful.', 'There is a particular stillness in doing something good without being asked. I woke before the others and made breakfast - not grand, but mine.', DateTime(2026, 7, 17), true),
-    _Reflection('Quiet', 'A slower morning', 'I let the first hour be slow. No phone, just the window and the light.', 'The urge to check everything was strong. I let it pass. A small victory, but a real one.', DateTime(2026, 7, 16), false),
-    _Reflection('Hopeful', 'Beginning again', 'Consistency broke for a while. Today I begin again, gently.', 'I do not need a grand restart - only a small, honest one. Today, one line. Tomorrow, another.', DateTime(2026, 7, 10), false),
-  ];
+
   @override
-  Widget build(BuildContext context) => Stack(children: [
-        ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 100), children: [
-          _ReflectionSection('Today', [entries[0]]),
-          _ReflectionSection('This week', [entries[1]]),
-          _ReflectionSection('Earlier', [entries[2]]),
-        ]),
+  State<_ReflectionsTab> createState() => _ReflectionsTabState();
+}
+
+class _ReflectionsTabState extends State<_ReflectionsTab> {
+  List<JourneyReflection> _items = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+    try {
+      final page = await BackendApi.instance.getReflections();
+      if (!mounted) return;
+      setState(() {
+        _items = page.items;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Stack(children: [
+        const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842)))),
         Positioned(right: 20, bottom: 24, child: _ComposeButton(onTap: () => _composeReflection(context))),
       ]);
+    }
+    if (_items.isEmpty) {
+      return Stack(children: [
+        const Padding(padding: EdgeInsets.fromLTRB(20, 40, 20, 100), child: Center(child: Text('No reflections yet.Write your first one and see it appear here.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF756457), fontSize: 14)))),
+        Positioned(right: 20, bottom: 24, child: _ComposeButton(onTap: () => _composeReflection(context))),
+      ]);
+    }
+    final grouped = <String, List<JourneyReflection>>{};
+    for (final item in _items) {
+      final label = _labelFor(item.date);
+      grouped.putIfAbsent(label, () => []).add(item);
+    }
+    final order = grouped.keys.toList();
+    return Stack(children: [
+      ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 100), children: [
+        for (final day in order) _ReflectionSection(day, grouped[day]!),
+      ]),
+      Positioned(right: 20, bottom: 24, child: _ComposeButton(onTap: () => _composeReflection(context))),
+    ]);
+  }
+
+  String _labelFor(DateTime? date) {
+    if (date == null) return 'Earlier';
+    final now = DateTime.now();
+    final diff = DateTime(now.year, now.month, now.day).difference(DateTime(date.year, date.month, date.day)).inDays;
+    if (diff == 0) return 'Today';
+    if (diff == 1) return 'Yesterday';
+    if (diff < 7) return 'This week';
+    return 'Earlier';
+  }
 }
 
 class _Reflection {
-  const _Reflection(this.mood, this.title, this.preview, this.body, this.date, this.isPrivate);
-  final String mood, title, preview, body;
-  final DateTime date;
+  const _Reflection(this.mood, this.title, this.body, this.date, this.isPrivate);
+  final String mood, title, body;
+  final DateTime? date;
   final bool isPrivate;
 }
 
 class _ReflectionSection extends StatelessWidget {
   const _ReflectionSection(this.title, this.entries);
   final String title;
-  final List<_Reflection> entries;
+  final List<JourneyReflection> entries;
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.only(top: 6, bottom: 12), child: _SectionLabel(title)),
-        ...entries.map((entry) => Padding(padding: const EdgeInsets.only(bottom: 14), child: _ReflectionTile(entry: entry))),
+        ...entries.map((e) => Padding(padding: const EdgeInsets.only(bottom: 14), child: _ReflectionTile(entry: _Reflection(e.mood, e.title, e.body, e.date, e.isPrivate)))),
       ]);
-}
+  }
 
 class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
@@ -210,7 +264,7 @@ class _ReflectionTile extends StatelessWidget {
               ]),
               const SizedBox(height: 12),
               Text(entry.title, style: const TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8), Text(entry.preview, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, height: 1.5)),
+              const SizedBox(height: 8),               Text(entry.body, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, height: 1.5)),
             ]),
           ),
         ),
@@ -393,41 +447,76 @@ class _ReadingTile extends StatelessWidget {
       );
 }
 
-class _SavedTab extends StatelessWidget { const _SavedTab(); @override Widget build(BuildContext context) => ListView(padding: const EdgeInsets.fromLTRB(20, 16, 20, 32), children: const [_SavedGroup('Reflections', ['Service at home', 'A slower morning']), _SavedGroup('Adhkar', ['Morning remembrance', 'Subhan Allah']), _SavedGroup('Reading', ['On patience'])]); }
-class _SavedGroup extends StatelessWidget {
-  const _SavedGroup(this.title, this.items);
-  final String title;
-  final List<String> items;
+class _SavedTab extends StatelessWidget {
+  const _SavedTab();
+
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 6, bottom: 12),
-            child: _SectionLabel(title),
-          ),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: ListTile(
-                tileColor: _paper,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                title: Text(item, style: const TextStyle(color: _ink, fontWeight: FontWeight.w700)),
-                trailing: const Icon(Icons.chevron_right_rounded, color: _bronze),
-                onTap: () => _openReader(
-                  context,
-                  _ReaderData(item, 'Saved for a quieter moment. Return whenever it speaks to your heart.', title, 'Saved'),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-      );
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<JourneyAdhkarFavorite>>(
+      future: BackendApi.instance.getAdhkarFavorites(),
+      builder: (context, snapshot) {
+        final favorites = snapshot.data ?? const [];
+        if (favorites.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.fromLTRB(20, 40, 20, 32),
+            child: Center(child: Text('No saved items yet.Explore adhkar and reflections to build your collection.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF756457), fontSize: 14))),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+          physics: const BouncingScrollPhysics(),
+          itemCount: favorites.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final fav = favorites[index];
+            return ListTile(
+              tileColor: const Color(0xFFFFFBF6),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: Text('Adhkar #${fav.adhkarId}', style: const TextStyle(color: Color(0xFF30241E), fontWeight: FontWeight.w700)),
+              trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF8B6842)),
+              onTap: () {},
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
-class _HistoryTab extends StatelessWidget { const _HistoryTab(); @override Widget build(BuildContext context) => ListView(padding: const EdgeInsets.fromLTRB(24, 16, 24, 32), children: const [_HistoryLabel('Today'), _TimelineItem(Icons.edit_note_outlined, 'You wrote a reflection: "Service at home."'), _TimelineItem(Icons.auto_awesome_outlined, 'Completed Morning remembrance.'), _TimelineItem(Icons.mosque_outlined, 'Marked Dhuhr as prayed.'), _HistoryLabel('Yesterday'), _TimelineItem(Icons.bookmark_outline, 'Saved "On patience."'), _HistoryLabel('This week'), _TimelineItem(Icons.favorite_border, 'Reached a 7-day reflection streak.')]); }
-class _HistoryLabel extends StatelessWidget { const _HistoryLabel(this.text); final String text; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(top: 6, bottom: 10), child: Text(text.toUpperCase(), style: const TextStyle(color: _bronze, letterSpacing: 1.8, fontWeight: FontWeight.w700, fontSize: 11))); }
+class _HistorialTab extends StatelessWidget {
+  const _HistorialTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<JourneyReflectionPage>(
+      future: BackendApi.instance.getReflections(),
+      builder: (context, snapshot) {
+        final page = snapshot.data;
+        final items = page?.items ?? const [];
+        if (items.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.fromLTRB(24, 40, 24, 32),
+            child: Center(child: Text('No history yet.Your journey begins with the first step.', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF756457), fontSize: 14))),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          physics: const BouncingScrollPhysics(),
+          itemCount: items.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 14),
+          itemBuilder: (context, index) {
+            final refl = items[index];
+            return _TimelineItem(
+              Icons.edit_note_outlined,
+              '${refl.mood}: ${refl.title}',
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
 class _TimelineItem extends StatelessWidget { const _TimelineItem(this.icon, this.text); final IconData icon; final String text; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.only(bottom: 18), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 33, height: 33, decoration: BoxDecoration(color: _softBronze, borderRadius: BorderRadius.circular(10)), child: Icon(icon, size: 17, color: _bronze)), const SizedBox(width: 14), Expanded(child: Padding(padding: const EdgeInsets.only(top: 5), child: Text(text, style: const TextStyle(color: _muted, height: 1.5))) )])); }
 
 class _ReaderData { const _ReaderData(this.title, this.body, this.kicker, this.meta); final String title, body, kicker, meta; }
@@ -474,4 +563,4 @@ void _composeReflection(BuildContext context) => showModalBottomSheet<void>(
         ),
       ),
     );
-String _date(DateTime value) { const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return '${value.day} ${months[value.month - 1]} ${value.year}'; }
+String _date(DateTime? value) { if (value == null) return ''; const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return '${value.day} ${months[value.month - 1]} ${value.year}'; }

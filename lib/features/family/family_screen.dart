@@ -17,11 +17,26 @@ class FamilyScreen extends ConsumerStatefulWidget {
 
 class _FamilyScreenState extends ConsumerState<FamilyScreen> {
   late List<String> _pending;
+  List<Map<String, dynamic>> _families = const [];
 
   @override
   void initState() {
     super.initState();
     _pending = [...pendingRequests];
+    _loadFamilies();
+  }
+
+  Future<void> _loadFamilies() async {
+    try {
+      final families = await BackendApi.instance.getFamilies();
+      if (!mounted) return;
+      if (!mounted) return;
+      setState(() {
+        _families = families;
+      });
+    } catch (e) {
+      if (!mounted) return;
+    }
   }
 
   Future<void> _createFamily() async {
@@ -181,7 +196,6 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final jars = allFamilies();
     return Scaffold(
       backgroundColor: fIvory,
       body: SafeArea(
@@ -253,7 +267,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 ),
               ],
             ),
-            if (jars.isEmpty)
+            if (_families.isEmpty)
               SliverFillRemaining(child: _EmptyFamily(onJoin: _joinFamily, onCreate: _createFamily))
             else
               SliverPadding(
@@ -261,13 +275,13 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 sliver: SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      final jar = jars[index];
+                      final jar = _families[index];
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: _JarCard(jar: jar),
                       );
                     },
-                    childCount: jars.length,
+                    childCount: _families.length,
                   ),
                 ),
               ),
@@ -282,15 +296,21 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 class _JarCard extends StatelessWidget {
   const _JarCard({required this.jar});
 
-  final FamilyJar jar;
+  final Map<String, dynamic> jar;
 
   @override
   Widget build(BuildContext context) {
+    final name = jar['name']?.toString() ?? 'Family';
+    final memberCount = (jar['member_count'] as num?)?.toInt() ?? 0;
+    final progress = (jar['progress'] as num?)?.toDouble() ?? 0.0;
+    final daysRemaining = (jar['days_remaining'] as num?)?.toInt() ?? 0;
+    final goalLabel = jar['goal_label']?.toString() ?? '';
+    final inviteCode = jar['invite_code']?.toString() ?? '';
     return Semantics(
       button: true,
-      label: 'Open ${jar.name}, ${jar.memberCount} members, ${(jar.progress * 100).round()} percent complete',
+      label: 'Open $name, $memberCount members, ${(progress * 100).round()} percent complete',
       child: SoftCard(
-        onTap: () => context.push('/family/jar/${jar.id}'),
+        onTap: () => context.push('/family/jar/$inviteCode'),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -301,16 +321,16 @@ class _JarCard extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
-                  child: Center(child: Icon(jar.coverIcon, size: 28, color: fBronze)),
+                  child: const Center(child: Icon(Icons.favorite_border_rounded, size: 28, color: fBronze)),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(jar.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+                      Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
                       const SizedBox(height: 4),
-                      Text('${jar.memberCount} members · ${jar.lastActivity}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
+                      Text('$memberCount members · Loading...', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
                     ],
                   ),
                 ),
@@ -321,17 +341,17 @@ class _JarCard extends StatelessWidget {
               children: [
                 Expanded(
                   flex: 2,
-                  child: Text('${jar.goalLabel} · ${(jar.progress * 100).round()}%', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fBronzeDark)),
+                  child: Text('$goalLabel · ${(progress * 100).round()}%', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fBronzeDark)),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   flex: 1,
-                  child: Text('${jar.daysRemaining} days left', textAlign: TextAlign.end, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                  child: Text('$daysRemaining days left', textAlign: TextAlign.end, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
                 ),
               ],
             ),
             const SizedBox(height: 8),
-            ProgressTrack(value: jar.progress),
+            ProgressTrack(value: progress),
           ],
         ),
       ),

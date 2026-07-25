@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -190,78 +192,91 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _paper,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _line),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
+    return FutureBuilder<UserProfile>(
+      future: BackendApi.instance.getUserProfile(),
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        if (profile == null) {
+          return Container(
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFE8D5C0),
-              borderRadius: BorderRadius.circular(16),
+              color: _paper,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _line),
             ),
-            child: const Center(
-              child: Text(
-                'A',
-                style: TextStyle(
-                  color: Color(0xFF6D4C35),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 22,
-                  fontFamily: 'Georgia',
+            child: const Row(children: [
+              CircleAvatar(radius: 26, backgroundColor: Color(0xFFE8D5C0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842)))),
+              SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Loading...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _ink)),
+                SizedBox(height: 3),
+                Text('Loading...', style: TextStyle(fontSize: 13, color: _muted)),
+              ])),
+            ]),
+          );
+        }
+        final initial = profile.username.isNotEmpty ? profile.username[0].toUpperCase() : '?';
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _paper,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: _line),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 26,
+                backgroundColor: const Color(0xFFE8D5C0),
+                backgroundImage: profile.avatarData != null && profile.avatarData!.isNotEmpty ? MemoryImage(base64Decode(profile.avatarData!)) : null,
+                child: profile.avatarData == null || profile.avatarData!.isEmpty ? Text(initial, style: const TextStyle(color: Color(0xFF6D4C35), fontWeight: FontWeight.w800, fontSize: 22, fontFamily: 'Georgia')) : null,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      profile.username,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
+                        height: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      profile.email,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: _muted,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Amina',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                    height: 1.2,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: _oliveSoft,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  profile.emailVerified ? 'Verified' : 'Unverified',
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: _olive,
+                    height: 1.3,
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  'amina@mizan.app',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: _muted,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: _oliveSoft,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              'Active',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: _olive,
-                height: 1.3,
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

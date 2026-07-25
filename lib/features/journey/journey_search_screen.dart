@@ -22,7 +22,11 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
   @override
   void initState() {
     super.initState();
-    _focusNode.requestFocus();
+    JourneySearchIndex.build();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focusNode.requestFocus();
+    });
     _loadRecent();
   }
 
@@ -75,27 +79,27 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5EDE1),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFE8DCC8),
+        backgroundColor: const Color(0xFFF5EDE1),
         surfaceTintColor: Colors.transparent,
         elevation: 0,
-        leading: BackButton(color: const Color(0xFF30241E)),
+        leading: IconButton(
+          onPressed: () => Navigator.of(context).pop(),
+          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF30241E)),
+        ),
         titleSpacing: 0,
-        title: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: _SearchField(
-            controller: _controller,
-            focusNode: _focusNode,
-            onChanged: _onQueryChanged,
-            onClear: _clear,
-          ),
+        title: _SearchField(
+          controller: _controller,
+          focusNode: _focusNode,
+          onChanged: _onQueryChanged,
+          onClear: _clear,
         ),
       ),
       body: hasResults
           ? ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
               physics: const BouncingScrollPhysics(),
               itemCount: _results.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (context, index) {
                 final result = _results[index];
                 return _SearchResultTile(
@@ -135,7 +139,7 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
       children: [
         if (_recent.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: Row(children: [
               Text('Recent', style: TextStyle(color: const Color(0xFF92704B), fontSize: 13, fontWeight: FontWeight.w800)),
               const Spacer(),
@@ -148,10 +152,10 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
           ),
           Expanded(
             child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
               physics: const BouncingScrollPhysics(),
               itemCount: _recent.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final query = _recent[index];
                 return Material(
@@ -172,25 +176,27 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
             ),
           ),
         ] else
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(40, 40, 20, 20),
-              child: Column(children: [
-                Icon(Icons.search_rounded, size: 64, color: const Color(0xFFE4D5C3)),
-                const SizedBox(height: 20),
-                Text('Search Journey', style: TextStyle(color: const Color(0xFF30241E), fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
-                const SizedBox(height: 12),
-                Text('Search across adhkar, reflections, and readings by Arabic, translation, or transliteration.',
-                    textAlign: TextAlign.center, style: TextStyle(color: const Color(0xFF756457), fontSize: 14, height: 1.5)),
-                const SizedBox(height: 24),
-                Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
-                  _SuggestionChip(label: 'Ayat al-Kursi', onTap: () { _controller.text = 'Ayat al-Kursi'; _onQueryChanged('Ayat al-Kursi'); _saveRecent('Ayat al-Kursi'); }),
-                  _SuggestionChip(label: 'Morning', onTap: () { _controller.text = 'Morning'; _onQueryChanged('Morning'); _saveRecent('Morning'); }),
-                  _SuggestionChip(label: 'Protection', onTap: () { _controller.text = 'Protection'; _onQueryChanged('Protection'); _saveRecent('Protection'); }),
-                  _SuggestionChip(label: 'SubhanAllah', onTap: () { _controller.text = 'SubhanAllah'; _onQueryChanged('SubhanAllah'); _saveRecent('SubhanAllah'); }),
-                  _SuggestionChip(label: 'Travel', onTap: () { _controller.text = 'Travel'; _onQueryChanged('Travel'); _saveRecent('Travel'); }),
+          Expanded(
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(40, 40, 40, 20),
+                child: Column(children: [
+                  Icon(Icons.search_rounded, size: 64, color: const Color(0xFFE4D5C3)),
+                  const SizedBox(height: 20),
+                  Text('Search Journey', style: TextStyle(color: const Color(0xFF30241E), fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
+                  const SizedBox(height: 12),
+                  Text('Search across adhkar, reflections, and readings by Arabic, translation, or transliteration.',
+                      textAlign: TextAlign.center, style: TextStyle(color: const Color(0xFF756457), fontSize: 14, height: 1.5)),
+                  const SizedBox(height: 24),
+                  Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
+                    _SuggestionChip(label: 'Ayat al-Kursi', onTap: () { _controller.text = 'Ayat al-Kursi'; _onQueryChanged('Ayat al-Kursi'); _saveRecent('Ayat al-Kursi'); }),
+                    _SuggestionChip(label: 'Morning', onTap: () { _controller.text = 'Morning'; _onQueryChanged('Morning'); _saveRecent('Morning'); }),
+                    _SuggestionChip(label: 'Protection', onTap: () { _controller.text = 'Protection'; _onQueryChanged('Protection'); _saveRecent('Protection'); }),
+                    _SuggestionChip(label: 'SubhanAllah', onTap: () { _controller.text = 'SubhanAllah'; _onQueryChanged('SubhanAllah'); _saveRecent('SubhanAllah'); }),
+                    _SuggestionChip(label: 'Travel', onTap: () { _controller.text = 'Travel'; _onQueryChanged('Travel'); _saveRecent('Travel'); }),
+                  ]),
                 ]),
-              ]),
+              ),
             ),
           ),
       ],
@@ -207,15 +213,16 @@ class _SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
+    final hasText = controller.text.isNotEmpty;
+    return Container(
+      height: 44,
       decoration: BoxDecoration(
-        color: controller.text.isNotEmpty ? const Color(0xFFFFFBF6) : const Color(0xFFF0E3D4),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: controller.text.isNotEmpty ? const Color(0xFF8B6842) : Colors.transparent, width: 1.5),
+        color: hasText ? const Color(0xFFFFFBF6) : const Color(0xFFF0E3D4),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: hasText ? const Color(0xFF8B6842) : Colors.transparent, width: 1.5),
       ),
       child: Row(children: [
-        const Padding(padding: EdgeInsets.only(left: 16), child: Icon(Icons.search_rounded, color: Color(0xFF8B6842), size: 20)),
+        const Padding(padding: EdgeInsets.only(left: 14), child: Icon(Icons.search_rounded, color: Color(0xFF8B6842), size: 20)),
         Expanded(
           child: TextField(
             controller: controller,
@@ -226,12 +233,12 @@ class _SearchField extends StatelessWidget {
               hintText: 'Search adhkar, reflections...',
               hintStyle: const TextStyle(color: Color(0xFF8F7B6B), fontSize: 14),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
             style: const TextStyle(color: Color(0xFF30241E), fontSize: 15),
           ),
         ),
-        if (controller.text.isNotEmpty)
+        if (hasText)
           IconButton(onPressed: onClear, icon: const Icon(Icons.close_rounded, color: Color(0xFF8B6842), size: 18), tooltip: 'Clear', splashRadius: 18),
       ]),
     );
@@ -251,12 +258,12 @@ class _SearchResultTile extends StatelessWidget {
 
     return Material(
       color: const Color(0xFFFFFBF6),
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(16),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               Container(

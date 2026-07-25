@@ -180,7 +180,7 @@ class _PrayerPreview extends StatelessWidget {
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Container(width: 42, height: 42, decoration: BoxDecoration(color: fWhite, shape: BoxShape.circle, border: Border.all(color: fClay)), child: const Icon(Icons.favorite_border_rounded, color: fBronze)),
           const SizedBox(width: 13),
-          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Hold someone close in du’a', style: TextStyle(fontWeight: FontWeight.w800, color: fWalnut)), SizedBox(height: 4), Text('Yusuf asked the family to pray for his parents.', style: TextStyle(fontSize: 12.5, height: 1.35, color: fStone))])),
+          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Hold someone close in du’a', style: TextStyle(fontWeight: FontWeight.w800, color: fWalnut)), SizedBox(height: 4), Text('A family member asked the family to pray.', style: TextStyle(fontSize: 12.5, height: 1.35, color: fStone))])),
           const Icon(Icons.arrow_forward_rounded, color: fBronze),
         ]),
       );
@@ -191,7 +191,7 @@ class _Activity extends StatelessWidget {
   final FamilyJar jar;
   @override
   Widget build(BuildContext context) {
-    const events = [('Today', Icons.volunteer_activism_outlined, 'Omar added an act of charity.', fBronze), ('Today', Icons.menu_book_outlined, 'Hafsa shared a reflection.', fOlive), ('Yesterday', Icons.visibility_off_outlined, 'A private act was added to the jar.', fStoneLight), ('Yesterday', Icons.wb_sunny_outlined, 'Fatimah completed morning adhkar.', fBronze)];
+    const events = [('Today', Icons.volunteer_activism_outlined, 'A family member added an act of charity.', fBronze), ('Today', Icons.menu_book_outlined, 'A family member shared a reflection.', fOlive), ('Yesterday', Icons.visibility_off_outlined, 'A private act was added to the jar.', fStoneLight), ('Yesterday', Icons.wb_sunny_outlined, 'A family member completed morning adhkar.', fBronze)];
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
       children: [

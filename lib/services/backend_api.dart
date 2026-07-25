@@ -397,6 +397,31 @@ class BackendApi {
     return decoded;
   }
 
+  Future<Map<String, dynamic>> googleAuth({required String idToken}) async {
+    final response = await _post(
+      '/auth/google',
+      body: jsonEncode({
+        'id_token': idToken,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final accessToken = decoded['access_token']?.toString();
+    final refreshToken = decoded['refresh_token']?.toString();
+    if (accessToken != null && accessToken.isNotEmpty && refreshToken != null && refreshToken.isNotEmpty) {
+      await saveSessionTokens(accessToken: accessToken, refreshToken: refreshToken);
+    }
+    await saveAccountSnapshot(
+      userId: (decoded['user_id'] as num?)?.toInt(),
+      username: decoded['username']?.toString() ?? '',
+      email: decoded['email']?.toString() ?? '',
+    );
+    return decoded;
+  }
+
+  Future<void> resendVerificationEmail() async {
+    await _post('/auth/resend-verification', auth: true);
+  }
+
   Future<AccountSnapshot> updateAccount({String? username, String? email, String? avatarData}) async {
     final response = await _patch(
       '/auth/me',
@@ -1093,13 +1118,24 @@ class BackendApi {
     await _delete('/family/$familyId', auth: true);
   }
 
+  Future<List<Map<String, dynamic>>> getFamilies({int limit = 50, int offset = 0}) async {
+    final response = await _get('/family/', auth: true, query: {'limit': limit, 'offset': offset});
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return (data as List).map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> getFamilyDetail(int familyId) async {
+    final response = await _get('/family/$familyId', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<List<BookRead>> getBooks({int limit = 50, int offset = 0}) async {
     final response = await _get('/books/', auth: true, query: {'limit': limit, 'offset': offset});
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrapEnvelope(decoded, (data) {
-      final meta = _getEnvelopeMeta(decoded);
-      return data;
-    }) as List;
+    final data = _unwrapEnvelope(decoded, (data) => data) as List;
     return data.map((item) => BookRead.fromJson(Map<String, dynamic>.from(item as Map))).toList();
   }
 

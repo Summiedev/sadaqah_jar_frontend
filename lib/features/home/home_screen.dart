@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../family/family_theme.dart' show FamilyJarView;
 import '../../core/act_store.dart';
+import '../../services/backend_api.dart';
 import 'add_act_screen.dart';
 import '../../core/mode_provider.dart';
 
@@ -75,7 +76,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   surfaceTintColor: Colors.transparent,
                   elevation: 0,
                   title: const Text('Sanctuary'),
-                  actions: [const _NotifIcon(), const SizedBox(width: 10), _StreakPill(streak: 7 + acts.today), const SizedBox(width: 14)],
+                   actions: [const _NotifIcon(), const SizedBox(width: 10), const _StreakPill(), const SizedBox(width: 14)],
                 ),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
@@ -115,14 +116,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
 
 class _HomeHeader extends StatelessWidget {
   const _HomeHeader();
+
   @override
-  Widget build(BuildContext context) => Row(children: [
-        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Assalamu alaikum, Amina', style: TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 23, fontWeight: FontWeight.w700)),
-          SizedBox(height: 5),
-          Text('Small goodness, beautifully kept.', style: TextStyle(color: _muted, fontSize: 13)),
-        ])),
-      ]);
+  Widget build(BuildContext context) {
+    return FutureBuilder<UserProfile>(
+      future: BackendApi.instance.getUserProfile(),
+      builder: (context, snapshot) {
+        final name = snapshot.data?.username ?? '';
+        final display = name.isNotEmpty ? 'Assalamu alaikum, $name' : 'Assalamu alaikum';
+        return Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(display, style: const TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 23, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 5),
+            const Text('Small goodness, beautifully kept.', style: TextStyle(color: _muted, fontSize: 13)),
+          ])),
+        ]);
+      },
+    );
+  }
 }
 
 class _NotifIcon extends StatelessWidget {
@@ -136,31 +147,39 @@ class _NotifIcon extends StatelessWidget {
 }
 
 class _StreakPill extends StatelessWidget {
-  const _StreakPill({required this.streak});
-  final int streak;
+  const _StreakPill();
+
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF8EF),
-          borderRadius: BorderRadius.circular(99),
-          border: Border.all(color: _line),
-        ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFE0C0),
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: const [BoxShadow(color: Color(0x26FF8C00), blurRadius: 8, offset: Offset(0, 2))],
-            ),
-            child: const Icon(Icons.local_fire_department_rounded, color: Color(0xFFD4541A), size: 18),
+  Widget build(BuildContext context) {
+    return FutureBuilder<StreakInfo>(
+      future: BackendApi.instance.getStreak(),
+      builder: (context, snapshot) {
+        final streak = snapshot.data?.currentStreak ?? 0;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF8EF),
+            borderRadius: BorderRadius.circular(99),
+            border: Border.all(color: _line),
           ),
-          const SizedBox(width: 8),
-          Text('$streak', style: const TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 14)),
-        ]),
-      );
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFE0C0),
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: const [BoxShadow(color: Color(0x26FF8C00), blurRadius: 8, offset: Offset(0, 2))],
+              ),
+              child: const Icon(Icons.local_fire_department_rounded, color: Color(0xFFD4541A), size: 18),
+            ),
+            const SizedBox(width: 8),
+            Text('$streak', style: const TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 14)),
+          ]),
+        );
+      },
+    );
+  }
 }
 
 class _JarHero extends StatelessWidget {

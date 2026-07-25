@@ -81,9 +81,9 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
 
   void _loadMock() {
     _requests.addAll([
-      _PRequest('Fatimah Ahmad', fOlive, 'Please remember my exams in your du\'a.', '1h'),
-      _PRequest('Yusuf Ahmad', fBronze, 'Please pray for my dad. He is not feeling well, and I would really appreciate your du\'a.', '4h'),
-      _PRequest('Maryam Ahmad', fBronzeDark, 'Please remember our family this Friday.', 'Yesterday'),
+      _PRequest('A family member', fOlive, 'Please remember my exams in your du\'a.', '1h'),
+      _PRequest('A family member', fBronze, 'Please pray for my dad. He is not feeling well, and I would really appreciate your du\'a.', '4h'),
+      _PRequest('A family member', fBronzeDark, 'Please remember our family this Friday.', 'Yesterday'),
     ]);
   }
 

@@ -75,6 +75,22 @@ class _VerificationScreenState extends State<VerificationScreen> {
     }
   }
 
+  Future<void> _resendVerification() async {
+    setState(() { _state = VerificationState.pending; _message = 'Sending verification email...'; });
+    try {
+      await BackendApi.instance.resendVerificationEmail();
+      if (!mounted) return;
+      setState(() {
+        _message = 'Verification email sent. Check your inbox and tap the link.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _state = VerificationState.failed;
+        _message = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
+      });
+    }
+  }
   Future<void> _verifyFromToken() async {
     setState(() {
       _state = VerificationState.pending;
@@ -177,7 +193,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                     ),
                     const SizedBox(height: 10),
                     TextButton(
-                      onPressed: () => context.push('/forgot-password'),
+                      onPressed: _resendVerification,
                       style: TextButton.styleFrom(foregroundColor: const Color(0xFF8B6842)),
                       child: const Text('Request a new verification email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
@@ -188,13 +204,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   children: [
                     const SizedBox(height: 8),
                     TextButton(
-                      onPressed: () => context.push('/forgot-password'),
+                      onPressed: _resendVerification,
                       style: TextButton.styleFrom(foregroundColor: const Color(0xFF8B6842)),
-                      child: const Text('Request a new verification email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      child: const Text('Resend verification email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(height: 6),
                     const Text(
-                      'Resend verification email is not available yet.',
+                      'Didn\'t receive the email? Check your spam folder.',
                       style: TextStyle(color: Color(0xFF8A6A44), fontSize: 12),
                       textAlign: TextAlign.center,
                     ),

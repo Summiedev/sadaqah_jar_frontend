@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../main.dart' show sessionProvider;
 import '../../services/backend_api.dart';
@@ -15,6 +16,7 @@ class AuthScreen extends ConsumerStatefulWidget {
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _register = true;
+  bool _loading = false;
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +97,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ],
               ),
               const SizedBox(height: 12),
-              _GoogleButton(onTap: _continueLocally),
+              _GoogleButton(onTap: _continueWithGoogle, isLoading: _loading),
               const SizedBox(height: 10),
               const Text(
                 'Data is stored locally and privately on this device.',
@@ -116,11 +118,29 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     context.go(isAdmin ? '/admin' : '/home');
   }
 
-  Future<void> _continueLocally() async {
-    ref.read(sessionProvider).markAuthenticated();
-    final isAdmin = await BackendApi.instance.isCurrentUserAdmin();
-    if (!mounted) return;
-    context.go(isAdmin ? '/admin' : '/home');
+  Future<void> _continueWithGoogle() async {
+    setState(() => _loading = true);
+    try {
+      final googleSignIn = GoogleSignIn(
+        clientId: const String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: ''),
+      );
+      final account = await googleSignIn.signIn();
+      if (account == null) {
+        setState(() => _loading = false);
+        return;
+      }
+      final idToken = await account.authentication.then((a) => a.idToken);
+      if (idToken == null) throw Exception('Failed to obtain Google ID token');
+
+      await BackendApi.instance.googleAuth(idToken: idToken);
+      if (!mounted) return;
+      await _onAuthSuccess();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {});
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 }
 
@@ -167,6 +187,7 @@ class _RegisterFormState extends State<_RegisterForm> {
   bool _loading = false;
   String? _errorMessage;
   bool _biometricEnabled = false;
+  bool _passwordVisible = false;
 
   @override
   void dispose() {
@@ -266,7 +287,8 @@ class _RegisterFormState extends State<_RegisterForm> {
           label: 'Password',
           hint: 'At least 8 characters',
           controller: _passwordController,
-          obscureText: true,
+          obscureText: !_passwordVisible,
+          onToggleVisibility: () => setState(() => _passwordVisible = !_passwordVisible),
           textInputAction: TextInputAction.next,
         ),
         const SizedBox(height: 12),
@@ -357,6 +379,7 @@ class _SigninFormState extends State<_SigninForm> {
   final _passwordController = TextEditingController();
   bool _loading = false;
   String? _errorMessage;
+  bool _passwordVisible = false;
 
   @override
   void dispose() {
@@ -425,7 +448,8 @@ class _SigninFormState extends State<_SigninForm> {
           label: 'Password',
           hint: '••••••••',
           controller: _passwordController,
-          obscureText: true,
+          obscureText: !_passwordVisible,
+          onToggleVisibility: () => setState(() => _passwordVisible = !_passwordVisible),
           textInputAction: TextInputAction.done,
         ),
         const SizedBox(height: 6),
@@ -488,6 +512,7 @@ class _Field extends StatelessWidget {
     this.keyboardType,
     this.obscureText = false,
     this.textInputAction,
+    this.onToggleVisibility,
   });
 
   final String label;
@@ -496,9 +521,11 @@ class _Field extends StatelessWidget {
   final TextInputType? keyboardType;
   final bool obscureText;
   final TextInputAction? textInputAction;
+  final VoidCallback? onToggleVisibility;
 
   @override
   Widget build(BuildContext context) {
+    final showToggle = onToggleVisibility != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -514,10 +541,17 @@ class _Field extends StatelessWidget {
             hintStyle: const TextStyle(fontSize: 12, color: Color(0xFFA69480)),
             filled: true,
             fillColor: const Color(0xFFF3E9DE),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: EdgeInsets.symmetric(horizontal: showToggle ? 14 : 14, vertical: 14),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2D0BE))),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2D0BE))),
             focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFB38964))),
+            suffixIcon: showToggle
+                ? IconButton(
+                    onPressed: onToggleVisibility,
+                    icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: const Color(0xFF8B6842)),
+                    tooltip: obscureText ? 'Show password' : 'Hide password',
+                  )
+                : null,
           ),
         ),
       ],
@@ -526,14 +560,15 @@ class _Field extends StatelessWidget {
 }
 
 class _GoogleButton extends StatelessWidget {
-  const _GoogleButton({required this.onTap});
+  const _GoogleButton({required this.onTap, this.isLoading = false});
 
   final VoidCallback onTap;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     return OutlinedButton(
-      onPressed: onTap,
+      onPressed: isLoading ? null : onTap,
       style: OutlinedButton.styleFrom(
         foregroundColor: const Color(0xFF2F241E),
         side: const BorderSide(color: Color(0xFFE3D3C3)),
@@ -547,7 +582,9 @@ class _GoogleButton extends StatelessWidget {
         children: [
           const _GoogleFavicon(),
           const SizedBox(width: 10),
-          const Text('Continue with Google'),
+          isLoading
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842)))
+              : const Text('Continue with Google'),
         ],
       ),
     );
