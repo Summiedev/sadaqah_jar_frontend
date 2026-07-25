@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../services/backend_api.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
@@ -16,14 +19,17 @@ class InvitationsScreen extends StatefulWidget {
 class _InvitationsScreenState extends State<InvitationsScreen> with SingleTickerProviderStateMixin {
   late final TabController _tab;
   final List<String> _pending = [...pendingRequests];
-  String _inviteCode = 'MIZAN-AHMAD-7Q2';
+  FamilyJar? _selectedJar;
+  String? _createdRoomName;
+  String? _createdInviteCode;
+  bool _creatingRoom = false;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
     final jar = widget.id != null ? getFamilyById(widget.id!) : null;
-    if (jar != null) _inviteCode = jar.inviteCode;
+    if (jar != null) _selectedJar = jar;
   }
 
   @override
@@ -64,7 +70,14 @@ class _InvitationsScreenState extends State<InvitationsScreen> with SingleTicker
               child: TabBarView(
                 controller: _tab,
                 children: [
-                  _InvitePanel(code: _inviteCode),
+                  _InvitePanel(
+                    selectedJar: _selectedJar,
+                    createdRoomName: _createdRoomName,
+                    createdInviteCode: _createdInviteCode,
+                    creatingRoom: _creatingRoom,
+                    onSelectJar: (jar) => setState(() => _selectedJar = jar),
+                    onCreateRoom: _createRoom,
+                  ),
                   _PendingPanel(pending: _pending, onRemove: (i) => setState(() => _pending.removeAt(i))),
                 ],
               ),
@@ -74,23 +87,122 @@ class _InvitationsScreenState extends State<InvitationsScreen> with SingleTicker
       ),
     );
   }
+
+  Future<void> _createRoom() async {
+    final nameController = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: fIvory,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Create a room', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Start the room first. Then you can share its invite code and QR.', style: TextStyle(color: fStone, fontSize: 13)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: 'Room name',
+                hintText: 'e.g. The Ahmad Family',
+                filled: true,
+                fillColor: fPaper,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: fClay)),
+              ),
+              onSubmitted: (_) {
+                final value = nameController.text.trim();
+                if (value.isNotEmpty) Navigator.pop(ctx, value);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: fStone))),
+          FilledButton(
+            onPressed: () {
+              final value = nameController.text.trim();
+              if (value.isEmpty) return;
+              Navigator.pop(ctx, value);
+            },
+            style: FilledButton.styleFrom(backgroundColor: fBronze),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+
+    if (name == null || !mounted) return;
+    setState(() => _creatingRoom = true);
+    try {
+      final response = await BackendApi.instance.createFamilyJar(name: name);
+      if (!mounted) return;
+      final inviteCode = response['invite_code'] as String? ?? '';
+      setState(() {
+        _createdRoomName = name;
+        _createdInviteCode = inviteCode.isEmpty ? _fallbackInviteCode(name) : inviteCode;
+        _selectedJar = null;
+        _creatingRoom = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _createdRoomName = name;
+        _createdInviteCode = _fallbackInviteCode(name);
+        _selectedJar = null;
+        _creatingRoom = false;
+      });
+    }
+  }
+
+  String _fallbackInviteCode(String name) {
+    final slug = name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]+'), '-').replaceAll(RegExp(r'^-|-$'), '');
+    final suffix = DateTime.now().millisecondsSinceEpoch.remainder(1000).toString().padLeft(3, '0');
+    return 'MIZAN-${slug.isEmpty ? 'ROOM' : slug}-$suffix';
+  }
 }
 
 class _InvitePanel extends StatelessWidget {
-  const _InvitePanel({required this.code});
+  const _InvitePanel({
+    required this.selectedJar,
+    required this.createdRoomName,
+    required this.createdInviteCode,
+    required this.creatingRoom,
+    required this.onSelectJar,
+    required this.onCreateRoom,
+  });
 
-  final String code;
+  final FamilyJar? selectedJar;
+  final String? createdRoomName;
+  final String? createdInviteCode;
+  final bool creatingRoom;
+  final ValueChanged<FamilyJar> onSelectJar;
+  final VoidCallback onCreateRoom;
 
   @override
   Widget build(BuildContext context) {
+    final roomName = createdRoomName ?? selectedJar?.name;
+    final code = createdInviteCode ?? selectedJar?.inviteCode;
+    if (code == null || roomName == null) {
+      return _InviteSetupPanel(
+        creatingRoom: creatingRoom,
+        onSelectJar: onSelectJar,
+        onCreateRoom: onCreateRoom,
+      );
+    }
     final link = 'https://mizan.app/join?code=$code';
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
+        _RoomSummary(name: roomName, onCreateRoom: onCreateRoom),
+        const SizedBox(height: 12),
         SoftCard(
           child: Column(
             children: [
-              const Text('Scan to join', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+              const Text('Scan to join this room', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
               const SizedBox(height: 4),
               const Text('A quiet doorway into the family jar.', style: TextStyle(fontSize: 11.5, color: fStone)),
               const SizedBox(height: 16),
@@ -108,7 +220,7 @@ class _InvitePanel extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(child: Text(code, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 1, color: fWalnut))),
-                    IconButton(visualDensity: VisualDensity.compact, onPressed: () {}, icon: const Icon(Icons.copy_outlined, size: 16, color: fBronze)),
+                    IconButton(visualDensity: VisualDensity.compact, tooltip: 'Copy invite code', onPressed: () => _copy(context, code), icon: const Icon(Icons.copy_outlined, size: 16, color: fBronze)),
                   ],
                 ),
               ),
@@ -118,12 +230,152 @@ class _InvitePanel extends StatelessWidget {
         const SizedBox(height: 12),
         const SectionLabel('Share another way'),
         const SizedBox(height: 10),
-        _InviteOption(icon: Icons.link_outlined, label: 'Copy invite link', subtitle: link, onTap: () {}),
+        _InviteOption(icon: Icons.link_outlined, label: 'Copy invite link', subtitle: link, onTap: () => _copy(context, link)),
         const SizedBox(height: 10),
-        _InviteOption(icon: Icons.chat_outlined, label: 'WhatsApp', subtitle: 'Send a gentle message', onTap: () {}),
+        _InviteOption(icon: Icons.chat_outlined, label: 'WhatsApp', subtitle: 'Send a gentle message', onTap: () => _launch(context, Uri.parse('https://wa.me/?text=${Uri.encodeComponent('Join my family jar on Mizan: $link')}'))),
         const SizedBox(height: 10),
-        _InviteOption(icon: Icons.mail_outline, label: 'Email', subtitle: 'Invite by email', onTap: () {}),
+        _InviteOption(icon: Icons.mail_outline, label: 'Email', subtitle: 'Invite by email', onTap: () => _launch(context, Uri(scheme: 'mailto', queryParameters: {'subject': 'Join my family jar on Mizan', 'body': 'Join my family jar on Mizan: $link'}))),
       ],
+    );
+  }
+}
+
+Future<void> _copy(BuildContext context, String text) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied to clipboard'), behavior: SnackBarBehavior.floating));
+}
+
+Future<void> _launch(BuildContext context, Uri uri) async {
+  if (!await launchUrl(uri, mode: LaunchMode.externalApplication) && context.mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No app is available to share this invitation.'), behavior: SnackBarBehavior.floating));
+  }
+}
+
+class _InviteSetupPanel extends StatelessWidget {
+  const _InviteSetupPanel({required this.creatingRoom, required this.onSelectJar, required this.onCreateRoom});
+
+  final bool creatingRoom;
+  final ValueChanged<FamilyJar> onSelectJar;
+  final VoidCallback onCreateRoom;
+
+  @override
+  Widget build(BuildContext context) {
+    final jars = allFamilies();
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+      children: [
+        SoftCard(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(color: fBronze.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+                child: const Icon(Icons.meeting_room_outlined, color: fBronze),
+              ),
+              const SizedBox(height: 14),
+              const Text('Create or choose a room first', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+              const SizedBox(height: 8),
+              const Text('Invite links and QR codes belong to one room, so pick the room before sharing.', style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+              const SizedBox(height: 16),
+              MizanButton(
+                label: creatingRoom ? 'Creating...' : 'Create room',
+                onTap: creatingRoom ? () {} : onCreateRoom,
+              ),
+            ],
+          ),
+        ),
+        if (jars.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const SectionLabel('Or choose an existing room'),
+          const SizedBox(height: 10),
+          for (final jar in jars) ...[
+            _RoomOption(jar: jar, onTap: () => onSelectJar(jar)),
+            const SizedBox(height: 10),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _RoomSummary extends StatelessWidget {
+  const _RoomSummary({required this.name, required this.onCreateRoom});
+
+  final String name;
+  final VoidCallback onCreateRoom;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: fClayPale,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: fClay)),
+        child: Row(
+          children: [
+            const Icon(Icons.meeting_room_outlined, color: fBronze, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
+            ),
+            TextButton.icon(
+              onPressed: onCreateRoom,
+              icon: const Icon(Icons.add_rounded, size: 16),
+              label: const Text('New'),
+              style: TextButton.styleFrom(foregroundColor: fBronze, visualDensity: VisualDensity.compact),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoomOption extends StatelessWidget {
+  const _RoomOption({required this.jar, required this.onTap});
+
+  final FamilyJar jar;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: fPaper,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: fClay)),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(14)),
+                child: Icon(jar.coverIcon, color: fBronze, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(jar.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
+                    const SizedBox(height: 2),
+                    Text('${jar.memberCount} members', style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: fBronze, size: 20),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

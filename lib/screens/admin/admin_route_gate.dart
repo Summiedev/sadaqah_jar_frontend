@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/backend_api.dart';
 import 'admin_analytics_screen.dart';
+import 'admin_books_screen.dart';
 import 'admin_charities_screen.dart';
 import 'admin_evidence_screen.dart';
 import 'admin_home_screen.dart';
@@ -41,6 +42,8 @@ class _AdminRouteGateState extends State<AdminRouteGate> {
             return const AdminEvidenceScreen();
           case '/admin/analytics':
             return const AdminAnalyticsScreen();
+          case '/admin/books':
+            return const AdminBooksScreen();
           case '/admin':
           default:
             return const AdminHomeScreen();

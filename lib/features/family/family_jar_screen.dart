@@ -1,14 +1,13 @@
-﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../home/add_act_screen.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 import 'member_profile_sheet.dart';
 
 class FamilyJarScreen extends StatefulWidget {
   const FamilyJarScreen({required this.id, super.key});
-
   final String id;
 
   @override
@@ -16,1050 +15,249 @@ class FamilyJarScreen extends StatefulWidget {
 }
 
 class _FamilyJarScreenState extends State<FamilyJarScreen> {
-  late final Future<void> _load = Future<void>.delayed(const Duration(milliseconds: 450));
-  FamilyJar? _jar;
-
-  @override
-  void initState() {
-    super.initState();
-    _jar = getFamilyById(widget.id);
-  }
-
   @override
   Widget build(BuildContext context) {
-    if (_jar == null) {
+    final jar = getFamilyById(widget.id);
+    if (jar == null) {
       return const Scaffold(backgroundColor: fIvory, body: Center(child: Text('Family not found', style: TextStyle(color: fStone))));
     }
-    final jar = _jar!;
-    return FutureBuilder<void>(
-      future: _load,
-      builder: (context, snap) {
-        if (snap.connectionState != ConnectionState.done) {
-          return const Scaffold(backgroundColor: fIvory, body: Center(child: SizedBox(width: 150, height: 180, child: DecoratedBox(decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.all(Radius.circular(40)))))));
-        }
-        return DefaultTabController(
-          length: 5,
-          child: Scaffold(
-            backgroundColor: fIvory,
-            body: NestedScrollView(
-              physics: const BouncingScrollPhysics(),
-              headerSliverBuilder: (context, innerBoxIsScrolled) => [
-                SliverAppBar(
-                  pinned: true,
-                  elevation: 0,
-                  backgroundColor: fIvory,
-                  foregroundColor: fWalnutLight,
-                  centerTitle: true,
-                  title: Text(jar.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-                  leading: _ShellButton(
-                    icon: Icons.arrow_back_ios_new,
-                    onTap: () => context.pop(),
-                  ),
-                  actions: [
-                    _ShellButton(
-                      icon: Icons.notifications_none_outlined,
-                      onTap: () {},
-                      badge: true,
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                  expandedHeight: 188,
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: _Banner(jar: jar),
-                  ),
-                  bottom: PreferredSize(
-                    preferredSize: const Size.fromHeight(58),
-                    child: Container(
-                      margin: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: fClayPale,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: fClay),
-                      ),
-                      child: TabBar(
-                        dividerColor: Colors.transparent,
-                        indicatorSize: TabBarIndicatorSize.tab,
-                        indicator: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 3))],
-                        ),
-                        labelColor: fWalnut,
-                        unselectedLabelColor: fStoneLight,
-                        labelStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
-                        unselectedLabelStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
-                        tabs: const [
-                          Tab(text: 'Overview'),
-                          Tab(text: 'Activity'),
-                          Tab(text: 'Reflections'),
-                          Tab(text: 'Du\u2019a'),
-                          Tab(text: 'Goals'),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              body: TabBarView(
-                children: [
-                  _OverviewTab(jar: jar),
-                  _ActivityTab(jar: jar),
-                  _ReflectionsTab(jar: jar),
-                  _PrayersTab(jar: jar),
-                  _GoalsTab(jar: jar),
-                ],
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: fIvory,
+        body: SafeArea(
+          child: Column(children: [
+            _JarAppBar(jar: jar),
+            Container(
+              margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+              decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(16), border: Border.all(color: fClay)),
+              child: const TabBar(
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(color: fWhite, borderRadius: BorderRadius.all(Radius.circular(12))),
+                labelColor: fWalnut,
+                unselectedLabelColor: fStoneLight,
+                labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                tabs: [Tab(text: 'Home'), Tab(text: 'Activity'), Tab(text: 'Together')],
               ),
             ),
-          ),
-        );
-      },
+            Expanded(child: TabBarView(children: [_JarHome(jar: jar), _Activity(jar: jar), _Together(jar: jar)])),
+          ]),
+        ),
+      ),
     );
   }
 }
 
-// HEADER BANNER
-class _Banner extends StatelessWidget {
-  const _Banner({required this.jar});
-
+class _JarAppBar extends StatelessWidget {
+  const _JarAppBar({required this.jar});
   final FamilyJar jar;
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [fClayPale, fIvory],
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: Row(children: [
+          IconButton(onPressed: () => context.pop(), tooltip: 'Back', icon: const Icon(Icons.arrow_back_ios_new_rounded, color: fWalnut, size: 19)),
+          Expanded(child: Text(jar.name, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Georgia', fontSize: 18, fontWeight: FontWeight.w700, color: fWalnut))),
+          PopupMenuButton<String>(
+            tooltip: 'Family options',
+            icon: const Icon(Icons.more_horiz_rounded, color: fWalnut),
+            onSelected: (value) {
+              if (value == 'settings') context.push('/family/settings/${jar.id}');
+              if (value == 'invite') context.push('/family/invitations/${jar.id}');
+            },
+            itemBuilder: (_) => const [PopupMenuItem(value: 'invite', child: Text('Invite family')), PopupMenuItem(value: 'settings', child: Text('Jar settings'))],
+          ),
+        ]),
+      );
+}
+
+class _JarHome extends StatelessWidget {
+  const _JarHome({required this.jar});
+  final FamilyJar jar;
+  @override
+  Widget build(BuildContext context) => ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         children: [
-          const SizedBox(height: 56),
-          Container(
-            width: 76,
-            height: 76,
-            decoration: BoxDecoration(
-              color: fWhite,
-              shape: BoxShape.circle,
-              border: Border.all(color: fClay, width: 1.5),
-              boxShadow: const [BoxShadow(color: fShadow, blurRadius: 14, offset: Offset(0, 6))],
-            ),
-            child: Center(child: Text(jar.coverEmoji, style: const TextStyle(fontSize: 38))),
-          ),
+          _GoalHero(jar: jar),
+          const SizedBox(height: 18),
+          MizanButton(label: 'Add to our jar', onTap: () => _openContributionSheet(context)),
+          const SizedBox(height: 10),
+          Center(child: Text('Share an act with the family, or let it count privately.', style: const TextStyle(fontSize: 11.5, color: fStoneLight))),
+          const SizedBox(height: 30),
+          const _SectionTitle(title: 'Today, together'),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.groups_outlined, size: 13, color: fStoneLight),
-              const SizedBox(width: 5),
-              Text('${jar.memberCount} members', style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
-              const SizedBox(width: 12),
-              Container(width: 3, height: 3, decoration: const BoxDecoration(color: fStonePale, shape: BoxShape.circle)),
-              const SizedBox(width: 12),
-              Text(jar.goalLabel, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
-            ],
-          ),
+          _TodayCard(jar: jar),
+          const SizedBox(height: 28),
+          const _SectionTitle(title: 'Next milestone'),
+          const SizedBox(height: 12),
+          _MilestoneCard(goal: jar.goals.first, jarId: jar.id),
+          const SizedBox(height: 28),
+          const _SectionTitle(title: 'A little care'),
+          const SizedBox(height: 12),
+          _PrayerPreview(jar: jar),
         ],
-      ),
-    );
-  }
+      );
 }
 
-class _ShellButton extends StatelessWidget {
-  const _ShellButton({required this.icon, required this.onTap, this.badge = false});
-
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool badge;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 6, top: 8),
-      child: Material(
-        color: fWhite,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: onTap,
-          child: Stack(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(14), border: Border.all(color: fClay)),
-                child: Icon(icon, size: 16, color: fWalnutLight),
-              ),
-              if (badge)
-                Positioned(
-                  top: 9,
-                  right: 9,
-                  child: Container(width: 8, height: 8, decoration: const BoxDecoration(color: fOlive, shape: BoxShape.circle, border: Border.fromBorderSide(BorderSide(color: fWhite, width: 1.5)))),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// TAB 1 â€” OVERVIEW
-class _OverviewTab extends StatelessWidget {
-  const _OverviewTab({required this.jar});
-
+class _GoalHero extends StatelessWidget {
+  const _GoalHero({required this.jar});
   final FamilyJar jar;
-
   @override
   Widget build(BuildContext context) {
+    final percentage = (jar.progress * 100).round();
+    final remaining = jar.goals.isEmpty ? 0 : jar.goals.first.actsTarget - jar.goals.first.actsDone;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
+      decoration: BoxDecoration(color: fWalnut, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x1A2F241E), blurRadius: 22, offset: Offset(0, 10))]),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(jar.goalLabel.toUpperCase(), style: const TextStyle(color: Color(0xFFE7C99E), fontSize: 10.5, letterSpacing: 1.45, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 10),
+          Text('$percentage% of our intention', style: const TextStyle(fontFamily: 'Georgia', color: fWhite, fontSize: 25, height: 1.15, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 9),
+          Text('$remaining more gentle acts to reach this month’s goal.', style: const TextStyle(color: Color(0xFFE1D4C7), fontSize: 12.5, height: 1.35)),
+          const SizedBox(height: 18),
+          ProgressTrack(value: jar.progress, height: 8, color: const Color(0xFFE5B877)),
+          const SizedBox(height: 8),
+          Text('${jar.daysRemaining} days remaining', style: const TextStyle(color: Color(0xFFD5C5B6), fontSize: 12)),
+        ])),
+        const SizedBox(width: 4),
+        ExcludeSemantics(child: SizedBox(width: 105, height: 145, child: FamilyJarView(fill: jar.progress, size: 102, glow: .7))),
+      ]),
+    );
+  }
+}
+
+class _TodayCard extends StatelessWidget {
+  const _TodayCard({required this.jar});
+  final FamilyJar jar;
+  @override
+  Widget build(BuildContext context) {
+    final members = jar.members.where((member) => member.contributedToday).take(4).toList();
+    final double avatarWidth = members.isEmpty ? 0.0 : 42 + (members.length - 1) * 28;
+    return SoftCard(
+      padding: const EdgeInsets.all(17),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          if (members.isNotEmpty) SizedBox(height: 42, width: avatarWidth, child: Stack(children: [for (var i = 0; i < members.length; i++) Positioned(left: i * 28.toDouble(), child: MizanAvatar(name: members[i].name, accent: members[i].accent, size: 42, contributed: true))])),
+          const SizedBox(width: 12),
+          Expanded(child: Text('${members.length} family members have added goodness today.', style: const TextStyle(fontSize: 13, height: 1.35, color: fWalnut, fontWeight: FontWeight.w700))),
+        ]),
+        const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Divider(height: 1, color: fClayLight)),
+        Row(children: [const Icon(Icons.auto_awesome_outlined, size: 17, color: fBronze), const SizedBox(width: 9), Expanded(child: Text(jar.lastActivity, style: const TextStyle(color: fStone, fontSize: 12.5))), const Icon(Icons.arrow_forward_rounded, size: 17, color: fBronze)]),
+      ]),
+    );
+  }
+}
+
+class _MilestoneCard extends StatelessWidget {
+  const _MilestoneCard({required this.goal, required this.jarId});
+  final FamilyGoal goal;
+  final String jarId;
+  @override
+  Widget build(BuildContext context) => SoftCard(
+        onTap: () => context.push('/family/goals/$jarId'),
+        padding: const EdgeInsets.all(17),
+        child: Row(children: [
+          Container(width: 44, height: 44, decoration: BoxDecoration(color: goal.accent.withValues(alpha: .13), borderRadius: BorderRadius.circular(14)), child: Icon(Icons.flag_outlined, color: goal.accent)),
+          const SizedBox(width: 13),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(goal.title, style: const TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700, color: fWalnut, fontSize: 16)), const SizedBox(height: 4), Text('${goal.actsDone} of ${goal.actsTarget} acts • ${(goal.progress * 100).round()}% complete', style: const TextStyle(fontSize: 12, color: fStone))])),
+          const Icon(Icons.arrow_forward_rounded, color: fBronze),
+        ]),
+      );
+}
+
+class _PrayerPreview extends StatelessWidget {
+  const _PrayerPreview({required this.jar});
+  final FamilyJar jar;
+  @override
+  Widget build(BuildContext context) => SoftCard(
+        color: fClayPale,
+        borderColor: fClay,
+        onTap: () => context.push('/family/prayers/${jar.id}'),
+        padding: const EdgeInsets.all(17),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Container(width: 42, height: 42, decoration: BoxDecoration(color: fWhite, shape: BoxShape.circle, border: Border.all(color: fClay)), child: const Icon(Icons.favorite_border_rounded, color: fBronze)),
+          const SizedBox(width: 13),
+          const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Hold someone close in du’a', style: TextStyle(fontWeight: FontWeight.w800, color: fWalnut)), SizedBox(height: 4), Text('Yusuf asked the family to pray for his parents.', style: TextStyle(fontSize: 12.5, height: 1.35, color: fStone))])),
+          const Icon(Icons.arrow_forward_rounded, color: fBronze),
+        ]),
+      );
+}
+
+class _Activity extends StatelessWidget {
+  const _Activity({required this.jar});
+  final FamilyJar jar;
+  @override
+  Widget build(BuildContext context) {
+    const events = [('Today', Icons.volunteer_activism_outlined, 'Omar added an act of charity.', fBronze), ('Today', Icons.menu_book_outlined, 'Hafsa shared a reflection.', fOlive), ('Yesterday', Icons.visibility_off_outlined, 'A private act was added to the jar.', fStoneLight), ('Yesterday', Icons.wb_sunny_outlined, 'Fatimah completed morning adhkar.', fBronze)];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
       children: [
-        _JarCluster(jar: jar),
-        const SizedBox(height: 10),
-        _StatsRow(jar: jar),
-        const SizedBox(height: 22),
-        const SectionLabel('Members'),
-        const SizedBox(height: 12),
-        _MembersRow(jar: jar),
-        const SizedBox(height: 24),
-        MizanButton(label: 'Invite family', onTap: () => context.push('/family/invitations')),
-        const SizedBox(height: 10),
-        MizanOutlineButton(label: 'Manage jar', onTap: () => context.push('/family/settings/${jar.id}')),
+        const Text('Family activity', style: TextStyle(fontFamily: 'Georgia', fontSize: 23, color: fWalnut, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 5),
+        const Text('Small moments that are growing your shared intention.', style: TextStyle(color: fStone, fontSize: 12.5)),
+        const SizedBox(height: 20),
+        SoftCard(padding: const EdgeInsets.symmetric(vertical: 4), child: Column(children: [for (var i = 0; i < events.length; i++) _ActivityRow(day: events[i].$1, icon: events[i].$2, text: events[i].$3, color: events[i].$4, divider: i != events.length - 1)])),
       ],
     );
   }
 }
 
-// JAR CLUSTER
-class _JarCluster extends StatelessWidget {
-  const _JarCluster({required this.jar});
-
-  final FamilyJar jar;
-
-  @override
-  Widget build(BuildContext context) {
-    final maxAround = math.min(jar.members.length, 8);
-    final overflow = jar.members.length - maxAround;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final side = math.min(constraints.maxWidth, 320).toDouble();
-        final avatar = 48.0;
-        final radius = side / 2 - avatar / 2 - 12;
-        final cx = side / 2;
-        final cy = side / 2;
-        final jarSize = side * 0.56;
-
-        final avatars = <Widget>[];
-        for (int i = 0; i < maxAround; i++) {
-          final m = jar.members[i];
-          final angle = -math.pi / 2 + i * (2 * math.pi / maxAround);
-          final x = cx + radius * math.cos(angle) - avatar / 2;
-          final y = cy + radius * math.sin(angle) - avatar / 2;
-          avatars.add(
-            Positioned(
-              left: x,
-              top: y,
-              child: _AvatarButton(member: m, size: avatar),
-            ),
-          );
-        }
-
-        return SizedBox(
-          height: side + 40,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned(child: _GlowDrop(jarSize: jarSize, fill: jar.progress)),
-              ...avatars,
-              if (overflow > 0)
-                Positioned(
-                  right: 8,
-                  bottom: 8,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(color: fWhite, borderRadius: BorderRadius.circular(999), border: Border.all(color: fBronze)),
-                    child: Text('+$overflow', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fBronze)),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _AvatarButton extends StatefulWidget {
-  const _AvatarButton({required this.member, required this.size});
-
-  final FamilyMember member;
-  final double size;
-
-  @override
-  State<_AvatarButton> createState() => _AvatarButtonState();
-}
-
-class _AvatarButtonState extends State<_AvatarButton> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
-  late final Animation<double> _a = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: _a,
-      child: GestureDetector(
-        onTapDown: (_) => _c.forward(),
-        onTapUp: (_) => _c.reverse(),
-        onTapCancel: () => _c.reverse(),
-        onTap: () => showMemberProfile(context, widget.member),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            MizanAvatar(name: widget.member.name, accent: widget.member.accent, size: widget.size, contributed: widget.member.contributedToday),
-            const SizedBox(height: 3),
-            SizedBox(
-              width: widget.size + 6,
-              child: Text(
-                widget.member.name.split(' ').first,
-                textAlign: TextAlign.center,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 9.5, color: fWalnutLight, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GlowDrop extends StatefulWidget {
-  const _GlowDrop({required this.jarSize, required this.fill});
-
-  final double jarSize;
-  final double fill;
-
-  @override
-  State<_GlowDrop> createState() => _GlowDropState();
-}
-
-class _GlowDropState extends State<_GlowDrop> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
-  late final Animation<double> _fall = Tween<double>(begin: -1.0, end: 0.0).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOutCubic));
-  late final Animation<double> _fade = Tween<double>(begin: 1.0, end: 0.0).animate(CurvedAnimation(parent: _c, curve: const Interval(0.5, 1.0, curve: Curves.easeIn)));
-
-  @override
-  void initState() {
-    super.initState();
-    _c.forward();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, child) {
-        final yOffset = _fall.value * widget.jarSize * 0.5;
-        return Stack(
-          alignment: Alignment.center,
-          children: [
-            Opacity(
-              opacity: _fade.value,
-              child: Transform.translate(
-                offset: Offset(0, yOffset),
-                child: Container(
-                  width: 10,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: fBronzeLight,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(5), bottom: Radius.circular(3)),
-                    boxShadow: [BoxShadow(color: fBronzeLight.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 2))],
-                  ),
-                ),
-              ),
-            ),
-            FamilyJarView(fill: widget.fill, size: widget.jarSize, glow: 0.5),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  const _StatsRow({required this.jar});
-
-  final FamilyJar jar;
-
-  @override
-  Widget build(BuildContext context) {
-    final items = [
-      ('Progress', '${(jar.progress * 100).round()}%'),
-      ('Days left', '${jar.daysRemaining}'),
-      ('Members', '${jar.memberCount}'),
-      ('Goal', jar.goalLabel),
-    ];
-    return Row(
-      children: items.map((it) {
-        final i = items.indexOf(it);
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(left: i == 0 ? 0 : 8),
-            child: SoftCard(
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-              child: Column(
-                children: [
-                  Text(it.$1.toUpperCase(), style: const TextStyle(fontSize: 8.5, letterSpacing: 1, fontWeight: FontWeight.w700, color: fStonePale)),
-                  const SizedBox(height: 6),
-                  FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Text(it.$2, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _MembersRow extends StatelessWidget {
-  const _MembersRow({required this.jar});
-
-  final FamilyJar jar;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: jar.members.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 14),
-        itemBuilder: (context, index) {
-          final m = jar.members[index];
-          return GestureDetector(
-            onTap: () => showMemberProfile(context, m),
-            child: Column(
-              children: [
-                MizanAvatar(name: m.name, accent: m.accent, size: 46, contributed: m.contributedToday),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: 52,
-                  child: Text(m.name.split(' ').first, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 9.5, color: fWalnutLight, fontWeight: FontWeight.w600)),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// TAB 2 â€” ACTIVITY
-class _ActivityTab extends StatelessWidget {
-  const _ActivityTab({required this.jar});
-
-  final FamilyJar jar;
-
-  List<_DayGroup> get _groups => [
-    _DayGroup('Today', [
-      _Activity(Icons.auto_awesome_outlined, fOlive, 'Hafsa shared a reflection.'),
-      _Activity(Icons.favorite_border_outlined, fBronze, 'Omar logged an act of charity.'),
-      _Activity(Icons.visibility_off_outlined, fStoneLight, 'A family member completed a private act of charity.'),
-    ]),
-    _DayGroup('Yesterday', [
-      _Activity(Icons.wb_sunny_outlined, fBronze, 'Fatimah completed Morning Adhkar.'),
-      _Activity(Icons.flag_outlined, fOlive, 'The family reached 75% of this month\u2019s goal.'),
-      _Activity(Icons.menu_book_outlined, fBronzeDark, 'Yusuf shared a weekly reflection.'),
-    ]),
-    _DayGroup('This week', [
-      _Activity(Icons.volunteer_activism_outlined, fOlive, 'Aisha helped a neighbour.'),
-      _Activity(Icons.visibility_off_outlined, fStoneLight, 'A family member completed a private act of charity.'),
-      _Activity(Icons.groups_outlined, fBronze, 'Maryam encouraged the family with a kind note.'),
-    ]),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final groups = _groups;
-    if (groups.isEmpty) {
-      return const Center(child: Text('No activity yet', style: TextStyle(color: fStone)));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-      itemCount: groups.length,
-      itemBuilder: (context, i) => _DaySection(group: groups[i]),
-    );
-  }
-}
-
-class _DayGroup {
-  _DayGroup(this.day, this.items);
-  final String day;
-  final List<_Activity> items;
-}
-
-class _Activity {
-  _Activity(this.icon, this.color, this.text);
+class _ActivityRow extends StatelessWidget {
+  const _ActivityRow({required this.day, required this.icon, required this.text, required this.color, required this.divider});
+  final String day, text;
   final IconData icon;
   final Color color;
-  final String text;
-}
-
-class _DaySection extends StatelessWidget {
-  const _DaySection({required this.group});
-
-  final _DayGroup group;
-
+  final bool divider;
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Row(
-            children: [
-              Container(width: 6, height: 6, decoration: const BoxDecoration(color: fBronze, shape: BoxShape.circle)),
-              const SizedBox(width: 10),
-              Text(group.day.toUpperCase(), style: const TextStyle(fontSize: 11, letterSpacing: 1.6, fontWeight: FontWeight.w700, color: fBronzeDark)),
-            ],
-          ),
-        ),
-        SoftCard(
-          padding: const EdgeInsets.all(6),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: group.items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: fClayLight, indent: 52),
-            itemBuilder: (context, index) {
-              final a = group.items[index];
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(color: a.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
-                      child: Icon(a.icon, size: 18, color: a.color),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(child: Text(a.text, style: const TextStyle(fontSize: 13.5, height: 1.45, color: fWalnut))),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => Column(children: [Padding(padding: const EdgeInsets.all(14), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 37, height: 37, decoration: BoxDecoration(color: color.withValues(alpha: .12), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: color, size: 19)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(text, style: const TextStyle(fontSize: 13, color: fWalnut, height: 1.35)), const SizedBox(height: 4), Text(day, style: const TextStyle(fontSize: 11, color: fStoneLight))]))])), if (divider) const Divider(height: 1, indent: 63, color: fClayLight)]);
 }
 
-// TAB 3 â€” REFLECTIONS
-class _ReflectionsTab extends StatefulWidget {
-  const _ReflectionsTab({required this.jar});
-
+class _Together extends StatelessWidget {
+  const _Together({required this.jar});
   final FamilyJar jar;
-
   @override
-  State<_ReflectionsTab> createState() => _ReflectionsTabState();
-}
-
-class _FReflection {
-  _FReflection(this.author, this.authorAccent, this.text, this.time);
-  final String author;
-  final Color authorAccent;
-  final String text;
-  final String time;
-  final Map<String, int> encouragement = <String, int>{
-    'May Allah accept': 0,
-    'Ameen': 0,
-    'Barakallahu feek': 0,
-  };
-}
-
-class _ReflectionsTabState extends State<_ReflectionsTab> {
-  final List<_FReflection> _reflections = [];
-  final TextEditingController _c = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _reflections.addAll([
-      _FReflection('Fatimah Ahmad', fOlive, 'Alhamdulillah for another week together.', '2h'),
-      _FReflection('Yusuf Ahmad', fBronze, 'May Allah accept our efforts this month.', '5h'),
-      _FReflection('Maryam Ahmad', fBronzeDark, 'Grateful we could help someone today.', 'Yesterday'),
-      _FReflection('Hafsa Ahmad', fOlive, 'Small things, done with love, are never small.', 'Yesterday'),
-    ]);
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  void _add() {
-    final t = _c.text.trim();
-    if (t.isEmpty) return;
-    setState(() {
-      _reflections.insert(0, _FReflection('You', fBronze, t, 'now'));
-      _c.clear();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: _reflections.isEmpty
-              ? const _EmptyState(icon: Icons.menu_book_outlined, title: 'No reflections yet', body: 'Share your first reflection. No replies â€” only quiet encouragement.')
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                  itemCount: _reflections.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => _ReflectionCard(
-                    r: _reflections[index],
-                    onPick: (k) => setState(() => _reflections[index].encouragement[k] = (_reflections[index].encouragement[k] ?? 0) + 1),
-                  ),
-                ),
-        ),
-        _ComposeBar(controller: _c, hint: 'Share a quiet reflection\u2026', onSend: _add),
-      ],
-    );
-  }
-}
-
-const List<String> _encourageOptions = <String>['May Allah accept', 'Ameen', 'Barakallahu feek'];
-
-class _ReflectionCard extends StatelessWidget {
-  const _ReflectionCard({required this.r, required this.onPick});
-
-  final _FReflection r;
-  final ValueChanged<String> onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    return SoftCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
         children: [
-          Row(
-            children: [
-              MizanAvatar(name: r.author, accent: r.authorAccent, size: 38),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(r.author, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
-                    Text(r.time, style: const TextStyle(fontSize: 10.5, color: fStoneLight)),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          const Text('Together', style: TextStyle(fontFamily: 'Georgia', fontSize: 23, color: fWalnut, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 5),
+          const Text('Care for one another beyond the numbers.', style: TextStyle(color: fStone, fontSize: 12.5)),
+          const SizedBox(height: 22),
+          _CareLink(icon: Icons.favorite_border_rounded, title: 'Prayer requests', body: 'Ask your family to remember someone in du’a.', onTap: () => context.push('/family/prayers/${jar.id}')),
           const SizedBox(height: 12),
-          Text('\u201C${r.text}\u201D', style: const TextStyle(fontSize: 14.5, height: 1.5, fontStyle: FontStyle.italic, color: fWalnut)),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: fClayLight),
+          _CareLink(icon: Icons.menu_book_outlined, title: 'Shared reflections', body: 'A quiet place to share what is on your heart.', onTap: () => context.push('/family/reflections/${jar.id}')),
+          const SizedBox(height: 28),
+          const _SectionTitle(title: 'Family members'),
           const SizedBox(height: 12),
-          const Text('Offer gentle encouragement', style: TextStyle(fontSize: 10, letterSpacing: 1.4, fontWeight: FontWeight.w700, color: fStonePale)),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _encourageOptions.map((k) {
-              final count = r.encouragement[k] ?? 0;
-              return Material(
-                color: count > 0 ? r.authorAccent.withValues(alpha: 0.12) : fWhite,
-                borderRadius: BorderRadius.circular(999),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: () => onPick(k),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(999), border: Border.all(color: count > 0 ? r.authorAccent : fClay)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(child: Text(k, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: count > 0 ? r.authorAccent : fStone))),
-                        if (count > 0) ...<Widget>[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(color: r.authorAccent, borderRadius: BorderRadius.circular(999)),
-                            child: Text('$count', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fWhite)),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
+          SoftCard(padding: const EdgeInsets.symmetric(vertical: 6), child: Column(children: [for (var i = 0; i < jar.members.take(5).length; i++) _MemberRow(member: jar.members[i], divider: i < jar.members.take(5).length - 1), ListTile(onTap: () => context.push('/family/invitations/${jar.id}'), title: const Text('Invite someone to the jar', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: fBronze)), trailing: const Icon(Icons.add_circle_outline_rounded, color: fBronze))])),
         ],
-      ),
-    );
-  }
+      );
 }
 
-// TAB 4 â€” DU'A (PRAYER REQUESTS)
-class _PrayersTab extends StatefulWidget {
-  const _PrayersTab({required this.jar});
-
-  final FamilyJar jar;
-
-  @override
-  State<_PrayersTab> createState() => _PrayersTabState();
-}
-
-class _PRequest {
-  _PRequest(this.author, this.accent, this.text, this.time);
-  final String author;
-  final Color accent;
-  final String text;
-  final String time;
-  int ameen = 0;
-  int ease = 0;
-  int accept = 0;
-}
-
-class _PrayersTabState extends State<_PrayersTab> {
-  final List<_PRequest> _requests = [];
-  final TextEditingController _c = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _requests.addAll([
-      _PRequest('Fatimah Ahmad', fOlive, 'Please remember my exams in your du\u2019a.', '1h'),
-      _PRequest('Yusuf Ahmad', fBronze, 'Please pray for my parents.', '4h'),
-      _PRequest('Maryam Ahmad', fBronzeDark, 'Please remember our family this Friday.', 'Yesterday'),
-    ]);
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  void _add() {
-    final t = _c.text.trim();
-    if (t.isEmpty) return;
-    setState(() {
-      _requests.insert(0, _PRequest('You', fBronze, t, 'now'));
-      _c.clear();
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: _requests.isEmpty
-              ? const _EmptyState(icon: Icons.favorite_border_outlined, title: 'No prayer requests', body: 'Support one another through du\u2019a. Share a request and let your family hold you close.')
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                  itemCount: _requests.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) => _RequestCard(key: ValueKey(index), r: _requests[index]),
-                ),
-        ),
-        _ComposeBar(controller: _c, hint: 'Request a private du\u2019a\u2026', onSend: _add),
-      ],
-    );
-  }
-}
-
-class _RequestCard extends StatefulWidget {
-  const _RequestCard({required this.r, super.key});
-
-  final _PRequest r;
-
-  @override
-  State<_RequestCard> createState() => _RequestCardState();
-}
-
-class _RequestCardState extends State<_RequestCard> {
-  @override
-  Widget build(BuildContext context) {
-    final r = widget.r;
-    return SoftCard(
-      color: fClayPale,
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              MizanAvatar(name: r.author, accent: r.accent, size: 36),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(r.author, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fWalnut)),
-                    Text(r.time, style: const TextStyle(fontSize: 10.5, color: fStoneLight)),
-                  ],
-                ),
-              ),
-              const Icon(Icons.favorite_border_outlined, size: 16, color: fBronze),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(r.text, style: const TextStyle(fontSize: 14, height: 1.5, color: fWalnut)),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _ResponseChip(label: 'Ameen', active: r.ameen > 0, onTap: () => setState(() => r.ameen++)),
-              _ResponseChip(label: 'May Allah grant ease', active: r.ease > 0, onTap: () => setState(() => r.ease++)),
-              _ResponseChip(label: 'May Allah accept', active: r.accept > 0, onTap: () => setState(() => r.accept++)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResponseChip extends StatefulWidget {
-  const _ResponseChip({required this.label, required this.active, required this.onTap});
-
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  @override
-  State<_ResponseChip> createState() => _ResponseChipState();
-}
-
-class _ResponseChipState extends State<_ResponseChip> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 160));
-  late final Animation<double> _a = Tween<double>(begin: 1, end: 0.92).animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
-  bool _tapped = false;
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final active = widget.active || _tapped;
-    return ScaleTransition(
-      scale: _a,
-      child: Material(
-        color: active ? fBronze.withValues(alpha: 0.12) : fWhite,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(999),
-          onTapDown: (_) => _c.forward(),
-          onTapUp: (_) => _c.reverse(),
-          onTapCancel: () => _c.reverse(),
-          onTap: () {
-            setState(() => _tapped = true);
-            widget.onTap();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(999), border: Border.all(color: active ? fBronze : fClay)),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(widget.label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: active ? fBronze : fStone)),
-                if (active) const SizedBox(width: 6),
-                if (active) const Icon(Icons.check, size: 12, color: fBronze),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// TAB 5 â€” GOALS
-class _GoalsTab extends StatelessWidget {
-  const _GoalsTab({required this.jar});
-
-  final FamilyJar jar;
-
-  @override
-  Widget build(BuildContext context) {
-    final goals = jar.goals;
-    if (goals.isEmpty) {
-      return const _EmptyState(icon: Icons.flag_outlined, title: 'No goals yet', body: 'Create a gentle intention your family can grow toward â€” together, one act at a time.');
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-      itemCount: goals.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 14),
-      itemBuilder: (context, index) => _GoalCard(goal: goals[index]),
-    );
-  }
-}
-
-class _GoalCard extends StatelessWidget {
-  const _GoalCard({required this.goal});
-
-  final FamilyGoal goal;
-
-  @override
-  Widget build(BuildContext context) {
-    final pct = (goal.progress * 100).round();
-    return SoftCard(
-      padding: const EdgeInsets.all(18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: goal.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
-                child: Icon(Icons.flag_outlined, size: 20, color: goal.accent),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(goal.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-                    const SizedBox(height: 3),
-                    Text(goal.subtitle, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
-                  ],
-                ),
-              ),
-              Text('$pct%', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: goal.accent, fontFamily: 'Georgia')),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Stack(
-            children: [
-              Container(height: 10, decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.circular(99))),
-              FractionallySizedBox(
-                widthFactor: goal.progress.clamp(0.0, 1.0),
-                child: Container(height: 10, decoration: BoxDecoration(color: goal.accent, borderRadius: BorderRadius.circular(99))),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text('${goal.actsDone} of ${goal.actsTarget} gentle acts offered', style: const TextStyle(fontSize: 11.5, color: fStone)),
-        ],
-      ),
-    );
-  }
-}
-
-// SHARED HELPERS
-class _ComposeBar extends StatelessWidget {
-  const _ComposeBar({required this.controller, required this.hint, required this.onSend});
-
-  final TextEditingController controller;
-  final String hint;
-  final VoidCallback onSend;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-      decoration: const BoxDecoration(color: fSurface, border: Border(top: BorderSide(color: fClay))),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(color: fWhite, borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
-              child: TextField(
-                controller: controller,
-                maxLines: 3,
-                minLines: 1,
-                style: const TextStyle(fontSize: 13.5, height: 1.45, color: fWalnut),
-                decoration: InputDecoration(
-                  hintText: hint,
-                  hintStyle: const TextStyle(color: fStonePale, fontStyle: FontStyle.italic),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Material(
-            color: fBronze,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: onSend,
-              child: const SizedBox(width: 46, height: 46, child: Icon(Icons.send_outlined, size: 18, color: fWhite)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.icon, required this.title, required this.body});
-
+class _CareLink extends StatelessWidget {
+  const _CareLink({required this.icon, required this.title, required this.body, required this.onTap});
   final IconData icon;
-  final String title;
-  final String body;
-
+  final String title, body;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(28),
-      children: [
-        const SizedBox(height: 24),
-        Center(
-          child: Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(color: fClayPale, shape: BoxShape.circle, border: Border.all(color: fClay)),
-            child: Center(child: Icon(icon, size: 38, color: fBronze)),
-          ),
-        ),
-        const SizedBox(height: 18),
-        Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-        const SizedBox(height: 8),
-        Text(body, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
-      ],
-    );
-  }
+  Widget build(BuildContext context) => SoftCard(onTap: onTap, padding: const EdgeInsets.all(17), child: Row(children: [Container(width: 44, height: 44, decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: fBronze)), const SizedBox(width: 13), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontWeight: FontWeight.w800, color: fWalnut)), const SizedBox(height: 4), Text(body, style: const TextStyle(fontSize: 12, color: fStone, height: 1.3))])), const Icon(Icons.arrow_forward_rounded, color: fBronze)]));
 }
+
+class _MemberRow extends StatelessWidget {
+  const _MemberRow({required this.member, required this.divider});
+  final FamilyMember member;
+  final bool divider;
+  @override
+  Widget build(BuildContext context) => Column(children: [ListTile(onTap: () => showMemberProfile(context, member), leading: MizanAvatar(name: member.name, accent: member.accent, size: 40, contributed: member.contributedToday), title: Text(member.name, style: const TextStyle(fontSize: 13, color: fWalnut, fontWeight: FontWeight.w700)), subtitle: Text(member.status, style: const TextStyle(fontSize: 11, color: fStoneLight)), trailing: const Icon(Icons.chevron_right_rounded, color: fStonePale)), if (divider) const Divider(height: 1, indent: 68, color: fClayLight)]);
+}
+
+class _SectionTitle extends StatelessWidget { const _SectionTitle({required this.title}); final String title; @override Widget build(BuildContext context) => Text(title, style: const TextStyle(fontFamily: 'Georgia', fontSize: 19, color: fWalnut, fontWeight: FontWeight.w700)); }
+
+void _openContributionSheet(BuildContext context) {
+  showModalBottomSheet<void>(context: context, backgroundColor: fIvory, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))), builder: (sheetContext) => Padding(padding: const EdgeInsets.fromLTRB(24, 12, 24, 30), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: fClay, borderRadius: BorderRadius.circular(99)))), const SizedBox(height: 24), const Text('How would you like to add it?', style: TextStyle(fontFamily: 'Georgia', color: fWalnut, fontSize: 22, fontWeight: FontWeight.w700)), const SizedBox(height: 7), const Text('Both choices grow the shared jar.', style: TextStyle(color: fStone, fontSize: 13)), const SizedBox(height: 20), _ContributionOption(icon: Icons.groups_outlined, title: 'Share with family', body: 'Your family can see this moment in the activity feed.', onTap: () { Navigator.pop(sheetContext); AddActScreen.show(context); }), const SizedBox(height: 10), _ContributionOption(icon: Icons.visibility_off_outlined, title: 'Keep it private', body: 'It counts toward the jar without showing who or what.', onTap: () { Navigator.pop(sheetContext); AddActScreen.show(context); })])));
+}
+
+class _ContributionOption extends StatelessWidget { const _ContributionOption({required this.icon, required this.title, required this.body, required this.onTap}); final IconData icon; final String title, body; final VoidCallback onTap; @override Widget build(BuildContext context) => SoftCard(onTap: onTap, padding: const EdgeInsets.all(16), child: Row(children: [Container(width: 42, height: 42, decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: fBronze)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: fWalnut, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(body, style: const TextStyle(fontSize: 11.5, height: 1.3, color: fStone))])), const Icon(Icons.arrow_forward_rounded, color: fBronze)])); }

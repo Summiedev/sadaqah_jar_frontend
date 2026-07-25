@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/backend_api.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
@@ -13,31 +14,29 @@ class PrayerRequestsScreen extends StatefulWidget {
 }
 
 class _PRequest {
-  _PRequest(this.author, this.accent, this.text, this.time);
+  _PRequest(this.author, this.accent, this.text, this.time, {this.id, this.ameen = 0, this.ease = 0, this.accept = 0});
+  final String? id;
   final String author;
   final Color accent;
   final String text;
   final String time;
-  int ameen = 0;
-  int ease = 0;
-  int accept = 0;
+  int ameen;
+  int ease;
+  int accept;
 }
 
 class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
-  late final Future<void> _load = Future<void>.delayed(const Duration(milliseconds: 500));
   FamilyJar? _jar;
   final List<_PRequest> _requests = [];
   final TextEditingController _c = TextEditingController();
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _jar = getFamilyById(widget.id);
-    _requests.addAll([
-      _PRequest('Fatimah Ahmad', fOlive, 'Please remember my exams in your du\'a.', '1h'),
-      _PRequest('Yusuf Ahmad', fBronze, 'Please pray for my parents.', '4h'),
-      _PRequest('Maryam Ahmad', fBronzeDark, 'Please remember our family this Friday.', 'Yesterday'),
-    ]);
+    _loadPrayers();
   }
 
   @override
@@ -46,13 +45,101 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     super.dispose();
   }
 
-  void _add() {
-    final t = _c.text.trim();
-    if (t.isEmpty) return;
-    setState(() {
-      _requests.insert(0, _PRequest('You', fBronze, t, 'now'));
-      _c.clear();
-    });
+  Future<void> _loadPrayers() async {
+    setState(() { _loading = true; _error = null; });
+    final familyId = int.tryParse(widget.id);
+    if (familyId == null) {
+      _loadMock();
+      return;
+    }
+    try {
+      final prayers = await BackendApi.instance.getFamilyPrayers(familyId);
+      if (!mounted) return;
+      setState(() {
+        _requests.clear();
+        _requests.addAll(prayers.map((p) {
+          final counts = p['response_counts'] != null ? Map<String, int>.from(p['response_counts'] as Map) : const <String, int>{};
+          return _PRequest(
+            'You',
+            fBronze,
+            p['text']?.toString() ?? '',
+            'just now',
+            id: p['id']?.toString(),
+            ameen: counts['ameen'] ?? 0,
+            ease: counts['grant_ease'] ?? 0,
+            accept: counts['accept'] ?? 0,
+          );
+        }));
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _loadMock();
+      setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  void _loadMock() {
+    _requests.addAll([
+      _PRequest('Fatimah Ahmad', fOlive, 'Please remember my exams in your du\'a.', '1h'),
+      _PRequest('Yusuf Ahmad', fBronze, 'Please pray for my dad. He is not feeling well, and I would really appreciate your du\'a.', '4h'),
+      _PRequest('Maryam Ahmad', fBronzeDark, 'Please remember our family this Friday.', 'Yesterday'),
+    ]);
+  }
+
+  Future<void> _add() async {
+    final text = _c.text.trim();
+    if (text.isEmpty) return;
+    final familyId = int.tryParse(widget.id);
+    if (familyId == null) {
+      setState(() {
+        _requests.insert(0, _PRequest('You', fBronze, text, 'now'));
+        _c.clear();
+      });
+      return;
+    }
+    try {
+      final result = await BackendApi.instance.createFamilyPrayer(familyId, text: text);
+      if (!mounted) return;
+      setState(() {
+        _requests.insert(0, _PRequest('You', fBronze, text, 'just now', id: result['id']?.toString()));
+        _c.clear();
+      });
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.brown));
+    }
+  }
+
+  Future<void> _respond(int index, String type) async {
+    final request = _requests[index];
+    final familyId = int.tryParse(widget.id);
+    final prayerId = int.tryParse(request.id ?? '');
+    if (familyId == null || prayerId == null) {
+      setState(() {
+        switch (type) {
+          case 'ameen': request.ameen++; break;
+          case 'grant_ease': request.ease++; break;
+          case 'accept': request.accept++; break;
+        }
+      });
+      return;
+    }
+    try {
+      final result = await BackendApi.instance.respondToFamilyPrayer(familyId, prayerId, type);
+      if (!mounted) return;
+      final counts = result['response_counts'] != null
+        ? Map<String, int>.from(result['response_counts'] as Map)
+        : <String, int>{};
+      setState(() {
+        _requests[index].ameen = counts['ameen'] ?? request.ameen;
+        _requests[index].ease = counts['grant_ease'] ?? request.ease;
+        _requests[index].accept = counts['accept'] ?? request.accept;
+      });
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.brown));
+    }
   }
 
   @override
@@ -71,23 +158,7 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
               ),
             ),
             Expanded(
-              child: FutureBuilder<void>(
-                future: _load,
-                builder: (context, snap) {
-                  if (snap.connectionState != ConnectionState.done) {
-                    return const Center(child: SizedBox(height: 80, child: DecoratedBox(decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.all(Radius.circular(20))))));
-                  }
-                  if (_requests.isEmpty) {
-                    return const _EmptyPrayers();
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                    itemCount: _requests.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) => _RequestCard(key: ValueKey(index), r: _requests[index]),
-                  );
-                },
-              ),
+              child: _buildBody(),
             ),
             _PComposeBar(controller: _c, onSend: _add),
           ],
@@ -95,12 +166,44 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
       ),
     );
   }
+
+  Widget _buildBody() {
+    if (_loading && _requests.isEmpty) {
+      return const Center(child: SizedBox(height: 80, child: DecoratedBox(decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.all(Radius.circular(20))))));
+    }
+    if (_error != null && _requests.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(children: [
+            const Icon(Icons.wifi_off_rounded, size: 48, color: fBronze),
+            const SizedBox(height: 18),
+            const Text('Could not load prayer requests', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+            const SizedBox(height: 8),
+            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+            const SizedBox(height: 18),
+            FilledButton(onPressed: _loadPrayers, child: const Text('Retry')),
+          ]),
+        ),
+      );
+    }
+    if (_requests.isEmpty) {
+      return const _EmptyPrayers();
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      itemCount: _requests.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => _RequestCard(key: ValueKey(index), r: _requests[index], onRespond: (type) => _respond(index, type)),
+    );
+  }
 }
 
 class _RequestCard extends StatefulWidget {
-  const _RequestCard({required this.r, super.key});
+  const _RequestCard({required this.r, required this.onRespond, super.key});
 
   final _PRequest r;
+  final ValueChanged<String> onRespond;
 
   @override
   State<_RequestCard> createState() => _RequestCardState();
@@ -139,9 +242,9 @@ class _RequestCardState extends State<_RequestCard> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _ResponseChip(label: 'Ameen', active: r.ameen > 0, onTap: () => setState(() => r.ameen++)),
-              _ResponseChip(label: 'May Allah grant ease', active: r.ease > 0, onTap: () => setState(() => r.ease++)),
-              _ResponseChip(label: 'May Allah accept', active: r.accept > 0, onTap: () => setState(() => r.accept++)),
+              _ResponseChip(label: 'Ameen', active: r.ameen > 0, count: r.ameen, onTap: () => widget.onRespond('ameen')),
+              _ResponseChip(label: 'May Allah grant ease', active: r.ease > 0, count: r.ease, onTap: () => widget.onRespond('grant_ease')),
+              _ResponseChip(label: 'May Allah accept', active: r.accept > 0, count: r.accept, onTap: () => widget.onRespond('accept')),
             ],
           ),
         ],
@@ -151,10 +254,11 @@ class _RequestCardState extends State<_RequestCard> {
 }
 
 class _ResponseChip extends StatefulWidget {
-  const _ResponseChip({required this.label, required this.active, required this.onTap});
+  const _ResponseChip({required this.label, required this.active, required this.count, required this.onTap});
 
   final String label;
   final bool active;
+  final int count;
   final VoidCallback onTap;
 
   @override

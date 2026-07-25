@@ -1,6 +1,5 @@
 ﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -29,10 +28,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    Future<void>.delayed(const Duration(milliseconds: 2500), () {
-      if (!mounted) return;
-      context.go('/onboarding');
-    });
   }
 
   @override

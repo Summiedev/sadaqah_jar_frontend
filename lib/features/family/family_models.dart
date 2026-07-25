@@ -56,7 +56,7 @@ class FamilyJar {
   const FamilyJar({
     required this.id,
     required this.name,
-    required this.coverEmoji,
+    required this.coverIcon,
     required this.memberCount,
     required this.progress,
     required this.lastActivity,
@@ -69,7 +69,7 @@ class FamilyJar {
 
   final String id;
   final String name;
-  final String coverEmoji;
+  final IconData coverIcon;
   final int memberCount;
   final double progress;
   final String lastActivity;
@@ -88,7 +88,7 @@ const List<FamilyJar> _jars = [
   FamilyJar(
     id: 'ahmad',
     name: 'The Ahmad Family',
-    coverEmoji: '🌿',
+    coverIcon: Icons.eco_outlined,
     memberCount: 8,
     progress: 0.73,
     lastActivity: 'Fatimah shared a reflection',
@@ -138,7 +138,7 @@ const List<FamilyJar> _jars = [
         status: 'Contributed today',
         accent: Color(0xFF6E8B6B),
         joined: 'Joined Apr 2024',
-        milestones: ['7-day streak of kindness'],
+        milestones: ['A week of quiet kindness'],
         recentActivity: ['Logged an act of charity'],
         reflections: [],
         contributedToday: true,
@@ -198,7 +198,7 @@ const List<FamilyJar> _jars = [
   FamilyJar(
     id: 'parents',
     name: 'Parents',
-    coverEmoji: '🤍',
+    coverIcon: Icons.favorite_border_rounded,
     memberCount: 4,
     progress: 0.52,
     lastActivity: 'A family member completed a private act',
@@ -219,7 +219,7 @@ const List<FamilyJar> _jars = [
   FamilyJar(
     id: 'ramadan',
     name: 'Ramadan Giving Circle',
-    coverEmoji: '🌙',
+    coverIcon: Icons.nightlight_round,
     memberCount: 15,
     progress: 0.88,
     lastActivity: 'The family reached 88% of this month\'s goal',
@@ -245,7 +245,7 @@ const List<FamilyJar> _jars = [
   FamilyJar(
     id: 'food',
     name: 'Community Food Drive',
-    coverEmoji: '🫶',
+    coverIcon: Icons.volunteer_activism_outlined,
     memberCount: 32,
     progress: 0.64,
     lastActivity: 'A family member completed a private act of charity',

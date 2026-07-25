@@ -13,7 +13,7 @@ class ActivityTimelineScreen extends StatefulWidget {
 }
 
 class _ActivityTimelineScreenState extends State<ActivityTimelineScreen> {
-  late final Future<void> _load = Future<void>.delayed(const Duration(milliseconds: 500));
+  late final Future<void> _load = Future<void>.value();
   FamilyJar? _jar;
 
   @override

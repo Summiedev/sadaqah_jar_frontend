@@ -40,6 +40,8 @@ class ModeNotifier extends Notifier<int> {
 
 final modeProvider = NotifierProvider<ModeNotifier, int>(ModeNotifier.new);
 
+final isScrolledProvider = StateProvider<bool>((ref) => false);
+
 class ModeMeta {
   const ModeMeta({required this.label, required this.tagline, required this.icon, required this.accent});
 

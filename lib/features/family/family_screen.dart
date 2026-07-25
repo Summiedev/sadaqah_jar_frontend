@@ -1,102 +1,281 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../services/backend_api.dart';
+import '../../core/mode_provider.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
-class FamilyScreen extends StatefulWidget {
+class FamilyScreen extends ConsumerStatefulWidget {
   const FamilyScreen({super.key});
 
   @override
-  State<FamilyScreen> createState() => _FamilyScreenState();
+  ConsumerState<FamilyScreen> createState() => _FamilyScreenState();
 }
 
-class _FamilyScreenState extends State<FamilyScreen> {
-  late final Future<void> _load = Future<void>.delayed(const Duration(milliseconds: 650));
+class _FamilyScreenState extends ConsumerState<FamilyScreen> {
+  late List<String> _pending;
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: fIvory,
-      body: SafeArea(
-        child: FutureBuilder<void>(
-          future: _load,
-          builder: (context, snap) {
-            if (snap.connectionState != ConnectionState.done) {
-              return const _HubSkeleton();
-            }
-            final jars = allFamilies();
-            return CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                const SliverToBoxAdapter(child: _HubHeader()),
-                if (jars.isEmpty)
-                  const SliverFillRemaining(child: _EmptyFamily())
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final jar = jars[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: _JarCard(jar: jar),
-                          );
-                        },
-                        childCount: jars.length,
-                      ),
-                    ),
-                  ),
-                const SliverToBoxAdapter(child: _HubActions()),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-              ],
-            );
-          },
+  void initState() {
+    super.initState();
+    _pending = [...pendingRequests];
+  }
+
+  Future<void> _createFamily() async {
+    final nameController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: fIvory,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Create a family jar', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Start a shared space for your family.', style: TextStyle(color: fStone, fontSize: 13)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: nameController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Family name',
+                hintText: 'e.g. The Ahmad Family',
+                filled: true,
+                fillColor: fPaper,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: fClay)),
+              ),
+            ),
+          ],
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: fStone))),
+          FilledButton(
+            onPressed: () {
+              final name = nameController.text.trim();
+              if (name.isEmpty) return;
+              Navigator.pop(ctx, name);
+            },
+            style: FilledButton.styleFrom(backgroundColor: fBronze),
+            child: const Text('Create'),
+          ),
+        ],
       ),
     );
-  }
-}
 
-class _HubHeader extends StatelessWidget {
-  const _HubHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    if (result == null || !mounted) return;
+    try {
+      final response = await BackendApi.instance.createFamilyJar(name: result);
+      if (!mounted) return;
+      final inviteCode = response['invite_code'] as String? ?? '';
+      await showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: fIvory,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          title: const Text('Family jar created!', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: Text('Family', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-              ),
+              const Text('Share this code with your family members:', style: TextStyle(color: fStone, fontSize: 13)),
+              const SizedBox(height: 12),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(999), border: Border.all(color: fClay)),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: fPaper,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: fClay),
+                ),
+                child: Row(
                   children: [
-                    Icon(Icons.favorite_outline, size: 13, color: fBronze),
-                    SizedBox(width: 6),
-                    Text('Growing together', style: TextStyle(fontSize: 10, letterSpacing: 1, fontWeight: FontWeight.w700, color: fBronzeDark)),
+                    Expanded(
+                      child: Text(
+                        inviteCode,
+                        style: const TextStyle(fontFamily: 'Georgia', fontSize: 22, fontWeight: FontWeight.w800, color: fWalnut, letterSpacing: 1.5),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () {
+                        Clipboard.setData(ClipboardData(text: inviteCode));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const Text('Invite code copied!')));
+                      },
+                      icon: const Icon(Icons.copy_rounded, color: fBronze),
+                      tooltip: 'Copy code',
+                    ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          const Text(
-            'A quiet space where loved ones encourage one another through small, consistent goodness.',
-            style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx),
+              style: FilledButton.styleFrom(backgroundColor: fBronze),
+              child: const Text('Done'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: Text('Could not create jar: $e')));
+    }
+  }
+
+  Future<void> _joinFamily() async {
+    final codeController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: fIvory,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Join a family jar', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Enter the invite code shared with you.', style: TextStyle(color: fStone, fontSize: 13)),
+            const SizedBox(height: 14),
+            TextField(
+              controller: codeController,
+              autofocus: true,
+              decoration: InputDecoration(
+                labelText: 'Invite code',
+                hintText: 'e.g. MIZAN-ABC-123',
+                filled: true,
+                fillColor: fPaper,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: fClay)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: fStone))),
+          FilledButton(
+            onPressed: () {
+              final code = codeController.text.trim();
+              if (code.isEmpty) return;
+              Navigator.pop(ctx, code);
+            },
+            style: FilledButton.styleFrom(backgroundColor: fBronze),
+            child: const Text('Join'),
           ),
         ],
       ),
     );
+
+    if (result == null || !mounted) return;
+    try {
+      await BackendApi.instance.joinFamilyJar(inviteCode: result);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const Text('Joined family jar!')));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: Text('Could not join jar: $e')));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final jars = allFamilies();
+    return Scaffold(
+      backgroundColor: fIvory,
+      body: SafeArea(
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (notification) {
+            final offset = notification.metrics.pixels;
+            if (offset > 10) {
+              if (!ref.read(isScrolledProvider.notifier).state) {
+                ref.read(isScrolledProvider.notifier).state = true;
+              }
+            } else if (offset <= 0) {
+              if (ref.read(isScrolledProvider.notifier).state) {
+                ref.read(isScrolledProvider.notifier).state = false;
+              }
+            }
+            return false;
+          },
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(),
+            slivers: [
+            SliverAppBar(
+              pinned: true,
+              floating: false,
+              toolbarHeight: 64,
+              collapsedHeight: 64,
+              expandedHeight: 64,
+              backgroundColor: const Color(0xFFE8DCC8),
+              foregroundColor: fWalnutLight,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              title: const Text('Family'),
+              actions: [
+                Container(
+                  margin: const EdgeInsets.only(right: 12),
+                  child: IconButton(
+                    onPressed: () => context.push('/family/invitations'),
+                    tooltip: 'Invitations',
+                    icon: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF0E0),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFFE8C99B)),
+                      ),
+                      child: Stack(
+                        children: [
+                          const Center(child: Icon(Icons.person_add_outlined, size: 18, color: Color(0xFF9E7B5A))),
+                          if (_pending.isNotEmpty)
+                            Positioned(
+                              right: 4,
+                              top: 4,
+                              child: Container(
+                                width: 14,
+                                height: 14,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFB6544D),
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                                child: Center(
+                                  child: Text('${_pending.length}', style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.w800)),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (jars.isEmpty)
+              SliverFillRemaining(child: _EmptyFamily(onJoin: _joinFamily, onCreate: _createFamily))
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final jar = jars[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: _JarCard(jar: jar),
+                      );
+                    },
+                    childCount: jars.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
   }
 }
 
@@ -107,103 +286,64 @@ class _JarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SoftCard(
-      onTap: () => context.push('/family/jar/${jar.id}'),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
-                child: Center(child: Text(jar.coverEmoji, style: const TextStyle(fontSize: 28))),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(jar.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Icon(Icons.groups_outlined, size: 13, color: fStoneLight),
-                        const SizedBox(width: 5),
-                        Text('${jar.memberCount} members', style: const TextStyle(fontSize: 11, color: fStoneLight)),
-                        const SizedBox(width: 12),
-                        const Icon(Icons.access_time_outlined, size: 13, color: fStoneLight),
-                        const SizedBox(width: 5),
-                        Expanded(
-                          child: Text(jar.lastActivity, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
-                        ),
-                      ],
-                    ),
-                  ],
+    return Semantics(
+      button: true,
+      label: 'Open ${jar.name}, ${jar.memberCount} members, ${(jar.progress * 100).round()} percent complete',
+      child: SoftCard(
+        onTap: () => context.push('/family/jar/${jar.id}'),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
+                  child: Center(child: Icon(jar.coverIcon, size: 28, color: fBronze)),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                flex: 2,
-                child: Text('${jar.goalLabel} · ${(jar.progress * 100).round()}%', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fBronzeDark)),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 1,
-                child: Text('${jar.daysRemaining} days left', textAlign: TextAlign.end, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ProgressTrack(value: jar.progress),
-        ],
-      ),
-    );
-  }
-}
-
-class _HubActions extends StatelessWidget {
-  const _HubActions();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-      child: Column(
-        children: [
-          MizanButton(label: 'Create Family Jar', onTap: () => _showComingSoon(context, 'Create Family Jar')),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: MizanOutlineButton(
-                  label: 'Join Existing Jar',
-                  onTap: () => context.push('/family/invitations'),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(jar.name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+                      const SizedBox(height: 4),
+                      Text('${jar.memberCount} members · ${jar.lastActivity}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: MizanOutlineButton(
-                  label: 'View Invitations',
-                  onTap: () => context.push('/family/invitations'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Text('${jar.goalLabel} · ${(jar.progress * 100).round()}%', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fBronzeDark)),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: Text('${jar.daysRemaining} days left', textAlign: TextAlign.end, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ProgressTrack(value: jar.progress),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _EmptyFamily extends StatelessWidget {
-  const _EmptyFamily();
+  const _EmptyFamily({required this.onJoin, required this.onCreate});
+
+  final VoidCallback onJoin;
+  final VoidCallback onCreate;
 
   @override
   Widget build(BuildContext context) {
@@ -219,64 +359,40 @@ class _EmptyFamily extends StatelessWidget {
             child: const Center(child: Icon(Icons.groups_outlined, size: 40, color: fBronze)),
           ),
           const SizedBox(height: 20),
-          const Text('No Family Yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+          const Text('No family yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
           const SizedBox(height: 8),
           const Text(
-            'Create your first Family Jar and grow in goodness together — quietly, consistently.',
+            'Create a jar or join one with an invite code.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone),
           ),
           const SizedBox(height: 18),
-          MizanButton(label: 'Create your first Family Jar', onTap: () {}),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: onJoin,
+                  icon: const Icon(Icons.person_add_rounded, size: 18),
+                  label: const Text('Join with code'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: fWalnut,
+                    side: BorderSide(color: fClay),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: MizanButton(label: 'Create a jar', onTap: onCreate),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
-}
-
-class _HubSkeleton extends StatelessWidget {
-  const _HubSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    final block = Container(
-      height: 132,
-      decoration: BoxDecoration(color: fPaper, borderRadius: BorderRadius.circular(24), border: Border.all(color: fClay)),
-    );
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      children: [
-        Container(width: 120, height: 22, decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.circular(8))),
-        const SizedBox(height: 14),
-        block,
-        const SizedBox(height: 14),
-        block,
-        const SizedBox(height: 14),
-        block,
-      ],
-    );
-  }
-}
-
-void _showComingSoon(BuildContext context, String title) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: fIvory,
-    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-    builder: (context) => Padding(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 40, height: 4, decoration: BoxDecoration(color: fClay, borderRadius: BorderRadius.circular(99))),
-          const SizedBox(height: 20),
-          Text(title, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-          const SizedBox(height: 8),
-          const Text('This gentle flow is being crafted with care. You are in the Family section preview.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
-          const SizedBox(height: 20),
-          MizanButton(label: 'Close', onTap: () => context.pop()),
-        ],
-      ),
-    ),
-  );
 }

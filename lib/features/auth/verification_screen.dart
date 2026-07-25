@@ -1,0 +1,209 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../services/backend_api.dart';
+
+enum VerificationState { pending, verified, failed }
+
+class VerificationScreen extends StatefulWidget {
+  const VerificationScreen({
+    super.key,
+    required this.onContinue,
+    required this.onLogin,
+    this.verificationToken,
+  });
+
+  final VoidCallback onContinue;
+  final VoidCallback onLogin;
+  final String? verificationToken;
+
+  @override
+  State<VerificationScreen> createState() => _VerificationScreenState();
+}
+
+class _VerificationScreenState extends State<VerificationScreen> {
+  VerificationState _state = VerificationState.pending;
+  String _message = 'Check your inbox and tap the verification link.';
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.verificationToken != null && widget.verificationToken!.isNotEmpty) {
+      _verifyFromToken();
+    } else {
+      _startPolling();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startPolling() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 5), (_) => _checkVerification());
+    _checkVerification();
+  }
+
+  Future<void> _checkVerification() async {
+    try {
+      final verified = await BackendApi.instance.isEmailVerified();
+      if (!mounted) return;
+      if (verified) {
+        _timer?.cancel();
+        setState(() {
+          _state = VerificationState.verified;
+          _message = 'Your email is verified. You can continue.';
+        });
+      } else {
+        setState(() {
+          _state = VerificationState.pending;
+          _message = 'Check your inbox and tap the verification link.';
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _state = VerificationState.pending;
+        _message = 'Still waiting for verification. Try again in a moment.';
+      });
+    }
+  }
+
+  Future<void> _verifyFromToken() async {
+    setState(() {
+      _state = VerificationState.pending;
+      _message = 'Verifying your email...';
+    });
+    try {
+      await BackendApi.instance.verifyEmail(token: widget.verificationToken!);
+      if (!mounted) return;
+      setState(() {
+        _state = VerificationState.verified;
+        _message = 'Your email is verified. You can continue.';
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _state = VerificationState.failed;
+        _message = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isVerified = _state == VerificationState.verified;
+    final isFailed = _state == VerificationState.failed;
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F4ED),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 12, 20, 24 + bottomInset),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () => context.pop(),
+                    style: TextButton.styleFrom(
+                      alignment: Alignment.centerLeft,
+                      padding: EdgeInsets.zero,
+                      foregroundColor: const Color(0xFF6D5B4D),
+                    ),
+                    icon: const Icon(Icons.arrow_back, size: 16),
+                    label: const Text('Back', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3E9DE),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFE3D3C3)),
+                ),
+                child: Icon(
+                  isVerified
+                      ? Icons.verified_outlined
+                      : isFailed
+                          ? Icons.error_outline
+                          : Icons.mark_email_read_outlined,
+                  size: 48,
+                  color: const Color(0xFF8B6842),
+                ),
+              ),
+              const SizedBox(height: 22),
+              Text(
+                isVerified ? 'Email verified' : isFailed ? 'Verification failed' : 'Check your email',
+                style: const TextStyle(fontSize: 26, height: 1.1, fontWeight: FontWeight.w800, color: Color(0xFF2F241E)),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _message,
+                style: const TextStyle(fontSize: 14, color: Color(0xFF6B5A4A), height: 1.45),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 22),
+              if (isVerified)
+                ElevatedButton(
+                  onPressed: widget.onContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF8B6842),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Continue', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                )
+              else if (isFailed)
+                Column(
+                  children: [
+                    TextButton(
+                      onPressed: widget.onLogin,
+                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF6D5B4D)),
+                      child: const Text('Back to login', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF8B6842)),
+                      child: const Text('Request a new verification email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                )
+              else
+                Column(
+                  children: [
+                    const SizedBox(height: 8),
+                    TextButton(
+                      onPressed: () => context.push('/forgot-password'),
+                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF8B6842)),
+                      child: const Text('Request a new verification email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Resend verification email is not available yet.',
+                      style: TextStyle(color: Color(0xFF8A6A44), fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

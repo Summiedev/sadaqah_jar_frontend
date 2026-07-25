@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../services/backend_api.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
@@ -14,7 +15,6 @@ class FamilySettingsScreen extends StatefulWidget {
 }
 
 class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
-  late final Future<void> _load = Future<void>.delayed(const Duration(milliseconds: 500));
   FamilyJar? _jar;
 
   final Map<String, bool> _notifs = {
@@ -30,45 +30,98 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
     _jar = getFamilyById(widget.id);
   }
 
+  Future<void> _handleLeave() async {
+    final familyId = int.tryParse(widget.id);
+    if (familyId == null) return;
+    try {
+      await BackendApi.instance.leaveFamilyJar(jarId: familyId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Left the family')));
+      context.go('/home');
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.brown));
+    }
+  }
+
+  Future<void> _handleDelete() async {
+    final familyId = int.tryParse(widget.id);
+    if (familyId == null) return;
+    try {
+      await BackendApi.instance.deleteFamilyJar(familyId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Family deleted')));
+      context.go('/home');
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.brown));
+    }
+  }
+
+  Future<bool?> _confirm(String title, String body) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: fIvory,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+        content: Text(body, style: const TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+        actions: [
+          TextButton(onPressed: () => ctx.pop(false), child: const Text('Cancel', style: TextStyle(color: fStone))),
+          TextButton(onPressed: () => ctx.pop(true), child: Text(title.split(' ').last, style: const TextStyle(color: fBronze, fontWeight: FontWeight.w700))),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final jar = _jar;
     return Scaffold(
       backgroundColor: fIvory,
       body: SafeArea(
-        child: FutureBuilder<void>(
-          future: _load,
-          builder: (context, snap) {
-            final loading = snap.connectionState != ConnectionState.done;
-            return CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                    child: ScreenHeader(title: 'Settings', subtitle: jar?.name),
-                  ),
-                ),
-                if (loading)
-                  const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(20), child: SizedBox(height: 200, child: DecoratedBox(decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.all(Radius.circular(20)))))))
-                else ...[
-                  SliverToBoxAdapter(child: _CoverCard(jar: jar)),
-                  SliverToBoxAdapter(child: _Section(title: 'People', children: [
-                    _Tile(icon: Icons.groups_outlined, label: 'Members', trailing: '${jar?.memberCount ?? 0}', onTap: () {}),
-                    _Tile(icon: Icons.badge_outlined, label: 'Roles', trailing: 'Admin · Member', onTap: () {}),
-                    _Tile(icon: Icons.shield_outlined, label: 'Permissions', trailing: 'Contribute & view', onTap: () {}),
-                  ])),
-                  SliverToBoxAdapter(child: _Section(title: 'Preferences', children: [
-                    ..._notifs.keys.map((k) => _ToggleTile(label: k, value: _notifs[k]!, onChanged: (v) => setState(() => _notifs[k] = v))),
-                    _Tile(icon: Icons.flag_outlined, label: 'Goals', trailing: '${jar?.goals.length ?? 0} active', onTap: () => context.push('/family/goals/${widget.id}')),
-                  ])),
-                  SliverToBoxAdapter(child: _DangerZone(onArchive: () => _confirm(context, 'Archive Family', 'This jar will be hidden but kept. You can restore it later.'), onLeave: () => _confirm(context, 'Leave Family', 'You will step out of this jar. Your contributions remain as light.'), onDelete: () => _confirm(context, 'Delete Family', 'This permanently removes the jar and its memories. This cannot be undone.'))),
-                  const SliverToBoxAdapter(child: SizedBox(height: 28)),
-                ],
-              ],
-            );
-          },
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: ScreenHeader(title: 'Settings', subtitle: jar?.name),
+              ),
+            ),
+            SliverToBoxAdapter(child: _CoverCard(jar: jar)),
+            SliverToBoxAdapter(child: _Section(title: 'People', children: [
+              _Tile(icon: Icons.groups_outlined, label: 'Members', trailing: '${jar?.memberCount ?? 0}', onTap: () {}),
+              _Tile(icon: Icons.badge_outlined, label: 'Roles', trailing: 'Admin · Member', onTap: () {}),
+              _Tile(icon: Icons.shield_outlined, label: 'Permissions', trailing: 'Contribute & view', onTap: () {}),
+            ])),
+            SliverToBoxAdapter(child: _Section(title: 'Preferences', children: [
+              ..._notifs.keys.map((k) => _ToggleTile(label: k, value: _notifs[k]!, onChanged: (v) => setState(() => _notifs[k] = v))),
+              _Tile(icon: Icons.flag_outlined, label: 'Goals', trailing: '${jar?.goals.length ?? 0} active', onTap: () => context.push('/family/goals/${widget.id}')),
+            ])),
+            SliverToBoxAdapter(child: _DangerZone(
+              onArchive: _archiveFamily,
+              onLeave: () async {
+                final confirmed = await _confirm('Leave Family', 'You will step out of this jar. Your contributions remain as light.');
+                if (confirmed == true) await _handleLeave();
+              },
+              onDelete: () async {
+                final confirmed = await _confirm('Delete Family', 'This permanently removes the jar and its memories. This cannot be undone.');
+                if (confirmed == true) await _handleDelete();
+              },
+            )),
+            const SliverToBoxAdapter(child: SizedBox(height: 28)),
+          ],
         ),
+      ),
+    );
+  }
+
+  void _archiveFamily() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Archive is not available yet. Coming soon.'),
+        backgroundColor: fBronze,
       ),
     );
   }
@@ -91,7 +144,7 @@ class _CoverCard extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
-              child: Center(child: Text(jar?.coverEmoji ?? '🌿', style: const TextStyle(fontSize: 32))),
+              child: Center(child: Icon(jar?.coverIcon ?? Icons.eco_outlined, size: 32, color: fBronze)),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -251,20 +304,4 @@ class _Action extends StatelessWidget {
       ),
     );
   }
-}
-
-void _confirm(BuildContext context, String title, String body) {
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: fIvory,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-      title: Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-      content: Text(body, style: const TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
-      actions: [
-        TextButton(onPressed: () => context.pop(), child: const Text('Cancel', style: TextStyle(color: fStone))),
-        TextButton(onPressed: () => context.pop(), child: const Text('Confirm', style: TextStyle(color: fBronze, fontWeight: FontWeight.w700))),
-      ],
-    ),
-  );
 }

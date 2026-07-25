@@ -335,6 +335,24 @@ class BackendApi {
     } catch (_) {}
   }
 
+  T _unwrapEnvelope<T>(Map<String, dynamic> decoded, T Function(dynamic) parser) {
+    final data = decoded['data'];
+    if (data == null) {
+      throw BackendApiException('Empty response data', 500);
+    }
+    return parser(data);
+  }
+
+  Map<String, dynamic>? _getEnvelopeMeta(Map<String, dynamic> decoded) {
+    final meta = decoded['meta'];
+    if (meta is Map<String, dynamic>) return meta;
+    return null;
+  }
+
+  String? _getEnvelopeMessage(Map<String, dynamic> decoded) {
+    return decoded['message'] as String?;
+  }
+
   Future<Map<String, dynamic>> register({
     required String username,
     required String email,
@@ -410,7 +428,7 @@ class BackendApi {
     return UserProfile.fromJson(response);
   }
 
-  Future<UserProfile> updatePreferences({bool? evidenceMode, bool? fridayReminder}) async {
+  Future<UserPreferences> updatePreferences({bool? evidenceMode, bool? fridayReminder}) async {
     final response = await _patch(
       '/auth/preferences',
       auth: true,
@@ -419,7 +437,8 @@ class BackendApi {
         if (fridayReminder != null) 'friday_reminder': fridayReminder,
       }),
     );
-    return UserProfile.fromJson(_handleJson(response));
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return UserPreferences.fromJson(decoded);
   }
 
   Future<bool> isEmailVerified() async {
@@ -507,12 +526,14 @@ class BackendApi {
     return JarStats.fromJson(_handleJson(response));
   }
 
-  Future<JarStats> addJarStar(int actId, {String? requestId}) async {
+  Future<JarStats> addJarStar({int? actId, String? type, String? note, String? requestId}) async {
     final response = await _post(
       '/sadaqah/jar/add-star',
       auth: true,
       query: {
-        'act_id': actId,
+        if (actId != null) 'act_id': actId,
+        if (type != null && type.isNotEmpty) 'type': type,
+        if (note != null && note.isNotEmpty) 'note': note,
         if (requestId != null && requestId.isNotEmpty) 'request_id': requestId,
       },
     );
@@ -606,8 +627,11 @@ class BackendApi {
   }
 
   Future<int> getUnreadNotificationCount() async {
-    final page = await getNotifications(unread: true, limit: 1);
-    return page.total;
+    final response = await _get('/notifications/unread-count', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    final map = Map<String, dynamic>.from(data as Map);
+    return (map['count'] as num?)?.toInt() ?? 0;
   }
 
   Future<NotificationPage> getNotifications({bool unread = false, int limit = 20, int offset = 0}) async {
@@ -620,15 +644,34 @@ class BackendApi {
         'offset': offset,
       },
     );
-    return NotificationPage.fromJson(_handleJson(response));
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) {
+      final meta = _getEnvelopeMeta(decoded);
+      return NotificationPage(
+        total: (meta?['total'] as num?)?.toInt() ?? 0,
+        limit: limit,
+        offset: offset,
+        data: (data as List).map((i) => NotificationItem.fromJson(Map<String, dynamic>.from(i as Map))).toList(),
+      );
+    });
   }
 
   Future<void> markNotificationRead(int notificationId) async {
-    await _post('/notifications/read/$notificationId', auth: true, retryOnUnauthorized: true);
+    final response = await _post('/notifications/read/$notificationId', auth: true, retryOnUnauthorized: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final message = _getEnvelopeMessage(decoded);
+    if (message != null) {
+      throw BackendApiException(message, response.statusCode);
+    }
   }
 
   Future<void> markAllNotificationsRead() async {
-    await _post('/notifications/read-all', auth: true, retryOnUnauthorized: true);
+    final response = await _post('/notifications/read-all', auth: true, retryOnUnauthorized: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final message = _getEnvelopeMessage(decoded);
+    if (message != null) {
+      throw BackendApiException(message, response.statusCode);
+    }
   }
 
   Future<void> registerDeviceToken({required String token, required String platform}) async {
@@ -783,44 +826,348 @@ class BackendApi {
   Future<Map<String, dynamic>> createFamilyJar({required String name, int capacity = 33}) async {
     final response = await _post('/family/create', auth: true, query: {'name': name, 'capacity': capacity});
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    await saveLastFamilyJarId((decoded['jar_id'] as num?)?.toInt());
-    return decoded;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    final map = Map<String, dynamic>.from(data as Map);
+    await saveLastFamilyJarId((map['id'] as num?)?.toInt());
+    return map;
   }
 
   Future<Map<String, dynamic>> joinFamilyJar({required String inviteCode}) async {
     final response = await _post('/family/join', auth: true, query: {'invite_code': inviteCode});
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    await saveLastFamilyJarId((decoded['jar_id'] as num?)?.toInt());
-    return decoded;
-  }
-
-  Future<Map<String, dynamic>> addFamilyStar({required int jarId, required int actId}) async {
-    final response = await _post('/family/add-star', auth: true, query: {'jar_id': jarId, 'act_id': actId});
-    return _handleJson(response);
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    final map = Map<String, dynamic>.from(data as Map);
+    await saveLastFamilyJarId((map['id'] as num?)?.toInt());
+    return map;
   }
 
   Future<List<LeaderboardEntry>> getFamilyLeaderboard({required int jarId, int limit = 10}) async {
     final response = await _get('/family/$jarId/leaderboard', auth: true, query: {'limit': limit});
-    return _leaderboardFromResponse(response);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return (data as List).map((i) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(i as Map))).toList();
   }
 
   Future<Map<String, dynamic>> getFamilyTopContributor({required int jarId}) async {
     final response = await _get('/family/$jarId/top-contributor', auth: true);
-    return _handleJson(response);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return Map<String, dynamic>.from(data as Map);
   }
 
   Future<Map<String, dynamic>> getFamilyJarDetail({required int jarId}) async {
     final response = await _get('/family/$jarId', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    return decoded;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> getFridayRecommendations() async {
+    final response = await _get('/friday/recommendations', auth: true);
+    final decoded = _handleJson(response) as List<dynamic>;
+    return decoded.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getMorningAdhkar() async {
+    final response = await _get('/adhkar/morning', auth: true);
+    final decoded = _handleJson(response) as List<dynamic>;
+    return decoded.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getEveningAdhkar() async {
+    final response = await _get('/adhkar/evening', auth: true);
+    final decoded = _handleJson(response) as List<dynamic>;
+    return decoded.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  Future<JourneyReflectionPage> getReflections({int limit = 20, int offset = 0}) async {
+    final response = await _get(
+      '/journey/reflections',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) {
+      final meta = _getEnvelopeMeta(decoded);
+      return JourneyReflectionPage(
+        items: (data as List).map((i) => JourneyReflection.fromJson(Map<String, dynamic>.from(i as Map))).toList(),
+        total: (meta?['total'] as num?)?.toInt() ?? 0,
+      );
+    });
+  }
+
+  Future<JourneyReflection> createReflection({required String title, required String body, required String mood, bool isPrivate = false, DateTime? date}) async {
+    final response = await _post(
+      '/journey/reflections',
+      auth: true,
+      body: jsonEncode({
+        'title': title,
+        'body': body,
+        'mood': mood,
+        'is_private': isPrivate,
+        if (date != null) 'date': date.toIso8601String(),
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) => JourneyReflection.fromJson(Map<String, dynamic>.from(data as Map)));
+  }
+
+  Future<JourneyAdhkarProgress> setAdhkarProgress(int adhkarId, int count) async {
+    final response = await _post(
+      '/journey/adhkar/$adhkarId/progress',
+      auth: true,
+      body: jsonEncode({'count': count}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) => JourneyAdhkarProgress.fromJson(Map<String, dynamic>.from(data as Map)));
+  }
+
+  Future<List<JourneyAdhkarProgress>> getAdhkarProgress() async {
+    final response = await _get('/journey/adhkar/progress', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return (data as List).map((i) => JourneyAdhkarProgress.fromJson(Map<String, dynamic>.from(i as Map))).toList();
+  }
+
+  Future<JourneyAdhkarProgress> getAdhkarProgressFor(int adhkarId) async {
+    final response = await _get('/journey/adhkar/$adhkarId/progress', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) => JourneyAdhkarProgress.fromJson(Map<String, dynamic>.from(data as Map)));
+  }
+
+  Future<JourneyAdhkarFavorite> favoriteAdhkar(int adhkarId) async {
+    final response = await _post('/journey/adhkar/$adhkarId/favorite', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) => JourneyAdhkarFavorite.fromJson(Map<String, dynamic>.from(data as Map)));
+  }
+
+  Future<void> unfavoriteAdhkar(int adhkarId) async {
+    final response = await _delete('/journey/adhkar/$adhkarId/favorite', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final message = _getEnvelopeMessage(decoded);
+    if (message != null) {
+      throw BackendApiException(message, response.statusCode);
+    }
+  }
+
+  Future<List<JourneyAdhkarFavorite>> getAdhkarFavorites() async {
+    final response = await _get('/journey/adhkar/favorites', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return (data as List).map((i) => JourneyAdhkarFavorite.fromJson(Map<String, dynamic>.from(i as Map))).toList();
   }
 
   Future<void> leaveFamilyJar({required int jarId}) async {
-    await _post('/family/$jarId/leave', auth: true);
+    final response = await _post('/family/$jarId/leave', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final message = _getEnvelopeMessage(decoded);
+    if (message != null) {
+      throw BackendApiException(message, response.statusCode);
+    }
   }
 
   Future<void> removeFamilyMember({required int jarId, required int targetUserId}) async {
-    await _delete('/family/$jarId/members/$targetUserId', auth: true);
+    final response = await _delete('/family/$jarId/members/$targetUserId', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final message = _getEnvelopeMessage(decoded);
+    if (message != null) {
+      throw BackendApiException(message, response.statusCode);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> getFamilyGoals(int familyId) async {
+    final response = await _get('/family/$familyId/goals', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> createFamilyGoal(int familyId, {required String title, String? subtitle, required int actsTarget}) async {
+    final response = await _post(
+      '/family/$familyId/goals',
+      auth: true,
+      body: jsonEncode({
+        'title': title,
+        if (subtitle != null && subtitle.isNotEmpty) 'subtitle': subtitle,
+        'acts_target': actsTarget,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) => Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<List<Map<String, dynamic>>> getFamilyReflections(int familyId, {int limit = 50, int offset = 0}) async {
+    final response = await _get(
+      '/family/$familyId/reflections',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> createFamilyReflection(int familyId, {required String text}) async {
+    final response = await _post(
+      '/family/$familyId/reflections',
+      auth: true,
+      body: jsonEncode({'text': text}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) => Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<Map<String, dynamic>> encourageFamilyReflection(int familyId, int reflectionId, String encouragementType) async {
+    final response = await _post(
+      '/family/$familyId/reflections/$reflectionId/encourage',
+      auth: true,
+      body: jsonEncode({'encouragement_type': encouragementType}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<List<Map<String, dynamic>>> getFamilyPrayers(int familyId, {int limit = 50, int offset = 0}) async {
+    final response = await _get(
+      '/family/$familyId/prayers',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>> createFamilyPrayer(int familyId, {required String text, bool isPrivate = false}) async {
+    final response = await _post(
+      '/family/$familyId/prayers',
+      auth: true,
+      body: jsonEncode({'text': text, 'is_private': isPrivate}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return _unwrapEnvelope(decoded, (data) => Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<Map<String, dynamic>> respondToFamilyPrayer(int familyId, int prayerId, String responseType) async {
+    final response = await _post(
+      '/family/$familyId/prayers/$prayerId/respond',
+      auth: true,
+      body: jsonEncode({'response_type': responseType}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> getFamilySettings(int familyId) async {
+    final response = await _get('/family/$familyId/settings', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> updateFamilySettings(int familyId, {Map<String, bool>? notificationPreferences}) async {
+    final response = await _patch(
+      '/family/$familyId/settings',
+      auth: true,
+      body: jsonEncode({
+        if (notificationPreferences != null) 'notification_preferences': notificationPreferences,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<void> archiveFamilyJar(int familyId) async {
+    final response = await _post('/family/$familyId/archive', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final message = _getEnvelopeMessage(decoded);
+    if (message != null) {
+      throw BackendApiException(message, response.statusCode);
+    }
+  }
+
+  Future<void> deleteFamilyJar(int familyId) async {
+    await _delete('/family/$familyId', auth: true);
+  }
+
+  Future<List<BookRead>> getBooks({int limit = 50, int offset = 0}) async {
+    final response = await _get('/books/', auth: true, query: {'limit': limit, 'offset': offset});
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) {
+      final meta = _getEnvelopeMeta(decoded);
+      return data;
+    }) as List;
+    return data.map((item) => BookRead.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+  }
+
+  Future<BookDetail> getBook(int bookId) async {
+    final response = await _get('/books/$bookId', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return BookDetail.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<List<BookChapterRead>> getBookChapters(int bookId) async {
+    final response = await _get('/books/$bookId/chapters', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    return (data as List).map((item) => BookChapterRead.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+  }
+
+  Future<AdminBookPage> getAdminBooks({int limit = 50, int offset = 0}) async {
+    final response = await _get('/admin/books/', auth: true, query: {'limit': limit, 'offset': offset});
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final meta = _getEnvelopeMeta(decoded);
+    final rows = (decoded['data'] as List? ?? [])
+        .map((item) => AdminBookRecord.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+    return AdminBookPage(
+      total: (meta?['total'] as num?)?.toInt() ?? rows.length,
+      limit: limit,
+      offset: offset,
+      data: rows,
+    );
+  }
+
+  Future<AdminBookRecord> createAdminBook({required String title, required String author, String? description, String? coverUrl, required String category, String language = 'en', bool published = true, int sortOrder = 0}) async {
+    final response = await _post(
+      '/admin/books/',
+      auth: true,
+      body: jsonEncode({
+        'title': title,
+        'author': author,
+        'description': description,
+        'cover_url': coverUrl,
+        'category': category,
+        'language': language,
+        'published': published,
+        'sort_order': sortOrder,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return AdminBookRecord.fromJson(decoded);
+  }
+
+  Future<AdminBookRecord> updateAdminBook(int bookId, {String? title, String? author, String? description, String? coverUrl, String? category, String? language, bool? published, int? sortOrder}) async {
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (author != null) body['author'] = author;
+    if (description != null) body['description'] = description;
+    if (coverUrl != null) body['cover_url'] = coverUrl;
+    if (category != null) body['category'] = category;
+    if (language != null) body['language'] = language;
+    if (published != null) body['published'] = published;
+    if (sortOrder != null) body['sort_order'] = sortOrder;
+    final response = await _patch('/admin/books/$bookId', auth: true, body: jsonEncode(body));
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    return AdminBookRecord.fromJson(decoded);
+  }
+
+  Future<void> deleteAdminBook(int bookId) async {
+    await _delete('/admin/books/$bookId', auth: true);
   }
 
   List<LeaderboardEntry> _leaderboardFromResponse(http.Response response) {
@@ -1284,6 +1631,41 @@ class UserProfile {
   }
 }
 
+class UserPreferences {
+  UserPreferences({
+    required this.theme,
+    required this.language,
+    required this.notificationPreferences,
+    required this.reminderPreferences,
+    required this.accessibilityPreferences,
+    required this.privacyPreferences,
+    this.timezone,
+    required this.selectedMode,
+  });
+
+  final String theme;
+  final String language;
+  final Map<String, dynamic> notificationPreferences;
+  final Map<String, dynamic> reminderPreferences;
+  final Map<String, dynamic> accessibilityPreferences;
+  final Map<String, dynamic> privacyPreferences;
+  final String? timezone;
+  final String selectedMode;
+
+  factory UserPreferences.fromJson(Map<String, dynamic> json) {
+    return UserPreferences(
+      theme: json['theme']?.toString() ?? 'light',
+      language: json['language']?.toString() ?? 'en',
+      notificationPreferences: Map<String, dynamic>.from(json['notification_preferences'] as Map? ?? const {}),
+      reminderPreferences: Map<String, dynamic>.from(json['reminder_preferences'] as Map? ?? const {}),
+      accessibilityPreferences: Map<String, dynamic>.from(json['accessibility_preferences'] as Map? ?? const {}),
+      privacyPreferences: Map<String, dynamic>.from(json['privacy_preferences'] as Map? ?? const {}),
+      timezone: json['timezone']?.toString(),
+      selectedMode: json['selected_mode']?.toString() ?? 'personal',
+    );
+  }
+}
+
 class DashboardStats {
   DashboardStats({
     required this.totalActsCompleted,
@@ -1541,6 +1923,280 @@ class NotificationItem {
       message: json['message']?.toString() ?? '',
       isRead: json['is_read'] as bool? ?? false,
       createdAt: json['created_at']?.toString(),
+    );
+  }
+}
+
+class JourneyReflectionPage {
+  JourneyReflectionPage({required this.items, required this.total});
+
+  final List<JourneyReflection> items;
+  final int total;
+
+  factory JourneyReflectionPage.fromJson(Map<String, dynamic> json) {
+    return JourneyReflectionPage(
+      items: (json['items'] as List<dynamic>? ?? [])
+          .map((item) => JourneyReflection.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList(),
+      total: (json['total'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class JourneyReflection {
+  JourneyReflection({
+    required this.id,
+    required this.userId,
+    required this.title,
+    required this.body,
+    required this.mood,
+    required this.isPrivate,
+    required this.date,
+    required this.createdAt,
+    this.updatedAt,
+  });
+
+  final int id;
+  final int userId;
+  final String title;
+  final String body;
+  final String mood;
+  final bool isPrivate;
+  final DateTime date;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+
+  factory JourneyReflection.fromJson(Map<String, dynamic> json) {
+    return JourneyReflection(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      userId: (json['user_id'] as num?)?.toInt() ?? 0,
+      title: json['title']?.toString() ?? '',
+      body: json['body']?.toString() ?? '',
+      mood: json['mood']?.toString() ?? '',
+      isPrivate: json['is_private'] as bool? ?? false,
+      date: DateTime.tryParse(json['date']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+      updatedAt: json['updated_at'] != null ? DateTime.tryParse(json['updated_at'].toString()) : null,
+    );
+  }
+}
+
+class JourneyAdhkarProgress {
+  JourneyAdhkarProgress({
+    required this.id,
+    required this.adhkarId,
+    required this.count,
+    required this.updatedAt,
+  });
+
+  final int id;
+  final int adhkarId;
+  final int count;
+  final DateTime updatedAt;
+
+  factory JourneyAdhkarProgress.fromJson(Map<String, dynamic> json) {
+    return JourneyAdhkarProgress(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      adhkarId: (json['adhkar_id'] as num?)?.toInt() ?? 0,
+      count: (json['count'] as num?)?.toInt() ?? 0,
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
+class JourneyAdhkarFavorite {
+  JourneyAdhkarFavorite({
+    required this.id,
+    required this.adhkarId,
+    required this.createdAt,
+  });
+
+  final int id;
+  final int adhkarId;
+  final DateTime createdAt;
+
+  factory JourneyAdhkarFavorite.fromJson(Map<String, dynamic> json) {
+    return JourneyAdhkarFavorite(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      adhkarId: (json['adhkar_id'] as num?)?.toInt() ?? 0,
+      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ?? DateTime.now(),
+    );
+  }
+}
+
+class BookRead {
+  BookRead({
+    required this.id,
+    required this.title,
+    required this.author,
+    this.description,
+    this.coverUrl,
+    required this.category,
+    required this.language,
+    required this.published,
+    required this.sortOrder,
+    this.chapterCount = 0,
+    this.totalReadingTime = 0,
+    this.chapters,
+  });
+
+  final int id;
+  final String title;
+  final String author;
+  final String? description;
+  final String? coverUrl;
+  final String category;
+  final String language;
+  final bool published;
+  final int sortOrder;
+  final int chapterCount;
+  final int totalReadingTime;
+  final List<BookChapterRead>? chapters;
+
+  factory BookRead.fromJson(Map<String, dynamic> json) {
+    return BookRead(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      title: json['title']?.toString() ?? '',
+      author: json['author']?.toString() ?? '',
+      description: json['description']?.toString(),
+      coverUrl: json['cover_url']?.toString(),
+      category: json['category']?.toString() ?? '',
+      language: json['language']?.toString() ?? 'en',
+      published: json['published'] as bool? ?? false,
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+      chapterCount: (json['chapter_count'] as num?)?.toInt() ?? 0,
+      totalReadingTime: (json['total_reading_time'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+class BookChapterRead {
+  BookChapterRead({
+    required this.id,
+    required this.bookId,
+    required this.chapterNumber,
+    required this.title,
+    required this.content,
+    required this.readingTimeMinutes,
+  });
+
+  final int id;
+  final int bookId;
+  final int chapterNumber;
+  final String title;
+  final String content;
+  final int readingTimeMinutes;
+
+  factory BookChapterRead.fromJson(Map<String, dynamic> json) {
+    return BookChapterRead(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      bookId: (json['book_id'] as num?)?.toInt() ?? 0,
+      chapterNumber: (json['chapter_number'] as num?)?.toInt() ?? 0,
+      title: json['title']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
+      readingTimeMinutes: (json['reading_time_minutes'] as num?)?.toInt() ?? 5,
+    );
+  }
+}
+
+class BookDetail {
+  BookDetail({
+    required this.id,
+    required this.title,
+    required this.author,
+    this.description,
+    this.coverUrl,
+    required this.category,
+    required this.language,
+    required this.published,
+    required this.sortOrder,
+    required this.chapters,
+  });
+
+  final int id;
+  final String title;
+  final String author;
+  final String? description;
+  final String? coverUrl;
+  final String category;
+  final String language;
+  final bool published;
+  final int sortOrder;
+  final List<BookChapterRead> chapters;
+
+  factory BookDetail.fromJson(Map<String, dynamic> json) {
+    return BookDetail(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      title: json['title']?.toString() ?? '',
+      author: json['author']?.toString() ?? '',
+      description: json['description']?.toString(),
+      coverUrl: json['cover_url']?.toString(),
+      category: json['category']?.toString() ?? '',
+      language: json['language']?.toString() ?? 'en',
+      published: json['published'] as bool? ?? false,
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+      chapters: (json['chapters'] as List? ?? [])
+          .map((item) => BookChapterRead.fromJson(Map<String, dynamic>.from(item as Map)))
+          .toList(),
+    );
+  }
+}
+
+class AdminBookPage {
+  AdminBookPage({required this.total, required this.limit, required this.offset, required this.data});
+
+  final int total;
+  final int limit;
+  final int offset;
+  final List<AdminBookRecord> data;
+
+  factory AdminBookPage.fromJson(Map<String, dynamic> json) {
+    final rows = (json['data'] as List? ?? [])
+        .map((item) => AdminBookRecord.fromJson(Map<String, dynamic>.from(item as Map)))
+        .toList();
+    return AdminBookPage(
+      total: (json['total'] as num?)?.toInt() ?? rows.length,
+      limit: (json['limit'] as num?)?.toInt() ?? rows.length,
+      offset: (json['offset'] as num?)?.toInt() ?? 0,
+      data: rows,
+    );
+  }
+}
+
+class AdminBookRecord {
+  AdminBookRecord({
+    required this.id,
+    required this.title,
+    required this.author,
+    this.description,
+    this.coverUrl,
+    required this.category,
+    required this.language,
+    required this.published,
+    required this.sortOrder,
+  });
+
+  final int id;
+  final String title;
+  final String author;
+  final String? description;
+  final String? coverUrl;
+  final String category;
+  final String language;
+  final bool published;
+  final int sortOrder;
+
+  factory AdminBookRecord.fromJson(Map<String, dynamic> json) {
+    return AdminBookRecord(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      title: json['title']?.toString() ?? '',
+      author: json['author']?.toString() ?? '',
+      description: json['description']?.toString(),
+      coverUrl: json['cover_url']?.toString(),
+      category: json['category']?.toString() ?? '',
+      language: json['language']?.toString() ?? 'en',
+      published: json['published'] as bool? ?? false,
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
     );
   }
 }

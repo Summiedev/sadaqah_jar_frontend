@@ -88,7 +88,7 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const Text(
-          'You can change this any time in Settings.\nMizan gently adapts to the life you choose.',
+          'Choose what fits today. You can change it later.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, height: 1.55, color: Color(0xCC4E3629)),
         ),
@@ -108,7 +108,7 @@ class _ModeCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = meta.accent;
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
         color: selected ? accent.withValues(alpha: 0.06) : Colors.white,
@@ -132,8 +132,8 @@ class _ModeCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 58,
-                  height: 58,
+                  width: 56,
+                  height: 56,
                   decoration: BoxDecoration(
                     color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(18),
@@ -153,7 +153,7 @@ class _ModeCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
+                  duration: const Duration(milliseconds: 200),
                   width: 24,
                   height: 24,
                   decoration: BoxDecoration(
@@ -181,7 +181,7 @@ class _EnterButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 58,
+      height: 56,
       child: FilledButton(
         onPressed: onTap,
         style: FilledButton.styleFrom(

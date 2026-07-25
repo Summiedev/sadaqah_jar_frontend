@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
 import '../home/home_screen.dart';
+import '../home/add_act_screen.dart';
 import '../journey/journey_screen.dart';
 import '../family/family_screen.dart';
 import '../profile/profile_screen.dart';
@@ -16,10 +17,12 @@ const int _kFamily = 2;
 const int _kProfile = 3;
 
 class _NavDef {
-  const _NavDef(this.page, this.icon, this.label);
+  const _NavDef(this.page, this.icon, this.selectedIcon, this.label, this.location);
   final int page;
   final IconData icon;
+  final IconData selectedIcon;
   final String label;
+  final String location;
 }
 
 class AppShell extends ConsumerStatefulWidget {
@@ -29,7 +32,7 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderStateMixin {
+class _AppShellState extends ConsumerState<AppShell> {
   late final PageController _pageController;
   int _index = 0;
 
@@ -72,78 +75,135 @@ class _AppShellState extends ConsumerState<AppShell> with SingleTickerProviderSt
     switch (mode) {
       case kModePersonal:
         return const [
-          _NavDef(_kHome, Icons.auto_awesome, 'Sanctuary'),
-          _NavDef(_kJourney, Icons.explore_outlined, 'Journey'),
-          _NavDef(_kProfile, Icons.person_outline, 'You'),
+          _NavDef(_kHome, Icons.spa_outlined, Icons.spa, 'Sanctuary', '/home'),
+          _NavDef(_kJourney, Icons.route_outlined, Icons.route, 'Journey', '/journey'),
+          _NavDef(_kProfile, Icons.person_outline, Icons.person, 'Profile', '/profile'),
         ];
       case kModeFamily:
         return const [
-          _NavDef(_kFamily, Icons.groups_outlined, 'Family'),
-          _NavDef(_kJourney, Icons.explore_outlined, 'Journey'),
-          _NavDef(_kProfile, Icons.person_outline, 'You'),
+          _NavDef(_kFamily, Icons.groups_outlined, Icons.groups, 'Family', '/family'),
+          _NavDef(_kJourney, Icons.route_outlined, Icons.route, 'Journey', '/journey'),
+          _NavDef(_kProfile, Icons.person_outline, Icons.person, 'Profile', '/profile'),
         ];
       default:
         return const [
-          _NavDef(_kHome, Icons.auto_awesome, 'Sanctuary'),
-          _NavDef(_kJourney, Icons.explore_outlined, 'Journey'),
-          _NavDef(_kFamily, Icons.groups_outlined, 'Family'),
-          _NavDef(_kProfile, Icons.person_outline, 'You'),
+          _NavDef(_kHome, Icons.spa_outlined, Icons.spa, 'Sanctuary', '/home'),
+          _NavDef(_kJourney, Icons.route_outlined, Icons.route, 'Journey', '/journey'),
+          _NavDef(_kFamily, Icons.groups_outlined, Icons.groups, 'Family', '/family'),
+          _NavDef(_kProfile, Icons.person_outline, Icons.person, 'Profile', '/profile'),
         ];
     }
   }
 
-  void _goTo(int page) {
+  void _goTo(_NavDef tab) {
     _pageController.animateToPage(
-      page,
-      duration: const Duration(milliseconds: 320),
+      tab.page,
+      duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOutCubic,
     );
+    context.go(tab.location);
   }
 
   @override
   Widget build(BuildContext context) {
     final mode = ref.watch(modeProvider);
     final tabs = _visibleTabs(mode);
-    final mid = tabs.length ~/ 2;
+    final isScrolled = ref.watch(isScrolledProvider);
 
-    return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        physics: const BouncingScrollPhysics(),
-        onPageChanged: (i) => setState(() => _index = i),
-        children: _pages.map((p) => _KeepAlivePage(key: ValueKey(p.runtimeType), child: p)).toList(),
-      ),
-      bottomNavigationBar: Container(
-        height: 66,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF3E9DE),
-          border: Border(top: BorderSide(color: Colors.black.withValues(alpha: 0.08))),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_index != _kHome) {
+          final home = tabs.firstWhere((tab) => tab.page == _kHome, orElse: () => tabs.first);
+          _goTo(home);
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const Text('You are already on your home screen.')));
+      },
+      child: Scaffold(
+        body: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
+          onPageChanged: (i) => setState(() => _index = i),
+          children: _pages.map((p) => _KeepAlivePage(key: ValueKey(p.runtimeType), child: p)).toList(),
         ),
-        child: Row(
-          children: [
-            for (int i = 0; i < tabs.length; i++) ...[
-              if (i == mid)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: SizedBox(
-                    width: 56,
-                    height: 56,
-                    child: FloatingActionButton(
-                      elevation: 2,
-                      backgroundColor: const Color(0xFF8B6842),
-                      onPressed: () => context.go('/add-act'),
-                      child: const Icon(Icons.add, size: 28),
-                    ),
-                  ),
-                ),
-              _NavItem(
-                active: _index == tabs[i].page,
-                icon: tabs[i].icon,
-                label: tabs[i].label,
-                onTap: () => _goTo(tabs[i].page),
-              ),
-            ],
-          ],
+        floatingActionButton: FloatingActionButton(
+          elevation: 6,
+          backgroundColor: const Color(0xFF8B6842),
+          foregroundColor: Colors.white,
+          tooltip: 'Add sadaqah',
+          onPressed: () => AddActScreen.show(context),
+          shape: const CircleBorder(),
+          child: const Icon(Icons.add_rounded, size: 30),
+        ),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: BottomAppBar(
+          shape: const CircularNotchedRectangle(),
+          notchMargin: 8,
+          height: 82,
+          elevation: 0,
+          color: isScrolled ? const Color(0xFFEDE5D8) : const Color(0xFFF7F0E8),
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+          child: _DockedNavBar(
+            tabs: tabs,
+            selectedPage: _index,
+            onTap: _goTo,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DockedNavBar extends StatelessWidget {
+  const _DockedNavBar({required this.tabs, required this.selectedPage, required this.onTap});
+  final List<_NavDef> tabs;
+  final int selectedPage;
+  final ValueChanged<_NavDef> onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tabs.length == 4) {
+      final left = tabs.take(2);
+      final right = tabs.skip(2);
+      return Row(children: [
+        for (final tab in left) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
+        const SizedBox(width: 74),
+        for (final tab in right) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
+      ]);
+    }
+    return Row(children: [
+      for (final tab in tabs) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
+    ]);
+  }
+}
+
+class _DockedNavItem extends StatelessWidget {
+  const _DockedNavItem({required this.tab, required this.selected, required this.onTap});
+  final _NavDef tab;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? const Color(0xFF8B6842) : const Color(0xFF8F7B6B);
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: tab.label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+          decoration: BoxDecoration(color: selected ? const Color(0x148B6842) : Colors.transparent, borderRadius: BorderRadius.circular(18)),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(selected ? tab.selectedIcon : tab.icon, color: color, size: 23),
+            const SizedBox(height: 4),
+            Text(tab.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 11, fontWeight: selected ? FontWeight.w800 : FontWeight.w700)),
+          ]),
         ),
       ),
     );
@@ -168,35 +228,5 @@ class _KeepAlivePageState extends State<_KeepAlivePage> with AutomaticKeepAliveC
   Widget build(BuildContext context) {
     super.build(context);
     return widget.child;
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  const _NavItem({required this.active, required this.icon, required this.label, required this.onTap});
-
-  final bool active;
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = active ? const Color(0xFF8B6842) : const Color(0xFFB08D73);
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 17, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(fontSize: 9, letterSpacing: 1.1, fontWeight: FontWeight.w700, color: color),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }

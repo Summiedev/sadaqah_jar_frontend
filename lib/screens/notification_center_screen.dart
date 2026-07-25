@@ -104,7 +104,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         );
       });
       _notifyUnreadCount();
-    } catch (_) {}
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to mark as read: $error')),
+      );
+    }
   }
 
   Future<void> _markAllRead() async {
@@ -123,7 +128,23 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         }
       });
       _notifyUnreadCount();
-    } catch (_) {}
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to mark all as read: $error')),
+      );
+    }
+  }
+
+  void _archive(int index) {
+    final item = _items[index];
+    setState(() => _items.removeAt(index));
+    _notifyUnreadCount();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: const Text('Notification archived'), action: SnackBarAction(label: 'Undo', onPressed: () {
+        if (mounted) setState(() => _items.insert(index.clamp(0, _items.length).toInt(), item));
+      })),
+    );
   }
 
   @override
@@ -157,7 +178,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                   : _items.isEmpty
                       ? const _StateMessage(
                           message: 'No notifications yet.',
-                          detail: 'When your jar or leaderboard updates, they will appear here.',
+                          detail: 'Gentle updates from your family space and reminders will appear here.',
                         )
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -204,10 +225,21 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                     );
                                   }
                                   final notification = _items[index];
-                                  return _NotificationCard(
-                                    scale: scale,
-                                    notification: notification,
-                                    onTap: notification.isRead ? null : () => _markRead(notification.id, index),
+                                  return Dismissible(
+                                    key: ValueKey(notification.id),
+                                    direction: DismissDirection.endToStart,
+                                    background: Container(
+                                      alignment: Alignment.centerRight,
+                                      padding: EdgeInsets.only(right: s(22)),
+                                      decoration: BoxDecoration(color: const Color(0xFF8B6842), borderRadius: BorderRadius.circular(s(16))),
+                                      child: const Icon(Icons.archive_outlined, color: Colors.white),
+                                    ),
+                                    onDismissed: (_) => _archive(index),
+                                    child: _NotificationCard(
+                                      scale: scale,
+                                      notification: notification,
+                                      onTap: notification.isRead ? null : () => _markRead(notification.id, index),
+                                    ),
                                   );
                                 },
                               ),
@@ -235,6 +267,7 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final presentation = _presentationFor(notification);
     return Material(
       color: notification.isRead ? const Color(0xFFF7F3ED) : const Color(0xFFE9DCCF),
       borderRadius: BorderRadius.circular(s(16)),
@@ -250,10 +283,10 @@ class _NotificationCard extends StatelessWidget {
                 width: s(38),
                 height: s(38),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE3D5C7),
+                  color: presentation.$2.withValues(alpha: .13),
                   borderRadius: BorderRadius.circular(s(12)),
                 ),
-                child: Icon(notification.isRead ? Icons.notifications_none : Icons.notifications_active_outlined, color: const Color(0xFF8B6842), size: s(20)),
+                child: Icon(presentation.$1, color: presentation.$2, size: s(20)),
               ),
               SizedBox(width: s(12)),
               Expanded(
@@ -294,6 +327,16 @@ class _NotificationCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  (IconData, Color) _presentationFor(NotificationItem item) {
+    final text = '${item.title} ${item.message}'.toLowerCase();
+    if (text.contains('prayer') || text.contains('salah')) return (Icons.mosque_outlined, const Color(0xFF58705C));
+    if (text.contains('family') || text.contains('invite')) return (Icons.groups_outlined, const Color(0xFF8B6842));
+    if (text.contains('goal')) return (Icons.flag_outlined, const Color(0xFFB06B45));
+    if (text.contains('reflection')) return (Icons.menu_book_outlined, const Color(0xFF687EA5));
+    if (text.contains('achievement') || text.contains('streak')) return (Icons.auto_awesome_outlined, const Color(0xFF9A6A3A));
+    return (Icons.notifications_none_outlined, const Color(0xFF76695E));
   }
 
   String _formatDate(String raw) {

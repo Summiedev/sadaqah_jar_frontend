@@ -9,8 +9,9 @@ import 'package:go_router/go_router.dart';
 // No gradients-on-surfaces, no neon, no glassmorphism, minimal shadows.
 // ─────────────────────────────────────────────────────────────
 
-const Color fIvory = Color(0xFFFBF9F6);
-const Color fPaper = Color(0xFFF9F4ED);
+// Shared Mizan material palette: the family space is a warmer extension of Sanctuary.
+const Color fIvory = Color(0xFFF7F0E7);
+const Color fPaper = Color(0xFFFFFCF8);
 const Color fSurface = Color(0xFFF7F0E8);
 const Color fWalnut = Color(0xFF2F241E);
 const Color fWalnutLight = Color(0xFF3C2F26);
@@ -69,12 +70,15 @@ class SoftCard extends StatelessWidget {
       child: child,
     );
     if (onTap == null) return card;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
+    return Semantics(
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
         borderRadius: BorderRadius.circular(radius),
         onTap: onTap,
         child: card,
+      ),
       ),
     );
   }
@@ -277,7 +281,7 @@ class MizanButton extends StatefulWidget {
 }
 
 class _MizanButtonState extends State<MizanButton> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 110));
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
   late final Animation<double> _a = Tween<double>(begin: 1, end: 0.97).animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
 
   @override
@@ -290,12 +294,19 @@ class _MizanButtonState extends State<MizanButton> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     return ScaleTransition(
       scale: _a,
-      child: GestureDetector(
-        onTapDown: (_) => _c.forward(),
-        onTapUp: (_) => _c.reverse(),
-        onTapCancel: () => _c.reverse(),
-        onTap: widget.onTap,
-        child: Container(
+      child: Semantics(
+        button: true,
+        label: widget.label,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: widget.onTap,
+            onTapDown: (_) => _c.forward(),
+            onTapUp: (_) => _c.reverse(),
+            onTapCancel: () => _c.reverse(),
+            child: Container(
           width: widget.fullWidth ? double.infinity : null,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(
@@ -307,6 +318,8 @@ class _MizanButtonState extends State<MizanButton> with SingleTickerProviderStat
             widget.label,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fWhite, letterSpacing: 0.3),
+          ),
+            ),
           ),
         ),
       ),
@@ -326,7 +339,7 @@ class MizanOutlineButton extends StatefulWidget {
 }
 
 class _MizanOutlineButtonState extends State<MizanOutlineButton> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 110));
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
   late final Animation<double> _a = Tween<double>(begin: 1, end: 0.97).animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
 
   @override
@@ -339,12 +352,19 @@ class _MizanOutlineButtonState extends State<MizanOutlineButton> with SingleTick
   Widget build(BuildContext context) {
     return ScaleTransition(
       scale: _a,
-      child: GestureDetector(
-        onTapDown: (_) => _c.forward(),
-        onTapUp: (_) => _c.reverse(),
-        onTapCancel: () => _c.reverse(),
-        onTap: widget.onTap,
-        child: Container(
+      child: Semantics(
+        button: true,
+        label: widget.label,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: widget.onTap,
+            onTapDown: (_) => _c.forward(),
+            onTapUp: (_) => _c.reverse(),
+            onTapCancel: () => _c.reverse(),
+            child: Container(
           width: widget.fullWidth ? double.infinity : null,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
           decoration: BoxDecoration(
@@ -356,6 +376,8 @@ class _MizanOutlineButtonState extends State<MizanOutlineButton> with SingleTick
             widget.label,
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fStone, letterSpacing: 0.3),
+          ),
+            ),
           ),
         ),
       ),

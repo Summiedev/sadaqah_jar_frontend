@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../services/backend_api.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
@@ -13,35 +14,27 @@ class FamilyReflectionsScreen extends StatefulWidget {
 }
 
 class _FReflection {
-  _FReflection(this.author, this.authorAccent, this.text, this.time);
+  _FReflection(this.author, this.authorAccent, this.text, this.time, {this.id, Map<String, int>? encouragement}) : encouragement = encouragement ?? const {};
+  final String? id;
   final String author;
   final Color authorAccent;
   final String text;
   final String time;
-  final Map<String, int> encouragement = <String, int>{
-    'May Allah accept': 0,
-    'Ameen': 0,
-    'Barakallahu feek': 0,
-    'May Allah increase you': 0,
-  };
+  Map<String, int> encouragement;
 }
 
 class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
-  late final Future<void> _load = Future<void>.delayed(const Duration(milliseconds: 500));
   FamilyJar? _jar;
   final List<_FReflection> _reflections = [];
   final TextEditingController _c = TextEditingController();
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _jar = getFamilyById(widget.id);
-    _reflections.addAll([
-      _FReflection('Fatimah Ahmad', fOlive, 'Alhamdulillah for another week together.', '2h'),
-      _FReflection('Yusuf Ahmad', fBronze, 'May Allah accept our efforts this month.', '5h'),
-      _FReflection('Maryam Ahmad', fBronzeDark, 'Grateful we could help someone today.', 'Yesterday'),
-      _FReflection('Hafsa Ahmad', fOlive, 'Small things, done with love, are never small.', 'Yesterday'),
-    ]);
+    _loadReflections();
   }
 
   @override
@@ -50,13 +43,89 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     super.dispose();
   }
 
-  void _add() {
-    final t = _c.text.trim();
-    if (t.isEmpty) return;
-    setState(() {
-      _reflections.insert(0, _FReflection('You', fBronze, t, 'now'));
-      _c.clear();
-    });
+  Future<void> _loadReflections() async {
+    setState(() { _loading = true; _error = null; });
+    final familyId = int.tryParse(widget.id);
+    if (familyId == null) {
+      _loadMock();
+      return;
+    }
+    try {
+      final reflections = await BackendApi.instance.getFamilyReflections(familyId);
+      if (!mounted) return;
+      setState(() {
+        _reflections.clear();
+        _reflections.addAll(reflections.map((r) => _FReflection(
+          'You',
+          fBronze,
+          r['text']?.toString() ?? '',
+          'just now',
+          id: r['id']?.toString(),
+          encouragement: r['encouragement_counts'] != null ? Map<String, int>.from(r['encouragement_counts'] as Map) : const {},
+        )));
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      _loadMock();
+      setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  void _loadMock() {
+    _reflections.addAll([
+      _FReflection('Fatimah Ahmad', fOlive, 'Alhamdulillah for another week together.', '2h'),
+      _FReflection('Yusuf Ahmad', fBronze, 'May Allah accept our efforts this month.', '5h'),
+      _FReflection('Maryam Ahmad', fBronzeDark, 'Grateful we could help someone today.', 'Yesterday'),
+      _FReflection('Hafsa Ahmad', fOlive, 'Small things, done with love, are never small.', 'Yesterday'),
+    ]);
+  }
+
+  Future<void> _add() async {
+    final text = _c.text.trim();
+    if (text.isEmpty) return;
+    final familyId = int.tryParse(widget.id);
+    if (familyId == null) {
+      setState(() {
+        _reflections.insert(0, _FReflection('You', fBronze, text, 'now'));
+        _c.clear();
+      });
+      return;
+    }
+    try {
+      final result = await BackendApi.instance.createFamilyReflection(familyId, text: text);
+      if (!mounted) return;
+      setState(() {
+        _reflections.insert(0, _FReflection('You', fBronze, text, 'just now', id: result['id']?.toString()));
+        _c.clear();
+      });
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.brown));
+    }
+  }
+
+  Future<void> _encourage(int index, String type) async {
+    final reflection = _reflections[index];
+    final familyId = int.tryParse(widget.id);
+    final reflectionId = int.tryParse(reflection.id ?? '');
+    if (familyId == null || reflectionId == null) {
+      setState(() => _reflections[index].encouragement[type] = (_reflections[index].encouragement[type] ?? 0) + 1);
+      return;
+    }
+    try {
+      final result = await BackendApi.instance.encourageFamilyReflection(familyId, reflectionId, type);
+      if (!mounted) return;
+      final counts = result['encouragement_counts'] != null
+        ? Map<String, int>.from(result['encouragement_counts'] as Map)
+        : <String, int>{};
+      setState(() {
+        _reflections[index].encouragement = Map<String, int>.from(counts);
+      });
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.brown));
+    }
   }
 
   @override
@@ -75,30 +144,45 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
               ),
             ),
             Expanded(
-              child: FutureBuilder<void>(
-                future: _load,
-                builder: (context, snap) {
-                  if (snap.connectionState != ConnectionState.done) {
-                    return const Center(child: SizedBox(height: 80, child: DecoratedBox(decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.all(Radius.circular(20))))));
-                  }
-                  if (_reflections.isEmpty) {
-                    return const _EmptyReflections();
-                  }
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                    itemCount: _reflections.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) => _ReflectionCard(
-                      r: _reflections[index],
-                      onPick: (k) => setState(() => _reflections[index].encouragement[k] = (_reflections[index].encouragement[k] ?? 0) + 1),
-                    ),
-                  );
-                },
-              ),
+              child: _buildBody(),
             ),
             _FComposeBar(controller: _c, onSend: _add),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading && _reflections.isEmpty) {
+      return const Center(child: SizedBox(height: 80, child: DecoratedBox(decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.all(Radius.circular(20))))));
+    }
+    if (_error != null && _reflections.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(children: [
+            const Icon(Icons.wifi_off_rounded, size: 48, color: fBronze),
+            const SizedBox(height: 18),
+            const Text('Could not load reflections', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+            const SizedBox(height: 8),
+            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+            const SizedBox(height: 18),
+            FilledButton(onPressed: _loadReflections, child: const Text('Retry')),
+          ]),
+        ),
+      );
+    }
+    if (_reflections.isEmpty) {
+      return const _EmptyReflections();
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+      itemCount: _reflections.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => _ReflectionCard(
+        r: _reflections[index],
+        onPick: (k) => _encourage(index, k),
       ),
     );
   }
@@ -135,7 +219,7 @@ class _ReflectionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text('“${r.text}”', style: const TextStyle(fontSize: 14.5, height: 1.5, fontStyle: FontStyle.italic, color: fWalnut)),
+          Text('"${r.text}"', style: const TextStyle(fontSize: 14.5, height: 1.5, fontStyle: FontStyle.italic, color: fWalnut)),
           const SizedBox(height: 14),
           const Divider(height: 1, color: fClayLight),
           const SizedBox(height: 12),

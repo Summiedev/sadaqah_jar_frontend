@@ -1,451 +1,59 @@
-﻿import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class OnboardingScreen extends StatefulWidget {
+import '../../core/mode_provider.dart';
+import '../../main.dart' show sessionProvider;
+import '../family/family_theme.dart' show FamilyJarView;
+
+const _ink = Color(0xFF30261F);
+const _bronze = Color(0xFF8B6842);
+const _muted = Color(0xFF76695E);
+
+class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
-
   @override
-  State<OnboardingScreen> createState() => _OnboardingScreenState();
+  ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
-  late final PageController _pageController;
-  int _step = 0;
-
-  final int _pages = 4;
-
-  @override
-  void initState() {
-    super.initState();
-    _pageController = PageController();
-  }
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> with TickerProviderStateMixin {
+  late final PageController _pages = PageController();
+  late final AnimationController _breath = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800))..repeat(reverse: true);
+  int _page = 0;
+  int _mode = kModeBoth;
 
   @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
+  void dispose() { _pages.dispose(); _breath.dispose(); super.dispose(); }
 
-  void _next() {
-    if (_step < _pages - 1) {
-      _pageController.nextPage(duration: const Duration(milliseconds: 550), curve: Curves.easeInOutCubic);
-    } else {
-      context.push('/mode');
+  Future<void> _next() async {
+    if (_page < 2) {
+      await _pages.nextPage(duration: const Duration(milliseconds: 520), curve: Curves.easeInOutCubic);
+      return;
     }
-  }
-
-  void _skip() {
-    context.push('/mode');
+    await ref.read(modeProvider.notifier).setMode(_mode);
+    await ref.read(sessionProvider).completeOnboarding();
+    if (mounted) context.go('/auth');
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F0),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'M I Z A N',
-                    style: TextStyle(fontSize: 10, letterSpacing: 4, fontWeight: FontWeight.w700, fontFamily: 'serif', color: Color(0xFF4E3629)),
-                  ),
-                  Row(
-                    children: List.generate(_pages, (index) {
-                      final active = index == _step;
-                      return GestureDetector(
-                        onTap: () => _pageController.animateToPage(index, duration: const Duration(milliseconds: 500), curve: Curves.easeInOutCubic),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
-                          margin: const EdgeInsets.only(left: 6),
-                          width: active ? 22 : 6,
-                          height: 6,
-                          decoration: BoxDecoration(
-                            color: active ? const Color(0xFF8B6842) : const Color(0xFFE8DCCF),
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                ],
-              ),
-              Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const BouncingScrollPhysics(),
-                  onPageChanged: (value) => setState(() => _step = value),
-                  children: [
-                    _Page(
-                      visual: const _WelcomeVisual(),
-                      title: 'Every small act\ncarries weight.',
-                      subtitle: 'Mizan is a quiet companion for your daily charity, remembrance, and reflection â€” made for sincerity, not streaks.',
-                    ),
-                    _Page(
-                      visual: const _JarVisual(),
-                      title: 'Small acts, slowly\nfilling the jar.',
-                      subtitle: 'Like water gathering drop by drop, consistency leaves a lasting light. There is no rush, only return.',
-                    ),
-                    _Page(
-                      visual: const _ModesVisual(),
-                      title: 'Choose how you\nwish to begin.',
-                      subtitle: 'Personal for your own path. Family to grow together. Or both â€” solitude and togetherness in one.',
-                    ),
-                    _Page(
-                      visual: const _CommunityVisual(),
-                      title: 'You are not\nalone.',
-                      subtitle: 'Reflection, adhkar, prayer, family, and growth â€” walk gently, surrounded by what matters.',
-                    ),
-                  ],
-                ),
-              ),
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: double.infinity,
-                    height: 56,
-                    child: FilledButton(
-                      onPressed: _next,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFF4E3629),
-                        foregroundColor: const Color(0xFFFAF6F0),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                        elevation: 0,
-                        textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 0.5),
-                      ),
-                      child: Text(_step == _pages - 1 ? 'Begin Your Journey' : 'Continue'),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  AnimatedOpacity(
-                    opacity: _step < _pages - 1 ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 250),
-                    child: Visibility(
-                      visible: _step < _pages - 1,
-                      maintainSize: true,
-                      maintainAnimation: true,
-                      maintainState: true,
-                      child: TextButton(
-                        onPressed: _skip,
-                        style: TextButton.styleFrom(
-                          foregroundColor: const Color(0x994E3629),
-                          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-                        ),
-                        child: const Text('Skip introduction'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
+  Widget build(BuildContext context) => Scaffold(
+    body: AnimatedBuilder(
+      animation: _breath,
+      builder: (context, _) => DecoratedBox(
+        decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [const Color(0xFFF9F3EB), Color.lerp(const Color(0xFFF4E5D2), const Color(0xFFF8F3EC), _breath.value)!, const Color(0xFFF2E9DD)])),
+        child: SafeArea(child: Column(children: [
+          Padding(padding: const EdgeInsets.fromLTRB(24, 18, 20, 0), child: Row(children: [const Text('MIZAN', style: TextStyle(color: _bronze, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 3.5)), const Spacer(), if (_page < 2) TextButton(onPressed: () { _pages.animateToPage(2, duration: const Duration(milliseconds: 450), curve: Curves.easeOutCubic); }, child: const Text('Skip', style: TextStyle(color: _muted, fontWeight: FontWeight.w700)))])),
+          Expanded(child: PageView(controller: _pages, onPageChanged: (value) => setState(() => _page = value), children: [_Welcome(breath: _breath), const _WhyMizan(), _ChooseMode(selected: _mode, onSelect: (value) => setState(() => _mode = value))])),
+          Padding(padding: const EdgeInsets.fromLTRB(24, 6, 24, 28), child: Column(children: [Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(3, (index) => AnimatedContainer(duration: const Duration(milliseconds: 240), margin: const EdgeInsets.symmetric(horizontal: 4), width: _page == index ? 26 : 7, height: 7, decoration: BoxDecoration(color: _page == index ? _bronze : const Color(0xFFD7C6B4), borderRadius: BorderRadius.circular(99))))), const SizedBox(height: 22), SizedBox(width: double.infinity, child: FilledButton(onPressed: _next, child: Text(_page == 2 ? 'Begin with Mizan' : 'Continue')))])),
+        ])),
       ),
-    );
-  }
+    ),
+  );
 }
 
-class _Page extends StatelessWidget {
-  const _Page({required this.visual, required this.title, required this.subtitle});
+class _Welcome extends StatelessWidget { const _Welcome({required this.breath}); final Animation<double> breath; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(horizontal: 28), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [AnimatedBuilder(animation: breath, builder: (context, child) => Transform.translate(offset: Offset(0, -5 * breath.value), child: child), child: const SizedBox(width: 190, height: 210, child: FamilyJarView(fill: .42, size: 156, glow: .95))), const SizedBox(height: 28), const Text('A quieter way\nto give.', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Georgia', fontSize: 34, height: 1.08, fontWeight: FontWeight.w700, color: _ink)), const SizedBox(height: 14), const Text('Mizan helps you keep the small acts of goodness that matter — gently, privately, and with intention.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.55, color: _muted))])); }
 
-  final Widget visual;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const SizedBox(height: 28),
-          SizedBox(height: 240, child: Center(child: visual)),
-          const SizedBox(height: 24),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 25, fontWeight: FontWeight.w800, color: Color(0xFF2F241E), height: 1.28, letterSpacing: -0.3),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            subtitle,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13.5, height: 1.6, fontWeight: FontWeight.w400, color: Color(0xCC4E3629)),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
-  }
-}
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// PAGE 1 â€” WELCOME
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-class _WelcomeVisual extends StatefulWidget {
-  const _WelcomeVisual();
-
-  @override
-  State<_WelcomeVisual> createState() => _WelcomeVisualState();
-}
-
-class _WelcomeVisualState extends State<_WelcomeVisual> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-  late final Animation<double> _scale = Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack));
-  late final Animation<double> _rise = Tween<double>(begin: 20, end: 0).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
-
-  @override
-  void initState() {
-    super.initState();
-    _c.forward();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) => Transform.translate(
-        offset: Offset(0, _rise.value),
-        child: Transform.scale(
-          scale: _scale.value,
-          child: Container(
-            width: 200,
-            height: 200,
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: const Color(0xFF8B6842).withValues(alpha: 0.12), blurRadius: 30, offset: const Offset(0, 12))],
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Container(
-                  width: 132,
-                  height: 132,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const LinearGradient(colors: [Color(0xFFF6ECDF), Color(0xFFEBD9C6)]),
-                  ),
-                ),
-                const Icon(Icons.balance_outlined, size: 64, color: Color(0xFF8B6842)),
-                Positioned(
-                  bottom: 30,
-                  child: Container(
-                    width: 26,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFB38964),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(14), bottom: Radius.circular(6)),
-                      boxShadow: [BoxShadow(color: const Color(0xFF8B6842).withValues(alpha: 0.3), blurRadius: 10, offset: const Offset(0, 3))],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// PAGE 2 â€” THE JAR (animated fill)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-class _JarVisual extends StatefulWidget {
-  const _JarVisual();
-
-  @override
-  State<_JarVisual> createState() => _JarVisualState();
-}
-
-class _JarVisualState extends State<_JarVisual> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600));
-  late final Animation<double> _fill = Tween<double>(begin: 0.05, end: 0.82).animate(CurvedAnimation(parent: _c, curve: Curves.easeInOutCubic));
-
-  @override
-  void initState() {
-    super.initState();
-    _c.forward();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _fill,
-      builder: (context, _) => CustomPaint(
-        size: const Size(190, 220),
-        painter: _JarPainter(fill: _fill.value),
-      ),
-    );
-  }
-}
-
-class _JarPainter extends CustomPainter {
-  _JarPainter({required this.fill});
-  final double fill;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final w = size.width;
-    final h = size.height;
-    final body = Path()
-      ..moveTo(cx - w * 0.28, h * 0.16)
-      ..quadraticBezierTo(cx - w * 0.40, h * 0.24, cx - w * 0.36, h * 0.5)
-      ..lineTo(cx - w * 0.32, h * 0.84)
-      ..quadraticBezierTo(cx - w * 0.28, h * 0.96, cx, h * 0.96)
-      ..quadraticBezierTo(cx + w * 0.28, h * 0.96, cx + w * 0.32, h * 0.84)
-      ..lineTo(cx + w * 0.36, h * 0.5)
-      ..quadraticBezierTo(cx + w * 0.40, h * 0.24, cx + w * 0.28, h * 0.16)
-      ..close();
-    canvas.drawPath(body, Paint()..color = const Color(0xFFE8D8C7));
-    canvas.drawPath(body, Paint()..style = PaintingStyle.stroke..color = const Color(0xFFD6BEA8)..strokeWidth = 2);
-    canvas.save();
-    canvas.clipPath(body);
-    final top = h * 0.2 + (h * 0.74) * (1 - fill);
-    final light = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFFB38964), Color(0xFF8B6842)],
-      ).createShader(Rect.fromLTWH(0, top, w, h - top));
-    canvas.drawRect(Rect.fromLTWH(0, top, w, h), light);
-    final rng = math.Random(3);
-    final speck = Paint()..color = Colors.white.withValues(alpha: 0.5);
-    for (int i = 0; i < 16; i++) {
-      final yy = top + rng.nextDouble() * (h - top);
-      final xx = cx + (rng.nextDouble() - 0.5) * w * 0.5;
-      canvas.drawCircle(Offset(xx, yy), (0.6 + rng.nextDouble() * 1.6), speck);
-    }
-    canvas.restore();
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, h * 0.14), width: w * 0.5, height: h * 0.08), const Radius.circular(8)),
-      Paint()..color = const Color(0xFFC9B09A),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _JarPainter old) => old.fill != fill;
-}
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// PAGE 3 â€” MODES (introductory)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-class _ModesVisual extends StatelessWidget {
-  const _ModesVisual();
-
-  static const List<(IconData, String, String)> _modes = [
-    (Icons.person_outline_rounded, 'Personal', 'Your private journey of remembrance.'),
-    (Icons.groups_outlined, 'Family', 'Grow in goodness, together.'),
-    (Icons.auto_awesome_outlined, 'Both', 'Solitude and togetherness in one.'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (final m in _modes)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE6DBCF)),
-                boxShadow: const [BoxShadow(color: Color(0x11000000), blurRadius: 10, offset: Offset(0, 4))],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 46,
-                    height: 46,
-                    decoration: BoxDecoration(color: const Color(0xFFF1E1CF), borderRadius: BorderRadius.circular(14)),
-                    child: Icon(m.$1, size: 22, color: const Color(0xFF8B6842)),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(m.$2, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Color(0xFF2F241E))),
-                        const SizedBox(height: 3),
-                        Text(m.$3, style: const TextStyle(fontSize: 12, color: Color(0xFF9A8A7A))),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// PAGE 4 â€” COMMUNITY
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-class _CommunityVisual extends StatelessWidget {
-  const _CommunityVisual();
-
-  static const List<(IconData, String)> _items = [
-    (Icons.menu_book_outlined, 'Reflection'),
-    (Icons.favorite_border_outlined, 'Adhkar'),
-    (Icons.volunteer_activism_outlined, 'Prayer'),
-    (Icons.groups_outlined, 'Family'),
-    (Icons.trending_up_outlined, 'Growth'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      alignment: WrapAlignment.center,
-      children: _items.map((it) {
-        return Container(
-          width: 96,
-          padding: const EdgeInsets.symmetric(vertical: 18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE6DBCF)),
-            boxShadow: const [BoxShadow(color: Color(0x11000000), blurRadius: 10, offset: Offset(0, 4))],
-          ),
-          child: Column(
-            children: [
-              Icon(it.$1, size: 28, color: const Color(0xFF8B6842)),
-              const SizedBox(height: 10),
-              Text(it.$2, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4E3629))),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
-}
+class _WhyMizan extends StatelessWidget { const _WhyMizan(); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(horizontal: 28), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Small acts\nbecome a life.', style: TextStyle(fontFamily: 'Georgia', fontSize: 33, height: 1.1, color: _ink, fontWeight: FontWeight.w700)), const SizedBox(height: 28), const _Rhythm(icon: Icons.add_circle_outline_rounded, title: 'Notice the good', body: 'Save a kind act, a gift, or a prayer in a few seconds.'), const SizedBox(height: 16), const _Rhythm(icon: Icons.local_fire_department_outlined, title: 'Build a gentle rhythm', body: 'Your streak celebrates return, never perfection.'), const SizedBox(height: 16), const _Rhythm(icon: Icons.volunteer_activism_outlined, title: 'Watch your jar grow', body: 'A clear, meaningful picture of the goodness you are gathering.') ])); }
+class _Rhythm extends StatelessWidget { const _Rhythm({required this.icon, required this.title, required this.body}); final IconData icon; final String title, body; @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: const Color(0xCCFFFCF8), borderRadius: BorderRadius.circular(20), border: Border.all(color: const Color(0xFFE8D8C7))), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 42, height: 42, decoration: BoxDecoration(color: const Color(0xFFF2E5D6), borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: _bronze)), const SizedBox(width: 13), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 15)), const SizedBox(height: 4), Text(body, style: const TextStyle(color: _muted, fontSize: 12.5, height: 1.35))]))])); }
+class _ChooseMode extends StatelessWidget { const _ChooseMode({required this.selected, required this.onSelect}); final int selected; final ValueChanged<int> onSelect; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(horizontal: 28), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Make it yours.', style: TextStyle(fontFamily: 'Georgia', fontSize: 33, color: _ink, fontWeight: FontWeight.w700)), const SizedBox(height: 9), const Text('You can change this anytime.', style: TextStyle(color: _muted, fontSize: 14)), const SizedBox(height: 28), _ModeOption(icon: Icons.person_outline_rounded, title: 'Personal', body: 'A private space for your own journey.', value: kModePersonal, selected: selected, onSelect: onSelect), const SizedBox(height: 12), _ModeOption(icon: Icons.groups_outlined, title: 'Family', body: 'Grow gently with the people you love.', value: kModeFamily, selected: selected, onSelect: onSelect), const SizedBox(height: 12), _ModeOption(icon: Icons.auto_awesome_outlined, title: 'Both', body: 'Keep solitude and togetherness close.', value: kModeBoth, selected: selected, onSelect: onSelect)])); }
+class _ModeOption extends StatelessWidget { const _ModeOption({required this.icon, required this.title, required this.body, required this.value, required this.selected, required this.onSelect}); final IconData icon; final String title, body; final int value, selected; final ValueChanged<int> onSelect; @override Widget build(BuildContext context) { final active = selected == value; return Material(color: active ? const Color(0xFFF1E2D2) : const Color(0xCCFFFCF8), borderRadius: BorderRadius.circular(20), child: InkWell(onTap: () => onSelect(value), borderRadius: BorderRadius.circular(20), child: AnimatedContainer(duration: const Duration(milliseconds: 180), padding: const EdgeInsets.all(16), decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: active ? _bronze : const Color(0xFFE8D8C7), width: active ? 1.5 : 1)), child: Row(children: [Icon(icon, color: _bronze), const SizedBox(width: 13), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: _ink, fontSize: 15, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(body, style: const TextStyle(color: _muted, fontSize: 12))])), Icon(active ? Icons.check_circle_rounded : Icons.circle_outlined, color: active ? _bronze : const Color(0xFFC5B2A0))])))); } }

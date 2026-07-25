@@ -14,6 +14,13 @@ class AdminHomeScreen extends StatelessWidget {
         padding: const EdgeInsets.all(20),
         children: [
           _AdminTile(
+            icon: Icons.menu_book_outlined,
+            title: 'Books',
+            subtitle: 'Manage Islamic library books and chapters',
+            onTap: () => Navigator.of(context).pushNamed('/admin/books'),
+          ),
+          const SizedBox(height: 12),
+          _AdminTile(
             icon: Icons.volunteer_activism_outlined,
             title: 'Charities',
             subtitle: 'Manage charity records and verification status',

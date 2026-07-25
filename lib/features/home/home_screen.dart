@@ -1,9 +1,18 @@
-﻿import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../family/family_theme.dart' show FamilyJarView;
+import '../../core/act_store.dart';
+import 'add_act_screen.dart';
 import '../../core/mode_provider.dart';
-import '../shared/prototype_skeleton.dart';
+
+const _ink = Color(0xFF30261F);
+const _muted = Color(0xFF76695E);
+const _bronze = Color(0xFF8B6842);
+const _sage = Color(0xFF58705C);
+const _paper = Color(0xFFFFFCF8);
+const _line = Color(0xFFE8DDD1);
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -12,407 +21,453 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  late final Future<void> _load = Future<void>.delayed(const Duration(milliseconds: 750));
+class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProviderStateMixin {
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+  )..forward();
+
+  @override
+  void dispose() {
+    _entrance.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final mode = ref.watch(modeProvider);
-    return FutureBuilder<void>(
-      future: _load,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 16, 20, 20),
-                child: PrototypeSkeleton(
-                  children: [
-                    SkeletonLine(width: 120, height: 12),
-                    SizedBox(height: 16),
-                    SkeletonCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SkeletonLine(width: 150, height: 12),
-                          SizedBox(height: 12),
-                          SkeletonLine(width: double.infinity, height: 48, radius: 18),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 12),
-                    SkeletonCard(
-                      child: Column(
-                        children: [
-                          SkeletonLine(width: 180, height: 180, radius: 90),
-                          SizedBox(height: 12),
-                          SkeletonLine(width: 220, height: 12),
-                        ],
-                      ),
-                    ),
-                  ],
+    final acts = ref.watch(actStoreProvider);
+    return Scaffold(
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFFF8F2E9), Color(0xFFF2E8DB), Color(0xFFF9F4ED)],
+          ),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: CurvedAnimation(parent: _entrance, curve: Curves.easeOut),
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                final offset = notification.metrics.pixels;
+                if (offset > 10) {
+                  if (!ref.read(isScrolledProvider.notifier).state) {
+                    ref.read(isScrolledProvider.notifier).state = true;
+                  }
+                } else if (offset <= 0) {
+                  if (ref.read(isScrolledProvider.notifier).state) {
+                    ref.read(isScrolledProvider.notifier).state = false;
+                  }
+                }
+                return false;
+              },
+              child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverAppBar(
+                  pinned: true,
+                  floating: false,
+                  toolbarHeight: 64,
+                  collapsedHeight: 64,
+                  expandedHeight: 64,
+                  backgroundColor: const Color(0xFFE8DCC8),
+                  surfaceTintColor: Colors.transparent,
+                  elevation: 0,
+                  title: const Text('Sanctuary'),
+                  actions: [const _NotifIcon(), const SizedBox(width: 10), _StreakPill(streak: 7 + acts.today), const SizedBox(width: 14)],
                 ),
-              ),
-            ),
-          );
-        }
-
-        return Scaffold(
-          body: SafeArea(
-            child: Column(
-              children: [
-                _TopBar(onAdd: () => context.push('/add-act'), mode: mode),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
-                    children: [
-                      _GreetingRow(mode: mode),
-                      const SizedBox(height: 14),
-                      _HeroJarCard(),
-                      const SizedBox(height: 14),
-                      _PrimaryAction(mode: mode),
-                      const SizedBox(height: 14),
-                      _QuickLinks(mode: mode),
-                      const SizedBox(height: 14),
-                      _InsightsCard(mode: mode),
-                    ],
-                  ),
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
+                  sliver: SliverList.list(children: [
+                    const _HomeHeader(),
+                    const SizedBox(height: 22),
+                     _JarHero(totalActs: 12 + acts.total, progress: acts.progress, onAdd: () => AddActScreen.show(context)),
+                    const SizedBox(height: 24),
+                     _AddTodayCard(onTap: () => AddActScreen.show(context)),
+                    const SizedBox(height: 24),
+                     const _SadaqahIdeas(),
+                     const SizedBox(height: 14),
+                     _CharityQuickLink(onTap: () => context.push('/charities')),
+                     const SizedBox(height: 30),
+                     const _SectionHeading('Continue reading'),
+                     const SizedBox(height: 12),
+                     const _ReadingCard(),
+                     const SizedBox(height: 30),
+                     const _RhythmOfTheDayCard(),
+                     const SizedBox(height: 30),
+                     const _SectionHeading('Recent adhkar'),
+                    const SizedBox(height: 12),
+                    const _AdhkarRow(),
+                    const SizedBox(height: 30),
+                    const _ReminderCard(),
+                  ]),
                 ),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
+    ),
+  );
+  }
+}
+
+class _HomeHeader extends StatelessWidget {
+  const _HomeHeader();
+  @override
+  Widget build(BuildContext context) => Row(children: [
+        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Assalamu alaikum, Amina', style: TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 23, fontWeight: FontWeight.w700)),
+          SizedBox(height: 5),
+          Text('Small goodness, beautifully kept.', style: TextStyle(color: _muted, fontSize: 13)),
+        ])),
+      ]);
+}
+
+class _NotifIcon extends StatelessWidget {
+  const _NotifIcon();
+  @override
+  Widget build(BuildContext context) => IconButton(
+        icon: const Icon(Icons.notifications_none_outlined, color: _ink),
+        tooltip: 'Notifications',
+        onPressed: () => context.push('/notifications'),
+      );
+}
+
+class _StreakPill extends StatelessWidget {
+  const _StreakPill({required this.streak});
+  final int streak;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFF8EF),
+          borderRadius: BorderRadius.circular(99),
+          border: Border.all(color: _line),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFE0C0),
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: const [BoxShadow(color: Color(0x26FF8C00), blurRadius: 8, offset: Offset(0, 2))],
+            ),
+            child: const Icon(Icons.local_fire_department_rounded, color: Color(0xFFD4541A), size: 18),
+          ),
+          const SizedBox(width: 8),
+          Text('$streak', style: const TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 14)),
+        ]),
+      );
+}
+
+class _JarHero extends StatelessWidget {
+  const _JarHero({required this.totalActs, required this.progress, required this.onAdd});
+  final int totalActs;
+  final double progress;
+  final VoidCallback onAdd;
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
+        decoration: BoxDecoration(
+          color: _ink,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 24, offset: Offset(0, 12))],
+        ),
+        child: Row(children: [
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('MY SADAQAH JAR', style: TextStyle(color: Color(0xFFE6C99F), fontSize: 10.5, letterSpacing: 1.5, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 14),
+            Text('${(progress * 100).round()}% filled', style: const TextStyle(color: Colors.white, fontFamily: 'Georgia', fontSize: 27, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text('$totalActs acts of goodness this month', style: const TextStyle(color: Color(0xFFD8CABE), fontSize: 13)),
+            const SizedBox(height: 18),
+            ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress, minHeight: 7, color: const Color(0xFFE5B877), backgroundColor: const Color(0xFF59483D))),
+            const SizedBox(height: 8),
+            const Text('8 more acts to reach your intention', style: TextStyle(color: Color(0xFFE1D5CA), fontSize: 11.5)),
+          ])),
+          const SizedBox(width: 8),
+          ExcludeSemantics(child: SizedBox(width: 110, height: 166, child: FamilyJarView(fill: progress, size: 108, glow: .9))),
+        ]),
+      );
+}
+
+class _AddTodayCard extends StatelessWidget {
+  const _AddTodayCard({required this.onTap});
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Material(
+        color: _paper,
+        borderRadius: BorderRadius.circular(24),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), border: Border.all(color: _line)),
+            child: const Row(children: [
+              CircleAvatar(radius: 24, backgroundColor: Color(0xFFE8DCCF), child: Icon(Icons.add_rounded, color: _bronze, size: 28)),
+              SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('Add sadaqah for today', style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w800)),
+                SizedBox(height: 4),
+                Text('A gift, dhikr, a kindness, a prayer - it all counts.', style: TextStyle(color: _muted, fontSize: 12.5, height: 1.35)),
+              ])),
+              Icon(Icons.arrow_forward_rounded, color: _bronze),
+            ]),
+          ),
+        ),
+      );
+}
+
+class _SadaqahIdeas extends StatelessWidget {
+  const _SadaqahIdeas();
+  @override
+  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
+        _SectionHeading('Little sadaqah reminders'),
+        SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _IdeaTile(icon: Icons.brightness_5_outlined, title: 'Tahlil', body: 'La ilaha illallah')),
+          SizedBox(width: 10),
+          Expanded(child: _IdeaTile(icon: Icons.wb_sunny_outlined, title: 'Tahmid', body: 'Alhamdulillah')),
+        ]),
+        SizedBox(height: 10),
+        Row(children: [
+          Expanded(child: _IdeaTile(icon: Icons.clean_hands_outlined, title: 'Clear harm', body: 'Move it from the road')),
+          SizedBox(width: 10),
+          Expanded(child: _IdeaTile(icon: Icons.sentiment_satisfied_alt_rounded, title: 'Smile', body: 'A quiet gift')),
+        ]),
+      ]);
+}
+
+class _IdeaTile extends StatelessWidget {
+  const _IdeaTile({required this.icon, required this.title, required this.body});
+  final IconData icon;
+  final String title;
+  final String body;
+  @override
+  Widget build(BuildContext context) => Container(
+        constraints: const BoxConstraints(minHeight: 104),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: _paper, borderRadius: BorderRadius.circular(18), border: Border.all(color: _line)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, color: _bronze, size: 23),
+          const SizedBox(height: 12),
+          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 14)),
+          const SizedBox(height: 4),
+          Text(body, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12, height: 1.4)),
+        ]),
+      );
+}
+
+class _SectionHeading extends StatelessWidget { const _SectionHeading(this.text); final String text; @override Widget build(BuildContext context) => Text(text, style: const TextStyle(fontFamily: 'Georgia', fontSize: 21, color: _ink, fontWeight: FontWeight.w700)); }
+
+class _ReadingCard extends StatelessWidget { const _ReadingCard(); @override Widget build(BuildContext context) => const _Surface(child: Row(children: [Icon(Icons.menu_book_outlined, color: _sage), SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('On patience', style: TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 16)), SizedBox(height: 4), Text('A quiet reflection - 2 minutes left', style: TextStyle(color: _muted, fontSize: 12.5))])), Icon(Icons.arrow_forward_rounded, color: _bronze)])); }
+
+class _RhythmOfTheDayCard extends StatefulWidget {
+  const _RhythmOfTheDayCard();
+
+  @override
+  State<_RhythmOfTheDayCard> createState() => _RhythmOfTheDayCardState();
+}
+
+class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard> with WidgetsBindingObserver {
+  bool _loading = true;
+  String? _title;
+  String? _body;
+  String? _arabic;
+  String? _source;
+  bool _isFriday = false;
+
+  static const _dhuhr = TimeOfDay(hour: 12, minute: 15);
+  static const _asr = TimeOfDay(hour: 15, minute: 45);
+
+  static const _fridayTitle = 'Read Surah Al-Kahf';
+  static const _fridayBody = 'A light for the day and the path ahead.';
+  static const _morningAdhkar = [
+    {'title': 'Morning remembrance', 'arabic': 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ', 'source': 'Muslim', 'repeat': 'Once'},
+    {'title': 'Ayat al-Kursi', 'arabic': 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ', 'source': 'Quran 2:255', 'repeat': 'Once'},
+  ];
+  static const _eveningAdhkar = [
+    {'title': 'Evening remembrance', 'arabic': 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ', 'source': 'Muslim', 'repeat': 'Once'},
+    {'title': 'Ayat al-Kursi', 'arabic': 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ', 'source': 'Quran 2:255', 'repeat': 'Once'},
+  ];
+  static const _prayerSchedule = [
+    {'name': 'Dhuhr', 'time': '12:15'},
+    {'name': 'Asr', 'time': '15:45'},
+    {'name': 'Maghrib', 'time': '18:45'},
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _load();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _load();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+    setState(() => _loading = true);
+
+    final now = DateTime.now();
+    _isFriday = now.weekday == DateTime.friday;
+
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    if (!mounted) return;
+
+    final timeOfDay = _getTimeOfDay(now);
+
+    if (_isFriday) {
+      setState(() {
+        _title = _fridayTitle;
+        _body = _fridayBody;
+        _loading = false;
+      });
+    } else if (timeOfDay == _TimeOfDay.morning) {
+      final item = _morningAdhkar.first;
+      setState(() {
+        _title = item['title'];
+        _arabic = item['arabic'];
+        _source = item['source'];
+        _loading = false;
+      });
+    } else if (timeOfDay == _TimeOfDay.afterAsr) {
+      final item = _eveningAdhkar.first;
+      setState(() {
+        _title = item['title'];
+        _arabic = item['arabic'];
+        _source = item['source'];
+        _loading = false;
+      });
+    } else {
+      final next = _getNextSalah(now);
+      final schedule = _prayerSchedule.map((p) => '${p['name']} — ${p['time']}').join('\n');
+      setState(() {
+        _title = 'Next: $next';
+        _body = schedule;
+        _loading = false;
+      });
+    }
+  }
+
+  String _getNextSalah(DateTime now) {
+    final minutes = now.hour * 60 + now.minute;
+    final dhuhr = _dhuhr.hour * 60 + _dhuhr.minute;
+    final asr = _asr.hour * 60 + _asr.minute;
+    if (minutes < dhuhr) return 'Dhuhr';
+    if (minutes < asr) return 'Asr';
+    return 'Maghrib';
+  }
+
+  _TimeOfDay _getTimeOfDay(DateTime now) {
+    final minutes = now.hour * 60 + now.minute;
+    final dhuhr = _dhuhr.hour * 60 + _dhuhr.minute;
+    final asr = _asr.hour * 60 + _asr.minute;
+    if (minutes < dhuhr) return _TimeOfDay.morning;
+    if (minutes < asr) return _TimeOfDay.dhuhrAsr;
+    return _TimeOfDay.afterAsr;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const _Surface(
+        child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842)))),
+      );
+    }
+
+    final isFriday = _isFriday;
+    final icon = isFriday ? Icons.menu_book_outlined : Icons.wb_sunny_outlined;
+    final accent = isFriday ? const Color(0xFF58705C) : const Color(0xFF8B6842);
+
+    return _Surface(
+      child: Row(children: [
+        Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: accent, size: 22)),
+        const SizedBox(width: 14),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(isFriday ? 'Today\'s light' : 'Rhythm of the day', style: TextStyle(color: _ink, fontSize: 10.5, letterSpacing: 1.3, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(_title ?? '', style: TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 16, fontWeight: FontWeight.w800, height: 1.3)),
+          if (_arabic != null && _arabic!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(_arabic!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: Color(0xFF30261F), fontSize: 18, height: 1.6)),
+          ],
+          if (_body != null && _body!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(_body!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF76695E), fontSize: 12.5, height: 1.4)),
+          ],
+          if (_source != null && _source!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(_source!, style: const TextStyle(color: Color(0xFF8F7B6B), fontSize: 11, fontStyle: FontStyle.italic)),
+          ],
+        ])),
+        Icon(Icons.arrow_forward_rounded, color: const Color(0xFF8B6842), size: 18),
+      ]),
     );
   }
 }
 
-class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onAdd, required this.mode});
+enum _TimeOfDay { morning, dhuhrAsr, afterAsr }
 
-  final VoidCallback onAdd;
-  final int mode;
-
+class _AdhkarRow extends StatelessWidget { const _AdhkarRow(); @override Widget build(BuildContext context) => const Row(children: [Expanded(child: _Dhikr('SubhanAllah', '33')), SizedBox(width: 10), Expanded(child: _Dhikr('Alhamdulillah', '33')), SizedBox(width: 10), Expanded(child: _Dhikr('Allahu Akbar', '34'))]); }
+class _Dhikr extends StatelessWidget { const _Dhikr(this.label, this.count); final String label, count; @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6), decoration: BoxDecoration(color: _paper, borderRadius: BorderRadius.circular(18), border: Border.all(color: _line)), child: Column(children: [Text(count, style: const TextStyle(fontFamily: 'Georgia', fontSize: 20, color: _bronze, fontWeight: FontWeight.w700)), const SizedBox(height: 4), Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: _muted))])); }
+class _ReminderCard extends StatelessWidget { const _ReminderCard(); @override Widget build(BuildContext context) => const _Surface(child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.auto_awesome_outlined, color: _bronze), SizedBox(width: 12), Expanded(child: Text('Kindness is never lost. Let it be quiet, let it be steady.', style: TextStyle(fontFamily: 'Georgia', fontSize: 16, height: 1.4, color: _ink)))])); }
+class _Surface extends StatelessWidget { const _Surface({required this.child}); final Widget child; @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: _paper, borderRadius: BorderRadius.circular(22), border: Border.all(color: _line)), child: child); }
+class _CharityQuickLink extends StatelessWidget {
+  const _CharityQuickLink({required this.onTap});
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    final modeLabel = mode == kModeFamily ? 'Family' : mode == kModePersonal ? 'Sanctuary' : 'Sanctuary';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF7F0E8),
-        border: Border(bottom: BorderSide(color: Color(0xFFE3D3C3))),
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(22),
+    child: Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0E3D4),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _line),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF8B6842)),
-              const SizedBox(width: 8),
-              Text(modeLabel, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF2F241E))),
-            ],
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: _paper,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.volunteer_activism_outlined, color: _bronze, size: 22),
           ),
-          Row(
-            children: [
-              IconButton(onPressed: onAdd, icon: const Icon(Icons.add_circle_outline), color: const Color(0xFF8B6842), visualDensity: VisualDensity.compact),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.sunny_snowing), color: const Color(0xFF8B6842), visualDensity: VisualDensity.compact),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GreetingRow extends StatelessWidget {
-  const _GreetingRow({required this.mode});
-
-  final int mode;
-
-  @override
-  Widget build(BuildContext context) {
-    final eyebrow = mode == kModeFamily ? 'MIZAN Â· FAMILY' : 'MIZAN Â· SANCTUARY';
-    final greeting = mode == kModeFamily ? 'Peace be with you, gentle family' : 'Peace be with you, sincere seeker';
-    final pillLabel = mode == kModeFamily ? 'Growing together' : '3 Days Consistency';
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(eyebrow, style: const TextStyle(fontSize: 11, letterSpacing: 1.6, fontWeight: FontWeight.w700, color: Color(0xFF9A8A7A))),
-              const SizedBox(height: 4),
-              Text(greeting, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: Color(0xFF2F241E))),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1E1CF),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0xFFE0C6AE)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.explore_outlined, size: 16, color: Color(0xFF8B6842)),
-              const SizedBox(width: 6),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(pillLabel, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2F241E))),
-                  const Text('Mizan', style: TextStyle(fontSize: 8, letterSpacing: 1, color: Color(0xFF9A8A7A))),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _HeroJarCard extends StatelessWidget {
-  const _HeroJarCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F2EB),
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE6D7C8)),
-        boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 18, offset: Offset(0, 8))],
-      ),
-      child: Column(
-        children: [
-          SizedBox(
-            width: 200,
-            height: 200,
-            child: Stack(
-              alignment: Alignment.center,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(
-                  width: 196,
-                  height: 196,
-                  child: CircularProgressIndicator(
-                    value: 1,
-                    strokeWidth: 2.4,
-                    backgroundColor: const Color(0xFFE9DDD0),
-                    valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).colorScheme.primary),
-                  ),
-                ),
-                Container(
-                  width: 150,
-                  height: 150,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: const RadialGradient(colors: [Colors.white, Color(0xFFE9D7C4)]),
-                    border: Border.all(color: const Color(0xFFD6BEA8), width: 6),
-                    boxShadow: const [BoxShadow(color: Color(0x14000000), blurRadius: 20, offset: Offset(0, 10))],
-                  ),
-                  child: const Icon(Icons.local_fire_department, size: 64, color: Color(0xFF8B6842)),
-                ),
+                Text('Give to verified causes', style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w800, height: 1.25)),
+                const SizedBox(height: 3),
+                Text('Trusted places to donate externally', style: TextStyle(color: _muted, fontSize: 12.5, height: 1.35)),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          const Text('Tap the jar for a quiet word', style: TextStyle(fontSize: 9, letterSpacing: 1.4, fontWeight: FontWeight.w700, color: Color(0xFFA28F7F))),
-          const SizedBox(height: 10),
-          const Text(
-            '"A warm, sincere smile is a quiet charity for another soul."',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, height: 1.5, fontStyle: FontStyle.italic, color: Color(0xFF5F4D40)),
-          ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.bottomRight,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF9F4ED),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFE6D7C8)),
-              ),
-              child: const Text('Daily Devotions: 3/3', style: TextStyle(fontSize: 8, letterSpacing: 1, color: Color(0xFF8B6842), fontWeight: FontWeight.w700)),
-            ),
-          ),
+          Icon(Icons.arrow_forward_rounded, color: _muted, size: 20),
         ],
       ),
-    );
-  }
-}
-
-class _PrimaryAction extends StatelessWidget {
-  const _PrimaryAction({required this.mode});
-
-  final int mode;
-
-  @override
-  Widget build(BuildContext context) {
-    final label = mode == kModeFamily
-        ? 'Add a family act'
-        : mode == kModePersonal
-            ? 'Record an act of generosity'
-            : 'Record an act';
-    return FilledButton(
-      onPressed: () => context.push('/add-act'),
-      style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF4E3629),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      ),
-      child: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-    );
-  }
-}
-
-class _QuickLinks extends StatelessWidget {
-  const _QuickLinks({required this.mode});
-
-  final int mode;
-
-  @override
-  Widget build(BuildContext context) {
-    final links = mode == kModeFamily
-        ? <(String, String, IconData, Color)>[
-            ('Family Courtyard', 'Household Jars', Icons.groups_outlined, const Color(0xFF749B75)),
-            ('Household Goals', 'Daily Milestones', Icons.track_changes_outlined, const Color(0xFF8B6842)),
-            ('Create Jar', 'Set Up Devotion', Icons.add, const Color(0xFFC28A53)),
-          ]
-        : mode == kModePersonal
-            ? <(String, String, IconData, Color)>[
-            ('Sanctuary Oasis', 'Communal Well', Icons.auto_awesome_outlined, const Color(0xFF4B77C4)),
-            ('Create Jar', 'Set Up Devotion', Icons.add, const Color(0xFFC28A53)),
-            ('Household Goals', 'Daily Milestones', Icons.track_changes_outlined, const Color(0xFF8B6842)),
-          ]
-            : <(String, String, IconData, Color)>[
-            ('Family Courtyard', 'Household Jars', Icons.groups_outlined, const Color(0xFF749B75)),
-            ('Sanctuary Oasis', 'Communal Well', Icons.auto_awesome_outlined, const Color(0xFF4B77C4)),
-            ('Create Jar', 'Set Up Devotion', Icons.add, const Color(0xFFC28A53)),
-            ('Household Goals', 'Daily Milestones', Icons.track_changes_outlined, const Color(0xFF8B6842)),
-          ];
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3E9DE),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE3D3C3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Quick Links', style: TextStyle(fontSize: 9, letterSpacing: 1.4, color: Color(0xFFA28F7F), fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
-          GridView.builder(
-            itemCount: links.length,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 10,
-              crossAxisSpacing: 10,
-              childAspectRatio: 2.55,
-            ),
-            itemBuilder: (context, index) {
-              final link = links[index];
-              return Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFE3D3C3)),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: link.$4.withValues(alpha: .12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(link.$3, size: 16, color: link.$4),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(link.$1, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF2F241E))),
-                          Text(link.$2, style: const TextStyle(fontSize: 8, color: Color(0xFF9A8A7A))),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InsightsCard extends StatelessWidget {
-  const _InsightsCard({required this.mode});
-
-  final int mode;
-
-  @override
-  Widget build(BuildContext context) {
-    final title = mode == kModeFamily ? 'Family Snapshot' : 'Snapshot';
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9F4ED),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE3D3C3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF2F241E))),
-          const SizedBox(height: 10),
-          const _MetricRow(icon: Icons.check_circle_outline, label: 'Acts completed', value: '12'),
-          const SizedBox(height: 8),
-          const _MetricRow(icon: Icons.star_outline, label: 'Stars earned', value: '24'),
-          const SizedBox(height: 8),
-          const _MetricRow(icon: Icons.groups_2_outlined, label: 'Jars completed', value: '4'),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricRow extends StatelessWidget {
-  const _MetricRow({required this.icon, required this.label, required this.value});
-
-  final IconData icon;
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(color: const Color(0xFFE8D8C7), borderRadius: BorderRadius.circular(12)),
-          child: Icon(icon, color: const Color(0xFF8B6842), size: 19),
-        ),
-        const SizedBox(width: 10),
-        Expanded(child: Text(label, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF2F241E)))),
-        Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF8B6842))),
-      ],
-    );
-  }
+    ),
+  );
 }
