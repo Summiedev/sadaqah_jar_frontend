@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -29,7 +31,7 @@ class _ModeSelectionScreenState extends ConsumerState<ModeSelectionScreen> {
   Widget build(BuildContext context) {
     final modes = [kModePersonal, kModeFamily, kModeBoth];
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F0),
+      backgroundColor: kPaper,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -76,7 +78,7 @@ class _Header extends StatelessWidget {
           children: const [
             Text(
               'M I Z A N',
-              style: TextStyle(fontSize: 10, letterSpacing: 4, fontWeight: FontWeight.w700, fontFamily: 'serif', color: Color(0xFF4E3629)),
+              style: TextStyle(fontSize: 10, letterSpacing: 4, fontWeight: FontWeight.w700, fontFamily: 'serif', color: kInk),
             ),
           ],
         ),
@@ -84,7 +86,7 @@ class _Header extends StatelessWidget {
         const Text(
           'How would you like\nto begin?',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: Color(0xFF2F241E), height: 1.25, letterSpacing: -0.4),
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: kInk, height: 1.25, letterSpacing: -0.4),
         ),
         const SizedBox(height: 12),
         const Text(
@@ -113,7 +115,7 @@ class _ModeCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: selected ? accent.withValues(alpha: 0.06) : Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: selected ? accent : const Color(0xFFE6DBCF), width: selected ? 1.8 : 1),
+        border: Border.all(color: selected ? accent : kClayLight, width: selected ? 1.8 : 1),
         boxShadow: [
           BoxShadow(
             color: selected ? accent.withValues(alpha: 0.16) : const Color(0x11000000),
@@ -145,9 +147,9 @@ class _ModeCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(meta.label, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF2F241E))),
+                      Text(meta.label, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kInk)),
                       const SizedBox(height: 4),
-                      Text(meta.tagline, style: const TextStyle(fontSize: 12.5, height: 1.45, color: Color(0xFF6D5B4D))),
+                      Text(meta.tagline, style: const TextStyle(fontSize: 12.5, height: 1.45, color: kMuted)),
                     ],
                   ),
                 ),
@@ -185,8 +187,8 @@ class _EnterButton extends StatelessWidget {
       child: FilledButton(
         onPressed: onTap,
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFF4E3629),
-          foregroundColor: const Color(0xFFFAF6F0),
+          backgroundColor: kInk,
+          foregroundColor: kPaper,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           elevation: 0,
           textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, letterSpacing: 0.5),

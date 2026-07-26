@@ -1,18 +1,12 @@
 ﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../services/backend_api.dart';
-
-const _ink = Color(0xFF2F241E);
-const _muted = Color(0xFF6D5B4D);
-const _mutedLight = Color(0xFF9A8A7A);
-const _bronze = Color(0xFF8B6842);
-const _paper = Color(0xFFFFFCF8);
-const _line = Color(0xFFE8DDD1);
-const _surface = Color(0xFFF9F4ED);
-const _danger = Color(0xFFA8554E);
+import '../services/push_notification_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.onLogout});
@@ -36,6 +30,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _toggleFridayReminder(UserProfile profile, bool value) async {
     setState(() => _savingReminder = true);
     try {
+      if (value && !await PushNotificationService.instance.enableForReminders()) {
+        throw StateError('Notification permission is required to enable reminders.');
+      }
       await BackendApi.instance.updatePreferences(fridayReminder: value);
       if (!mounted) return;
       setState(() => _profileFuture = BackendApi.instance.getUserProfile());
@@ -51,7 +48,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: kSurface,
+      appBar: AppBar(
+        title: const Text('Settings'),
+        backgroundColor: kSurface,
+        surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          onPressed: () => context.pop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kInk, size: 19),
+          tooltip: 'Back',
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -67,7 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         style: TextStyle(
                           fontFamily: 'Georgia',
                           fontSize: 28,
-                          color: _ink,
+                          color: kInk,
                           fontWeight: FontWeight.w800,
                           height: 1.1,
                         ),
@@ -75,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Update your profile and preferences.',
-                        style: TextStyle(color: _muted, fontSize: 13, height: 1.4),
+                        style: TextStyle(color: kMuted, fontSize: 13, height: 1.4),
                       ),
                     ],
                   ),
@@ -107,22 +114,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   return Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: _paper,
+                      color: kPaper,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: _line),
+                      border: Border.all(color: kLine),
                     ),
                     child: SwitchListTile.adaptive(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Friday reminder', style: TextStyle(color: _ink, fontSize: 15, fontWeight: FontWeight.w700)),
+                      title: const Text('Friday reminder', style: TextStyle(color: kInk, fontSize: 15, fontWeight: FontWeight.w700)),
                       subtitle: Text(
                         snapshot.connectionState == ConnectionState.waiting
                             ? 'Loading your preference...'
                             : 'Get a gentle Friday reminder when it is enabled.',
-                        style: const TextStyle(color: _muted, fontSize: 12.5, height: 1.4),
+                        style: const TextStyle(color: kMuted, fontSize: 12.5, height: 1.4),
                       ),
                       value: enabled,
                       onChanged: _savingReminder || profile == null ? null : (value) => _toggleFridayReminder(profile, value),
-                      activeThumbColor: _bronze,
+                      activeThumbColor: kBronze,
                     ),
                   );
                 },
@@ -145,22 +152,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SettingsSection(
               title: 'Appearance',
               subtitle: 'How Mizan looks',
-              child: _SettingsCard(icon: Icons.palette_outlined, title: 'Appearance', subtitle: 'Use your device setting', onTap: () {}),
+              child: _SettingsCard(icon: Icons.palette_outlined, title: 'Appearance', subtitle: 'Use your device setting', onTap: null, enabled: false),
             ),
             const SizedBox(height: 14),
             _SettingsSection(
               title: 'Family',
               subtitle: 'Shared spaces',
-              child: _SettingsCard(icon: Icons.groups_outlined, title: 'Family preferences', subtitle: 'Manage invitations and sharing', onTap: () {}),
+              child: _SettingsCard(icon: Icons.groups_outlined, title: 'Family preferences', subtitle: 'Manage invitations and sharing', onTap: null, enabled: false),
             ),
             const SizedBox(height: 14),
             _SettingsSection(
               title: 'Support',
               subtitle: 'Help and product information',
               child: Column(children: [
-                _SettingsCard(icon: Icons.help_outline, title: 'Help', subtitle: 'Get support', onTap: () {}),
+                _SettingsCard(icon: Icons.help_outline, title: 'Help', subtitle: 'Get support', onTap: null, enabled: false),
                 const SizedBox(height: 10),
-                _SettingsCard(icon: Icons.info_outline, title: 'About', subtitle: 'Mizan version and legal', onTap: () {}),
+                _SettingsCard(icon: Icons.info_outline, title: 'About', subtitle: 'Mizan version and legal', onTap: null, enabled: false),
               ]),
             ),
             const SizedBox(height: 14),
@@ -207,15 +214,15 @@ class _SettingsSection extends StatelessWidget {
               fontSize: 11,
               letterSpacing: 1.2,
               fontWeight: FontWeight.w700,
-              color: _bronze,
+              color: kBronze,
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: _paper,
+            color: kPaper,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _line),
+            border: Border.all(color: kLine),
           ),
           child: child,
         ),
@@ -231,21 +238,23 @@ class _SettingsCard extends StatelessWidget {
     required this.subtitle,
     required this.onTap,
     this.emphasizeDanger = false,
+    this.enabled = true,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool emphasizeDanger;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
-    final accent = emphasizeDanger ? _danger : _bronze;
+    final accent = emphasizeDanger ? kDanger : kBronze;
     return Material(
-      color: _paper,
+      color: kPaper,
       child: InkWell(
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -255,37 +264,23 @@ class _SettingsCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
+                  color: enabled ? accent.withValues(alpha: 0.12) : kLine,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: accent, size: 20),
+                child: Icon(icon, color: enabled ? accent : kMutedLight, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        color: _ink,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    Text(title, style: TextStyle(color: enabled ? kInk : kMutedLight, fontSize: 15, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        color: _muted,
-                        fontSize: 12.5,
-                        height: 1.35,
-                      ),
-                    ),
+                    Text(subtitle, style: TextStyle(color: enabled ? kMuted : kMutedLight, fontSize: 12.5)),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: _mutedLight, size: 18),
+              if (enabled) Icon(Icons.chevron_right_rounded, color: kMutedLight, size: 18),
             ],
           ),
         ),
@@ -366,28 +361,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        backgroundColor: _surface,
+        backgroundColor: kSurface,
       appBar: AppBar(
-        backgroundColor: _surface,
+        backgroundColor: kSurface,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: _ink),
+          icon: const Icon(Icons.arrow_back_rounded, color: kInk),
         ),
-        title: const Text('Settings', style: TextStyle(color: _ink, fontFamily: 'Georgia', fontWeight: FontWeight.w800)),
-        iconTheme: const IconThemeData(color: _ink),
+        title: const Text('Settings', style: TextStyle(color: kInk, fontFamily: 'Georgia', fontWeight: FontWeight.w800)),
+        iconTheme: const IconThemeData(color: kInk),
       ),
-        body: const Center(child: CircularProgressIndicator(color: _bronze)),
+        body: const Center(child: CircularProgressIndicator(color: kBronze)),
       );
     }
 
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: kSurface,
       appBar: AppBar(
-        backgroundColor: _surface,
+        backgroundColor: kSurface,
         surfaceTintColor: Colors.transparent,
-        title: const Text('Edit profile', style: TextStyle(color: _ink)),
-        iconTheme: const IconThemeData(color: _ink),
+        title: const Text('Edit profile', style: TextStyle(color: kInk)),
+        iconTheme: const IconThemeData(color: kInk),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -398,9 +393,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: _paper,
+                  color: kPaper,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: _line),
+                  border: Border.all(color: kLine),
                 ),
                 child: Column(
                   children: [
@@ -410,19 +405,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         width: 88,
                         height: 88,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8D5C0),
+                          color: kClayLight,
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: _avatarData != null && _avatarData!.isNotEmpty
                             ? ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.memory(base64Decode(_avatarData!), fit: BoxFit.cover))
-                            : const Icon(Icons.person, color: Color(0xFF6D4C35), size: 40),
+                            : const Icon(Icons.person, color: kBronzeDark, size: 40),
                       ),
                     ),
                     const SizedBox(height: 10),
                     TextButton.icon(
                       onPressed: _pickAvatar,
-                      icon: const Icon(Icons.photo_camera_outlined, size: 18, color: _bronze),
-                      label: const Text('Change avatar', style: TextStyle(color: _bronze, fontWeight: FontWeight.w600)),
+                      icon: const Icon(Icons.photo_camera_outlined, size: 18, color: kBronze),
+                      label: const Text('Change avatar', style: TextStyle(color: kBronze, fontWeight: FontWeight.w600)),
                     ),
                   ],
                 ),
@@ -444,7 +439,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: _bronze,
+                    backgroundColor: kBronze,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                     padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                   ),
@@ -474,16 +469,16 @@ class _FieldCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: _paper,
+        color: kPaper,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _line),
+        border: Border.all(color: kLine),
       ),
       child: TextField(
         controller: controller,
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: _bronze),
+          prefixIcon: Icon(icon, color: kBronze),
           labelText: label,
-          labelStyle: const TextStyle(color: _muted),
+          labelStyle: const TextStyle(color: kMuted),
           border: InputBorder.none,
         ),
       ),

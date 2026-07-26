@@ -1,18 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 import 'book_reader_screen.dart';
-
-const _ivory = Color(0xFFF5EDE1);
-const _paper = Color(0xFFFFFBF6);
-const _ink = Color(0xFF30241E);
-const _muted = Color(0xFF756457);
-const _bronze = Color(0xFF92704B);
-const _line = Color(0xFFE4D5C3);
-const _softBronze = Color(0xFFF0E3D4);
-const _sage = Color(0xFF6D8D72);
-const _softSage = Color(0xFFDCE7D8);
 
 class BooksListScreen extends ConsumerStatefulWidget {
   const BooksListScreen({super.key});
@@ -39,19 +30,19 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _ivory,
+      backgroundColor: kIvory,
       appBar: AppBar(
-        backgroundColor: _ivory,
+        backgroundColor: kIvory,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: _ink),
+          icon: const Icon(Icons.arrow_back_rounded, color: kInk),
         ),
-        title: const Text('Library', style: TextStyle(color: _ink, fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
+        title: const Text('Library', style: TextStyle(color: kInk, fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded, color: _ink),
+            icon: const Icon(Icons.refresh_rounded, color: kInk),
             tooltip: 'Refresh',
           ),
         ],
@@ -60,14 +51,14 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: _bronze));
+            return const Center(child: CircularProgressIndicator(color: kBronze));
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Could not load books: ${snapshot.error}', style: const TextStyle(color: _muted)));
+            return Center(child: Text('Could not load books: ${snapshot.error}', style: const TextStyle(color: kMuted)));
           }
           final books = snapshot.data ?? [];
           if (books.isEmpty) {
-            return const Center(child: Text('No books available yet.', style: TextStyle(color: _muted)));
+            return const Center(child: Text('No books available yet.', style: TextStyle(color: kMuted)));
           }
           return ListView.separated(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -76,7 +67,7 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
             itemBuilder: (context, index) {
               final book = books[index];
               return Material(
-                color: _paper,
+                color: kPaper,
                 borderRadius: BorderRadius.circular(20),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(20),
@@ -91,45 +82,45 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
                           width: 52,
                           height: 68,
                           decoration: BoxDecoration(
-                            color: _softBronze,
+                            color: kSoftBronze,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: _line),
+                            border: Border.all(color: kLine),
                           ),
                           child: book.coverUrl != null && book.coverUrl!.isNotEmpty
                               ? ClipRRect(
                                   borderRadius: BorderRadius.circular(12),
-                                  child: Image.network(book.coverUrl!, fit: BoxFit.cover, width: 52, height: 68, errorBuilder: (_, __, ___) => const Icon(Icons.menu_book_rounded, color: _bronze, size: 28)),
+                                  child: Image.network(book.coverUrl!, fit: BoxFit.cover, width: 52, height: 68, errorBuilder: (_, __, ___) => const Icon(Icons.menu_book_rounded, color: kBronze, size: 28)),
                                 )
-                              : const Icon(Icons.menu_book_rounded, color: _bronze, size: 28),
+                              : const Icon(Icons.menu_book_rounded, color: kBronze, size: 28),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(book.title, style: const TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 17, fontWeight: FontWeight.w700)),
+                              Text(book.title, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 17, fontWeight: FontWeight.w700)),
                               const SizedBox(height: 4),
-                              Text(book.author, style: const TextStyle(color: _bronze, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                              Text(book.author, style: const TextStyle(color: kBronze, fontSize: 12.5, fontWeight: FontWeight.w600)),
                               if (book.description != null && book.description!.isNotEmpty) ...[
                                 const SizedBox(height: 6),
-                                Text(book.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, height: 1.5, fontSize: 12.5)),
+                                Text(book.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kMuted, height: 1.5, fontSize: 12.5)),
                               ],
                               const SizedBox(height: 8),
                               Row(
                                 children: [
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(color: _softSage, borderRadius: BorderRadius.circular(8)),
-                                    child: Text('${book.chapterCount} chapters', style: const TextStyle(color: _sage, fontSize: 11, fontWeight: FontWeight.w700)),
+                                    decoration: BoxDecoration(color: kSoftSage, borderRadius: BorderRadius.circular(8)),
+                                    child: Text('${book.chapterCount} chapters', style: const TextStyle(color: kSage, fontSize: 11, fontWeight: FontWeight.w700)),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text('${book.totalReadingTime} min', style: const TextStyle(color: _muted, fontSize: 11.5)),
+                                  Text('${book.totalReadingTime} min', style: const TextStyle(color: kMuted, fontSize: 11.5)),
                                 ],
                               ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded, color: Color(0xFF9A8A7A), size: 18),
+                        const Icon(Icons.chevron_right_rounded, color: kMutedLight, size: 18),
                       ],
                     ),
                   ),

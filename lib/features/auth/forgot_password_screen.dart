@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -100,7 +101,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     style: TextButton.styleFrom(
                       alignment: Alignment.centerLeft,
                       padding: EdgeInsets.zero,
-                      foregroundColor: const Color(0xFF6D5B4D),
+                      foregroundColor: kMuted,
                     ),
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text('Back', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
@@ -110,29 +111,29 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               const SizedBox(height: 18),
               const Text(
                 'Forgot password',
-                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: Color(0xFF2F241E)),
+                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: kInk),
               ),
               const SizedBox(height: 10),
               const Text(
                 'We will send reset instructions if the email belongs to an account.',
-                style: TextStyle(fontSize: 14, color: Color(0xFF6B5A4A), height: 1.45),
+                style: TextStyle(fontSize: 14, color: kMuted, height: 1.45),
               ),
               const SizedBox(height: 22),
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3E9DE),
+                  color: kClayPale,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFE3D3C3)),
+                  border: Border.all(color: kClay),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.mark_email_read_outlined, size: 38, color: Color(0xFF8B6842)),
+                    const Icon(Icons.mark_email_read_outlined, size: 38, color: kBronze),
                     const SizedBox(height: 14),
                     const Text(
                       'Enter your email address',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF2F241E)),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kInk),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
@@ -147,11 +148,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF0EE),
+                          color: kDangerBg,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFF0BCB5)),
+                          border: Border.all(color: kDangerBorder),
                         ),
-                        child: Text(_errorMessage!, style: const TextStyle(color: Color(0xFFB85450), fontSize: 13)),
+                        child: Text(_errorMessage!, style: const TextStyle(color: kDanger, fontSize: 13)),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -159,20 +160,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEAF3E0),
+                          color: kSuccessBg,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFC9D8B4)),
+                          border: Border.all(color: kSuccessBorder),
                         ),
-                        child: Text(_message!, style: const TextStyle(color: Color(0xFF4F6C34), fontSize: 13)),
+                        child: Text(_message!, style: const TextStyle(color: kSage, fontSize: 13)),
                       ),
                       const SizedBox(height: 10),
                     ],
                     _loading
-                        ? const SizedBox(height: 48, child: DecoratedBox(decoration: BoxDecoration(color: Color(0xFF8B6842), borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
+                        ? const SizedBox(height: 48, child: DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
                         : ElevatedButton(
                             onPressed: _cooldownSeconds > 0 ? null : _submit,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF8B6842),
+                              backgroundColor: kBronze,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -183,7 +184,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     const SizedBox(height: 10),
                     TextButton(
                       onPressed: _cooldownSeconds > 0 ? null : () => context.push('/reset-password'),
-                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF6D5B4D)),
+                      style: TextButton.styleFrom(foregroundColor: kMuted),
                       child: const Text('I already have a reset token', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
                   ],
@@ -210,20 +211,20 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 2, color: Color(0xFF6D5B4D), fontWeight: FontWeight.w700)),
+        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 2, color: kMuted, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(fontSize: 12, color: Color(0xFFA69480)),
+            hintStyle: const TextStyle(fontSize: 12, color: kMutedLight),
             filled: true,
-            fillColor: const Color(0xFFF3E9DE),
+            fillColor: kClayPale,
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2D0BE))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2D0BE))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFB38964))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kBronzeLight)),
           ),
         ),
       ],

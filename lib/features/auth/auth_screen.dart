@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../main.dart' show sessionProvider;
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 import 'verification_screen.dart';
 
@@ -17,6 +18,7 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen> {
   bool _register = true;
   bool _loading = false;
+  String? _googleError;
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +37,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     style: TextButton.styleFrom(
                       alignment: Alignment.centerLeft,
                       padding: EdgeInsets.zero,
-                      foregroundColor: const Color(0xFF6D5B4D),
+                      foregroundColor: kMuted,
                     ),
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text('Back', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
@@ -47,7 +49,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
               const Text(
                 'Create your quiet gateway',
-                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: Color(0xFF2F241E)),
+                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: kInk),
               ),
 
               const SizedBox(height: 15),
@@ -88,15 +90,28 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const SizedBox(height: 12),
               const Row(
                 children: [
-                  Expanded(child: Divider(color: Color(0xFFE2D0BE))),
+                  Expanded(child: Divider(color: kClay)),
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or', style: TextStyle(fontSize: 10, letterSpacing: 2.5, color: Color(0xFF8B6842), fontWeight: FontWeight.w700)),
+                    child: Text('or', style: TextStyle(fontSize: 10, letterSpacing: 2.5, color: kBronze, fontWeight: FontWeight.w700)),
                   ),
-                  Expanded(child: Divider(color: Color(0xFFE2D0BE))),
+                  Expanded(child: Divider(color: kClay)),
                 ],
               ),
               const SizedBox(height: 12),
+              if (_googleError != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: kDangerBg,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: kDangerBorder),
+                  ),
+                  child: Text(
+                    _googleError!,
+                    style: const TextStyle(color: Color(0xFFB85450), fontSize: 13),
+                  ),
+                ),
               _GoogleButton(onTap: _continueWithGoogle, isLoading: _loading),
               const SizedBox(height: 10),
               const Text(
@@ -119,7 +134,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _continueWithGoogle() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _googleError = null;
+    });
     try {
       final googleSignIn = GoogleSignIn(
         clientId: const String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: ''),
@@ -137,7 +155,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await _onAuthSuccess();
     } catch (error) {
       if (!mounted) return;
-      setState(() {});
+      setState(() {
+        _googleError = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -159,7 +179,7 @@ class _SegmentButton extends StatelessWidget {
         onPressed: onTap,
         style: TextButton.styleFrom(
           backgroundColor: selected ? Colors.white : Colors.transparent,
-          foregroundColor: const Color(0xFF2F241E),
+          foregroundColor: kInk,
           minimumSize: const Size.fromHeight(36),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -295,7 +315,7 @@ class _RegisterFormState extends State<_RegisterForm> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFF3E9DE),
+            color: kClayPale,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFE3D3C3)),
           ),
@@ -304,21 +324,21 @@ class _RegisterFormState extends State<_RegisterForm> {
               Container(
                 width: 34,
                 height: 34,
-                decoration: BoxDecoration(color: const Color(0xFFF9F4ED), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE2D0BE))),
-                child: const Icon(Icons.fingerprint, size: 18, color: Color(0xFF8B6842)),
+                decoration: BoxDecoration(color: const Color(0xFFF9F4ED), borderRadius: BorderRadius.circular(12), border: Border.all(color: kClay)),
+                child: const Icon(Icons.fingerprint, size: 18, color: kBronze),
               ),
               const SizedBox(width: 12),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Biometric setup', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF2F241E))),
+                    Text('Biometric setup', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kInk)),
                     SizedBox(height: 3),
-                    Text('Enable Face ID or Touch ID unlock', style: TextStyle(fontSize: 11, color: Color(0xFF6D5B4D))),
+                    Text('Enable Face ID or Touch ID unlock', style: TextStyle(fontSize: 11, color: kMuted)),
                   ],
                 ),
               ),
-              Switch.adaptive(value: _biometricEnabled, onChanged: (_) => setState(() => _biometricEnabled = !_biometricEnabled), activeThumbColor: const Color(0xFF8B6842)),
+              Switch.adaptive(value: _biometricEnabled, onChanged: (_) => setState(() => _biometricEnabled = !_biometricEnabled), activeThumbColor: kBronze),
             ],
           ),
         ),
@@ -333,9 +353,9 @@ class _RegisterFormState extends State<_RegisterForm> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF0EE),
+              color: kDangerBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF0BCB5)),
+              border: Border.all(color: kDangerBorder),
             ),
             child: Text(
               _errorMessage!,
@@ -347,11 +367,11 @@ class _RegisterFormState extends State<_RegisterForm> {
         SizedBox(
           width: double.infinity,
           child: _loading
-              ? const SizedBox(height: 52, child: DecoratedBox(decoration: BoxDecoration(color: Color(0xFF8B6842), borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
+              ? const SizedBox(height: 52, child: DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
               : ElevatedButton(
                   onPressed: _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B6842),
+                    backgroundColor: kBronze,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -462,7 +482,7 @@ class _SigninFormState extends State<_SigninForm> {
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
-              foregroundColor: const Color(0xFF6D5B4D),
+              foregroundColor: kMuted,
             ),
             child: const Text('Forgot password?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           ),
@@ -472,9 +492,9 @@ class _SigninFormState extends State<_SigninForm> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF0EE),
+              color: kDangerBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF0BCB5)),
+              border: Border.all(color: kDangerBorder),
             ),
             child: Text(
               _errorMessage!,
@@ -486,11 +506,11 @@ class _SigninFormState extends State<_SigninForm> {
         SizedBox(
           width: double.infinity,
           child: _loading
-              ? const SizedBox(height: 48, child: DecoratedBox(decoration: BoxDecoration(color: Color(0xFF8B6842), borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
+              ? const SizedBox(height: 48, child: DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
               : ElevatedButton(
                   onPressed: _submit,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B6842),
+                    backgroundColor: kBronze,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -529,7 +549,7 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 2, color: Color(0xFF6D5B4D), fontWeight: FontWeight.w700)),
+        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 2, color: kMuted, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -540,15 +560,15 @@ class _Field extends StatelessWidget {
             hintText: hint,
             hintStyle: const TextStyle(fontSize: 12, color: Color(0xFFA69480)),
             filled: true,
-            fillColor: const Color(0xFFF3E9DE),
+            fillColor: kClayPale,
             contentPadding: EdgeInsets.symmetric(horizontal: showToggle ? 14 : 14, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2D0BE))),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE2D0BE))),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFB38964))),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kBronzeLight)),
             suffixIcon: showToggle
                 ? IconButton(
                     onPressed: onToggleVisibility,
-                    icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: const Color(0xFF8B6842)),
+                    icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: kBronze),
                     tooltip: obscureText ? 'Show password' : 'Hide password',
                   )
                 : null,
@@ -570,7 +590,7 @@ class _GoogleButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: isLoading ? null : onTap,
       style: OutlinedButton.styleFrom(
-        foregroundColor: const Color(0xFF2F241E),
+        foregroundColor: kInk,
         side: const BorderSide(color: Color(0xFFE3D3C3)),
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -583,7 +603,7 @@ class _GoogleButton extends StatelessWidget {
           const _GoogleFavicon(),
           const SizedBox(width: 10),
           isLoading
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842)))
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))
               : const Text('Continue with Google'),
         ],
       ),
@@ -602,7 +622,7 @@ class _GoogleFavicon extends StatelessWidget {
       height: 20,
       cacheWidth: 40,
       cacheHeight: 40,
-      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 20, color: Color(0xFF8B6842)),
+      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 20, color: kBronze),
     );
   }
 }

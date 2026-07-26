@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
+import '../../core/theme/app_theme.dart';
 import '../home/home_screen.dart';
 import '../home/add_act_screen.dart';
 import '../journey/journey_screen.dart';
@@ -130,7 +131,7 @@ class _AppShellState extends ConsumerState<AppShell> {
         ),
         floatingActionButton: FloatingActionButton(
           elevation: 6,
-          backgroundColor: const Color(0xFF8B6842),
+          backgroundColor: kBronze,
           foregroundColor: Colors.white,
           tooltip: 'Add sadaqah',
           onPressed: () => AddActScreen.show(context),
@@ -143,7 +144,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           notchMargin: 8,
           height: 82,
           elevation: 0,
-          color: isScrolled ? const Color(0xFFEDE5D8) : const Color(0xFFF7F0E8),
+          color: isScrolled ? kClayLight : kSurface,
           padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
           child: _DockedNavBar(
             tabs: tabs,
@@ -187,7 +188,7 @@ class _DockedNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? const Color(0xFF8B6842) : const Color(0xFF8F7B6B);
+    final color = selected ? kBronze : kMutedLight;
     return Semantics(
       selected: selected,
       button: true,

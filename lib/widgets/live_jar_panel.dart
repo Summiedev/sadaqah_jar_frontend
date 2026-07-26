@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
+import '../core/theme/app_theme.dart';
+
 import '../services/backend_api.dart';
 
 class LiveJarPanel extends StatefulWidget {
@@ -121,7 +123,7 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
           width: double.infinity,
           padding: EdgeInsets.all(compactLayout ? s(12) : s(16)),
           decoration: BoxDecoration(
-            color: const Color(0xFFF8F4EA),
+            color: kSurface,
             borderRadius: BorderRadius.circular(compactLayout ? s(14) : s(20)),
           ),
           child: _loading
@@ -146,13 +148,13 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                                 style: TextStyle(
                                   fontSize: compactLayout ? s(16) : s(18),
                                   fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF3B3327),
+                                  color: kInk,
                                 ),
                               ),
                               SizedBox(height: s(4)),
                               Text(
                                 _userId == null ? 'Sign in to connect live updates' : 'Live balance updates are connected',
-                                style: TextStyle(fontSize: s(12), color: const Color(0xFF6A5E52)),
+                                style: TextStyle(fontSize: s(12), color: kMuted),
                               ),
                             ],
                           ),
@@ -160,12 +162,12 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                         Container(
                           padding: EdgeInsets.symmetric(horizontal: s(10), vertical: s(6)),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFE3D5C7),
+                            color: kClayLight,
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
                             _status,
-                            style: TextStyle(fontSize: s(11), color: const Color(0xFF7A5B3E), fontWeight: FontWeight.w700),
+                            style: TextStyle(fontSize: s(11), color: kBronzeDark, fontWeight: FontWeight.w700),
                           ),
                         ),
                       ],
@@ -176,8 +178,8 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                       child: LinearProgressIndicator(
                         minHeight: s(compactLayout ? 8 : 12),
                         value: progress.clamp(0.0, 1.0),
-                        backgroundColor: const Color(0xFFE5D6C3),
-                        valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF9B734F)),
+                        backgroundColor: kClayLight,
+                        valueColor: const AlwaysStoppedAnimation<Color>(kBronzeDark),
                       ),
                     ),
                     SizedBox(height: s(10)),
@@ -186,8 +188,8 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                       runSpacing: s(6),
                       spacing: s(10),
                       children: [
-                        Text('$current / $capacity stars', style: TextStyle(fontSize: s(14), color: const Color(0xFF5A4D43))),
-                        Text('${(progress * 100).round()}%', style: TextStyle(fontSize: s(14), color: const Color(0xFF5A4D43), fontWeight: FontWeight.w600)),
+                        Text('$current / $capacity stars', style: TextStyle(fontSize: s(14), color: kMuted)),
+                        Text('${(progress * 100).round()}%', style: TextStyle(fontSize: s(14), color: kMuted, fontWeight: FontWeight.w600)),
                       ],
                     ),
                     if (jar?.completedAt != null) ...[

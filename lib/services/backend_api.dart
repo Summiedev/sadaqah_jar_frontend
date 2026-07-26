@@ -466,6 +466,22 @@ class BackendApi {
     return UserPreferences.fromJson(decoded);
   }
 
+  Future<void> registerPushToken({
+    required String deviceId,
+    required String platform,
+    required String pushToken,
+  }) async {
+    await _post(
+      '/users/me/push-token',
+      auth: true,
+      body: jsonEncode({
+        'device_id': deviceId,
+        'platform': platform,
+        'push_token': pushToken,
+      }),
+    );
+  }
+
   Future<bool> isEmailVerified() async {
     final response = await me();
     return response['email_verified'] as bool? ?? false;
@@ -980,6 +996,38 @@ class BackendApi {
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrapEnvelope(decoded, (data) => data);
     return (data as List).map((i) => JourneyAdhkarFavorite.fromJson(Map<String, dynamic>.from(i as Map))).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getTodaysGentleActs({int limit = 3}) async {
+    final response = await _get('/sadaqah/acts', auth: true, query: {'limit': limit, 'verified_only': 'true'});
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    final list = data as List;
+    return list.map((i) => Map<String, dynamic>.from(i as Map)).toList();
+  }
+
+  Future<Map<String, dynamic>?> getLastReadingProgress() async {
+    try {
+      final response = await _get('/journey/reading/last', auth: true);
+      final decoded = _handleJson(response) as Map<String, dynamic>;
+      final data = _unwrapEnvelope(decoded, (data) => data);
+      if (data == null) return null;
+      return Map<String, dynamic>.from(data as Map);
+    } on BackendApiException catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveReadingProgress({required int bookId, required int chapterNumber}) async {
+    await _post('/journey/reading/progress', auth: true, body: jsonEncode({'book_id': bookId, 'chapter_number': chapterNumber}));
+  }
+
+  Future<List<Map<String, dynamic>>> getTodaysReflections() async {
+    final response = await _get('/journey/reflections', auth: true, query: {'limit': 5});
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrapEnvelope(decoded, (data) => data);
+    final list = data as List? ?? const [];
+    return list.map((i) => Map<String, dynamic>.from(i as Map)).toList();
   }
 
   Future<void> leaveFamilyJar({required int jarId}) async {

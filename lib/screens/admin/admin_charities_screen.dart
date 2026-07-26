@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 
 class AdminCharitiesScreen extends StatefulWidget {
@@ -140,7 +141,7 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Charities'), backgroundColor: const Color(0xFFE5D6C3)),
+      appBar: AppBar(title: const Text('Charities'), backgroundColor: kClayLight),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openForm(),
         child: const Icon(Icons.add),

@@ -1,15 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
-
-const _ivory = Color(0xFFF5EDE1);
-const _paper = Color(0xFFFFFBF6);
-const _ink = Color(0xFF30241E);
-const _muted = Color(0xFF756457);
-const _bronze = Color(0xFF92704B);
-const _line = Color(0xFFE4D5C3);
-const _softSage = Color(0xFFDCE7D8);
-const _sage = Color(0xFF6D8D72);
 
 class AdminBooksScreen extends StatefulWidget {
   const AdminBooksScreen({super.key});
@@ -106,7 +98,7 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                       }
                     }
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: _bronze),
+                  style: ElevatedButton.styleFrom(backgroundColor: kBronze),
                   child: Text(book == null ? 'Create' : 'Save'),
                 ),
               ],
@@ -151,31 +143,31 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Books', style: TextStyle(color: _ink, fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
-        backgroundColor: _ivory,
-        foregroundColor: _ink,
+        title: const Text('Manage Books', style: TextStyle(color: kInk, fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
+        backgroundColor: kIvory,
+        foregroundColor: kInk,
         surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded, color: _ink),
+            icon: const Icon(Icons.refresh_rounded, color: kInk),
             tooltip: 'Refresh',
           ),
         ],
       ),
-      backgroundColor: _ivory,
+      backgroundColor: kIvory,
       body: FutureBuilder<AdminBookPage>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: _bronze));
+            return const Center(child: CircularProgressIndicator(color: kBronze));
           }
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: _muted)));
+            return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: kMuted)));
           }
           final books = snapshot.data?.data ?? [];
           if (books.isEmpty) {
-            return const Center(child: Text('No books yet. Tap + to add one.', style: TextStyle(color: _muted)));
+            return const Center(child: Text('No books yet. Tap + to add one.', style: TextStyle(color: kMuted)));
           }
           return ListView.separated(
             padding: const EdgeInsets.all(20),
@@ -185,29 +177,29 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
               final book = books[index];
               return Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: _paper, borderRadius: BorderRadius.circular(16), border: Border.all(color: _line)),
+                decoration: BoxDecoration(color: kPaper, borderRadius: BorderRadius.circular(16), border: Border.all(color: kLine)),
                 child: Row(
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(book.title, style: const TextStyle(color: _ink, fontWeight: FontWeight.w700, fontSize: 15)),
+                          Text(book.title, style: const TextStyle(color: kInk, fontWeight: FontWeight.w700, fontSize: 15)),
                           const SizedBox(height: 2),
-                          Text(book.author, style: const TextStyle(color: _muted, fontSize: 12.5)),
+                          Text(book.author, style: const TextStyle(color: kMuted, fontSize: 12.5)),
                           const SizedBox(height: 4),
                           Row(
                             children: [
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: book.published ? _softSage : const Color(0xFFF5E0E0),
+                                  color: book.published ? kSoftSage : kDraftBg,
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(book.published ? 'Published' : 'Draft', style: TextStyle(color: book.published ? _sage : const Color(0xFFA8554E), fontSize: 11, fontWeight: FontWeight.w700)),
+                                child: Text(book.published ? 'Published' : 'Draft', style: TextStyle(color: book.published ? kSage : kDanger, fontSize: 11, fontWeight: FontWeight.w700)),
                               ),
                               const SizedBox(width: 8),
-                              Text(book.category, style: const TextStyle(color: _muted, fontSize: 11.5)),
+                              Text(book.category, style: const TextStyle(color: kMuted, fontSize: 11.5)),
                             ],
                           ),
                         ],
@@ -215,12 +207,12 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                     ),
                     IconButton(
                       onPressed: () => _openForm(book: book),
-                      icon: const Icon(Icons.edit_outlined, color: _bronze),
+                      icon: const Icon(Icons.edit_outlined, color: kBronze),
                       tooltip: 'Edit',
                     ),
                     IconButton(
                       onPressed: () => _delete(book),
-                      icon: const Icon(Icons.delete_outline, color: Color(0xFFA8554E)),
+                      icon: const Icon(Icons.delete_outline, color: kDanger),
                       tooltip: 'Delete',
                     ),
                   ],
@@ -231,7 +223,7 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: _bronze,
+        backgroundColor: kBronze,
         foregroundColor: Colors.white,
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add_rounded),

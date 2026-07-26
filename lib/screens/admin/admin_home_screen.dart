@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
 
@@ -8,7 +10,7 @@ class AdminHomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Panel'),
-        backgroundColor: const Color(0xFFE5D6C3),
+        backgroundColor: kClayLight,
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -62,7 +64,7 @@ class _AdminTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFF4EFE6),
+      color: kSurface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -71,7 +73,7 @@ class _AdminTile extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(icon, color: const Color(0xFF8B6842)),
+              Icon(icon, color: kBronze),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
@@ -79,7 +81,7 @@ class _AdminTile extends StatelessWidget {
                   children: [
                     Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
-                    Text(subtitle, style: const TextStyle(color: Color(0xFF6C6258))),
+                    Text(subtitle, style: const TextStyle(color: kMuted)),
                   ],
                 ),
               ),

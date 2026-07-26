@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 
 class AdminEvidenceScreen extends StatefulWidget {
@@ -131,7 +132,7 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Evidence'), backgroundColor: const Color(0xFFE5D6C3)),
+      appBar: AppBar(title: const Text('Evidence'), backgroundColor: kClayLight),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openForm(),
         child: const Icon(Icons.add),

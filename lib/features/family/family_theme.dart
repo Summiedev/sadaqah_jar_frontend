@@ -3,30 +3,31 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_theme.dart';
+
 // ─────────────────────────────────────────────────────────────
 // MIZAN · FAMILY — DESIGN TOKENS
 // Warm ivory, paper textures, walnut / clay / bronze / muted olive.
-// No gradients-on-surfaces, no neon, no glassmorphism, minimal shadows.
+// All tokens are aliases of the canonical app_theme.dart values.
 // ─────────────────────────────────────────────────────────────
 
-// Shared Mizan material palette: the family space is a warmer extension of Sanctuary.
-const Color fIvory = Color(0xFFF7F0E7);
-const Color fPaper = Color(0xFFFFFCF8);
-const Color fSurface = Color(0xFFF7F0E8);
-const Color fWalnut = Color(0xFF2F241E);
+const Color fIvory = kIvory;
+const Color fPaper = kPaper;
+const Color fSurface = kSurface;
+const Color fWalnut = kInk;
 const Color fWalnutLight = Color(0xFF3C2F26);
-const Color fBronze = Color(0xFF8B6842);
-const Color fBronzeDark = Color(0xFF6D4F32);
-const Color fBronzeLight = Color(0xFFB38964);
-const Color fClay = Color(0xFFE2D0BE);
-const Color fClayLight = Color(0xFFE8DCCF);
-const Color fClayPale = Color(0xFFF3E9DE);
-const Color fOlive = Color(0xFF749B75);
-const Color fOliveSoft = Color(0xFFD4E0C8);
-const Color fStone = Color(0xFF6D5B4D);
-const Color fStoneLight = Color(0xFF9A8A7A);
-const Color fStonePale = Color(0xFFB8A28E);
-const Color fWhite = Color(0xFFFFFFFF);
+const Color fBronze = kBronze;
+const Color fBronzeDark = kBronzeDark;
+const Color fBronzeLight = kBronzeLight;
+const Color fClay = kClay;
+const Color fClayLight = kClayLight;
+const Color fClayPale = kClayPale;
+const Color fOlive = kOlive;
+const Color fOliveSoft = kOliveSoft;
+const Color fStone = kMuted;
+const Color fStoneLight = kMutedLight;
+const Color fStonePale = kStonePale;
+const Color fWhite = kWhite;
 const Color fShadow = Color(0x0D000000);
 const Color fShadowWarm = Color(0x1A8B6842);
 

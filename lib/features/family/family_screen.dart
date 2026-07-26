@@ -18,6 +18,8 @@ class FamilyScreen extends ConsumerStatefulWidget {
 class _FamilyScreenState extends ConsumerState<FamilyScreen> {
   late List<String> _pending;
   List<Map<String, dynamic>> _families = const [];
+  bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -27,15 +29,23 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
   }
 
   Future<void> _loadFamilies() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final families = await BackendApi.instance.getFamilies();
       if (!mounted) return;
-      if (!mounted) return;
       setState(() {
         _families = families;
+        _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -135,6 +145,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
           ],
         ),
       );
+      _loadFamilies();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: Text('Could not create jar: $e')));
@@ -267,7 +278,11 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 ),
               ],
             ),
-            if (_families.isEmpty)
+            if (_loading)
+              const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: fBronze)))
+            else if (_error != null)
+              SliverFillRemaining(child: _ErrorState(message: _error!, onRetry: _loadFamilies))
+            else if (_families.isEmpty)
               SliverFillRemaining(child: _EmptyFamily(onJoin: _joinFamily, onCreate: _createFamily))
             else
               SliverPadding(
@@ -288,8 +303,45 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
           ],
         ),
       ),
-    ),
-  );
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 72,
+              height: 72,
+              decoration: BoxDecoration(color: const Color(0xFFFFF0EE), shape: BoxShape.circle, border: Border.all(color: const Color(0xFFF0BCB5))),
+              child: const Icon(Icons.wifi_off_rounded, size: 32, color: Color(0xFFB85450)),
+            ),
+            const SizedBox(height: 20),
+            Text('Could not load families', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF2F241E), fontFamily: 'Georgia')),
+            const SizedBox(height: 8),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF6D5B4D), fontSize: 13, height: 1.5)),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Try again'),
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF8B6842), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -305,12 +357,11 @@ class _JarCard extends StatelessWidget {
     final progress = (jar['progress'] as num?)?.toDouble() ?? 0.0;
     final daysRemaining = (jar['days_remaining'] as num?)?.toInt() ?? 0;
     final goalLabel = jar['goal_label']?.toString() ?? '';
-    final inviteCode = jar['invite_code']?.toString() ?? '';
     return Semantics(
       button: true,
       label: 'Open $name, $memberCount members, ${(progress * 100).round()} percent complete',
       child: SoftCard(
-        onTap: () => context.push('/family/jar/$inviteCode'),
+        onTap: () => context.push('/family/jar/${jar['id']}'),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -330,7 +381,7 @@ class _JarCard extends StatelessWidget {
                     children: [
                       Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
                       const SizedBox(height: 4),
-                      Text('$memberCount members · Loading...', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
+                      Text('$memberCount members', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
                     ],
                   ),
                 ),

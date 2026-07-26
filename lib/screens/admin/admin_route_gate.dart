@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 import 'admin_analytics_screen.dart';
 import 'admin_books_screen.dart';
@@ -59,14 +60,14 @@ class AdminForbiddenScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Access'), backgroundColor: const Color(0xFFE5D6C3)),
+      appBar: AppBar(title: const Text('Admin Access'), backgroundColor: kClayLight),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, size: 56, color: Color(0xFF8B6842)),
+              const Icon(Icons.lock_outline, size: 56, color: kBronze),
               const SizedBox(height: 16),
               const Text(
                 '403 - Admin access required',

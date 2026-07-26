@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../services/backend_api.dart' show BackendApi, NotificationItem;
 
 class NotificationCenterScreen extends StatefulWidget {
@@ -155,11 +157,16 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     final unreadCount = _items.where((n) => !n.isRead).length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2EBDD),
+      backgroundColor: kClayPale,
       appBar: AppBar(
         title: const Text('Notifications'),
-        backgroundColor: const Color(0xFFF2EBDD),
+        backgroundColor: kClayPale,
         surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          onPressed: () => context.pop(),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kInk, size: 19),
+          tooltip: 'Back',
+        ),
         actions: [
           if (unreadCount > 0)
             TextButton(
@@ -190,7 +197,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                 gradient: const LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: [Color(0xFFE8D7C1), Color(0xFFF7F3ED)],
+                                  colors: [kClayLight, kClayPale],
                                 ),
                                 borderRadius: BorderRadius.circular(s(20)),
                               ),
@@ -199,14 +206,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                 children: [
                                   Text(
                                     '$_total notification${_total == 1 ? '' : 's'}',
-                                    style: TextStyle(fontSize: s(16), fontWeight: FontWeight.w800, color: const Color(0xFF2F251E)),
+                                    style: TextStyle(fontSize: s(16), fontWeight: FontWeight.w800, color: kInk),
                                   ),
                                   SizedBox(height: s(4)),
                                   Text(
                                     unreadCount == 0
                                         ? 'You are all caught up.'
                                         : '$unreadCount unread update${unreadCount == 1 ? '' : 's'} waiting.',
-                                    style: TextStyle(fontSize: s(12.8), color: const Color(0xFF6A5E52)),
+                                    style: TextStyle(fontSize: s(12.8), color: kMuted),
                                   ),
                                 ],
                               ),
@@ -231,7 +238,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                     background: Container(
                                       alignment: Alignment.centerRight,
                                       padding: EdgeInsets.only(right: s(22)),
-                                      decoration: BoxDecoration(color: const Color(0xFF8B6842), borderRadius: BorderRadius.circular(s(16))),
+                                      decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.circular(s(16))),
                                       child: const Icon(Icons.archive_outlined, color: Colors.white),
                                     ),
                                     onDismissed: (_) => _archive(index),
@@ -269,7 +276,7 @@ class _NotificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final presentation = _presentationFor(notification);
     return Material(
-      color: notification.isRead ? const Color(0xFFF7F3ED) : const Color(0xFFE9DCCF),
+      color: notification.isRead ? kClayPale : kSoftBronze,
       borderRadius: BorderRadius.circular(s(16)),
       child: InkWell(
         onTap: onTap,
@@ -301,7 +308,7 @@ class _NotificationCard extends StatelessWidget {
                             style: TextStyle(
                               fontSize: s(15),
                               fontWeight: notification.isRead ? FontWeight.w600 : FontWeight.w800,
-                              color: const Color(0xFF2F2A28),
+                              color: kInk,
                             ),
                           ),
                         ),
@@ -309,15 +316,15 @@ class _NotificationCard extends StatelessWidget {
                           Container(
                             width: s(8),
                             height: s(8),
-                            decoration: const BoxDecoration(color: Color(0xFFB07B3E), shape: BoxShape.circle),
+                            decoration: const BoxDecoration(color: kBronzeDark, shape: BoxShape.circle),
                           ),
                       ],
                     ),
                     SizedBox(height: s(4)),
-                    Text(notification.message, style: TextStyle(fontSize: s(13), color: const Color(0xFF5A4D43), height: 1.35)),
+                    Text(notification.message, style: TextStyle(fontSize: s(13), color: kMuted, height: 1.35)),
                     if (notification.createdAt != null) ...[
                       SizedBox(height: s(8)),
-                      Text(_formatDate(notification.createdAt!), style: TextStyle(fontSize: s(11.2), color: const Color(0xFF7A6D60))),
+                      Text(_formatDate(notification.createdAt!), style: TextStyle(fontSize: s(11.2), color: kMuted)),
                     ],
                   ],
                 ),
@@ -331,12 +338,12 @@ class _NotificationCard extends StatelessWidget {
 
   (IconData, Color) _presentationFor(NotificationItem item) {
     final text = '${item.title} ${item.message}'.toLowerCase();
-    if (text.contains('prayer') || text.contains('salah')) return (Icons.mosque_outlined, const Color(0xFF58705C));
-    if (text.contains('family') || text.contains('invite')) return (Icons.groups_outlined, const Color(0xFF8B6842));
-    if (text.contains('goal')) return (Icons.flag_outlined, const Color(0xFFB06B45));
-    if (text.contains('reflection')) return (Icons.menu_book_outlined, const Color(0xFF687EA5));
-    if (text.contains('achievement') || text.contains('streak')) return (Icons.auto_awesome_outlined, const Color(0xFF9A6A3A));
-    return (Icons.notifications_none_outlined, const Color(0xFF76695E));
+    if (text.contains('prayer') || text.contains('salah')) return (Icons.mosque_outlined, kSage);
+    if (text.contains('family') || text.contains('invite')) return (Icons.groups_outlined, kBronze);
+    if (text.contains('goal')) return (Icons.flag_outlined, kBronzeDark);
+    if (text.contains('reflection')) return (Icons.menu_book_outlined, kSlate);
+    if (text.contains('achievement') || text.contains('streak')) return (Icons.auto_awesome_outlined, kBronzeDark);
+    return (Icons.notifications_none_outlined, kMuted);
   }
 
   String _formatDate(String raw) {

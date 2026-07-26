@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
+
 class PrototypeSkeleton extends StatelessWidget {
   const PrototypeSkeleton({super.key, required this.children});
 
@@ -27,7 +29,7 @@ class SkeletonLine extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFFEDE2D5),
+        color: kClayLight,
         borderRadius: BorderRadius.circular(radius),
       ),
     );
@@ -44,9 +46,9 @@ class SkeletonCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9F4ED),
+        color: kPaper,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFE3D3C3)),
+        border: Border.all(color: kClay),
       ),
       child: child,
     );

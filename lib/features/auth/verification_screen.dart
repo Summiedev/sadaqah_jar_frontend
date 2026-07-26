@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 
 enum VerificationState { pending, verified, failed }
@@ -119,7 +120,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F4ED),
+      backgroundColor: kPaper,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(20, 12, 20, 24 + bottomInset),
@@ -133,7 +134,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                     style: TextButton.styleFrom(
                       alignment: Alignment.centerLeft,
                       padding: EdgeInsets.zero,
-                      foregroundColor: const Color(0xFF6D5B4D),
+                      foregroundColor: kMuted,
                     ),
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text('Back', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
@@ -144,9 +145,9 @@ class _VerificationScreenState extends State<VerificationScreen> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3E9DE),
+                  color: kClayPale,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFE3D3C3)),
+                  border: Border.all(color: kClay),
                 ),
                 child: Icon(
                   isVerified
@@ -155,19 +156,19 @@ class _VerificationScreenState extends State<VerificationScreen> {
                           ? Icons.error_outline
                           : Icons.mark_email_read_outlined,
                   size: 48,
-                  color: const Color(0xFF8B6842),
+                  color: kBronze,
                 ),
               ),
               const SizedBox(height: 22),
               Text(
                 isVerified ? 'Email verified' : isFailed ? 'Verification failed' : 'Check your email',
-                style: const TextStyle(fontSize: 26, height: 1.1, fontWeight: FontWeight.w800, color: Color(0xFF2F241E)),
+                style: const TextStyle(fontSize: 26, height: 1.1, fontWeight: FontWeight.w800, color: kInk),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
               Text(
                 _message,
-                style: const TextStyle(fontSize: 14, color: Color(0xFF6B5A4A), height: 1.45),
+                style: const TextStyle(fontSize: 14, color: kMuted, height: 1.45),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 22),
@@ -175,7 +176,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                 ElevatedButton(
                   onPressed: widget.onContinue,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF8B6842),
+                    backgroundColor: kBronze,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -188,13 +189,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   children: [
                     TextButton(
                       onPressed: widget.onLogin,
-                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF6D5B4D)),
+                      style: TextButton.styleFrom(foregroundColor: kMuted),
                       child: const Text('Back to login', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(height: 10),
                     TextButton(
                       onPressed: _resendVerification,
-                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF8B6842)),
+                      style: TextButton.styleFrom(foregroundColor: kBronze),
                       child: const Text('Request a new verification email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
                   ],
@@ -205,13 +206,13 @@ class _VerificationScreenState extends State<VerificationScreen> {
                     const SizedBox(height: 8),
                     TextButton(
                       onPressed: _resendVerification,
-                      style: TextButton.styleFrom(foregroundColor: const Color(0xFF8B6842)),
+                      style: TextButton.styleFrom(foregroundColor: kBronze),
                       child: const Text('Resend verification email', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                     ),
                     const SizedBox(height: 6),
                     const Text(
                       'Didn\'t receive the email? Check your spam folder.',
-                      style: TextStyle(color: Color(0xFF8A6A44), fontSize: 12),
+                      style: TextStyle(color: kBronzeDark, fontSize: 12),
                       textAlign: TextAlign.center,
                     ),
                   ],

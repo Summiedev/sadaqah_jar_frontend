@@ -5,17 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
-
-const _ink = Color(0xFF2F241E);
-const _muted = Color(0xFF6D5B4D);
-const _mutedLight = Color(0xFF9A8A7A);
-const _bronze = Color(0xFF8B6842);
-const _paper = Color(0xFFFFFCF8);
-const _line = Color(0xFFE8DDD1);
-const _surface = Color(0xFFF9F4ED);
-const _olive = Color(0xFF58705C);
-const _oliveSoft = Color(0xFFDCE7D8);
+import '../../services/push_notification_service.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -27,14 +19,14 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _scrolled = false;
 
-  Color get _appBarColor => const Color(0xFFE8DCC8);
+  Color get _appBarColor => kClayLight;
 
   @override
   Widget build(BuildContext context) {
     final selectedMode = ref.watch(modeProvider);
 
     return Scaffold(
-      backgroundColor: _surface,
+      backgroundColor: kSurface,
       body: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           final offset = notification.metrics.pixels;
@@ -54,7 +46,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               toolbarHeight: 64,
               elevation: 0,
               backgroundColor: _appBarColor,
-              foregroundColor: _ink,
+              foregroundColor: kInk,
               surfaceTintColor: Colors.transparent,
               title: const Text('Profile',
                   style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
@@ -62,7 +54,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 IconButton(
                   onPressed: () => context.push('/notifications'),
                   tooltip: 'Notifications',
-                  icon: Icon(Icons.notifications_none_outlined, color: _ink),
+                  icon: Icon(Icons.notifications_none_outlined, color: kInk),
                 ),
               ],
             ),
@@ -114,22 +106,22 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           return Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: _paper,
+                              color: kPaper,
                               borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: _line),
+                              border: Border.all(color: kLine),
                             ),
                             child: SwitchListTile.adaptive(
                               contentPadding: EdgeInsets.zero,
-                              title: Text('Friday reminder', style: TextStyle(color: _ink, fontSize: 15, fontWeight: FontWeight.w700)),
+                              title: Text('Friday reminder', style: TextStyle(color: kInk, fontSize: 15, fontWeight: FontWeight.w700)),
                               subtitle: Text(
                                 snapshot.connectionState == ConnectionState.waiting
                                     ? 'Loading your preference...'
                                     : 'Get a gentle Friday reminder when it is enabled.',
-                                style: TextStyle(color: _muted, fontSize: 12.5, height: 1.4),
+                                style: TextStyle(color: kMuted, fontSize: 12.5, height: 1.4),
                               ),
                               value: enabled,
                               onChanged: (value) => _toggleFridayReminder(profile, value),
-                              activeThumbColor: _bronze,
+                              activeThumbColor: kBronze,
                             ),
                           );
                         },
@@ -160,7 +152,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     const Center(
                       child: Text(
                         'MIZAN • PRIVATE JOURNAL',
-                        style: TextStyle(fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w700, color: Color(0xFFA28F7F)),
+                        style: TextStyle(fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w700, color: kStonePale),
                       ),
                     ),
                   ],
@@ -176,6 +168,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _toggleFridayReminder(UserProfile? profile, bool value) async {
     if (profile == null) return;
     try {
+      if (value && !await PushNotificationService.instance.enableForReminders()) {
+        throw StateError('Notification permission is required to enable reminders.');
+      }
       await BackendApi.instance.updatePreferences(fridayReminder: value);
       if (!mounted) return;
       setState(() {});
@@ -200,17 +195,17 @@ class _AccountCard extends StatelessWidget {
           return Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: _paper,
+              color: kPaper,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _line),
+              border: Border.all(color: kLine),
             ),
             child: const Row(children: [
-              CircleAvatar(radius: 26, backgroundColor: Color(0xFFE8D5C0), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842)))),
+              CircleAvatar(radius: 26, backgroundColor: kClayLight, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))),
               SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Loading...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _ink)),
+                Text('Loading...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kInk)),
                 SizedBox(height: 3),
-                Text('Loading...', style: TextStyle(fontSize: 13, color: _muted)),
+                Text('Loading...', style: TextStyle(fontSize: 13, color: kMuted)),
               ])),
             ]),
           );
@@ -219,17 +214,17 @@ class _AccountCard extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _paper,
+            color: kPaper,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _line),
+            border: Border.all(color: kLine),
           ),
           child: Row(
             children: [
               CircleAvatar(
                 radius: 26,
-                backgroundColor: const Color(0xFFE8D5C0),
+                backgroundColor: kClayLight,
                 backgroundImage: profile.avatarData != null && profile.avatarData!.isNotEmpty ? MemoryImage(base64Decode(profile.avatarData!)) : null,
-                child: profile.avatarData == null || profile.avatarData!.isEmpty ? Text(initial, style: const TextStyle(color: Color(0xFF6D4C35), fontWeight: FontWeight.w800, fontSize: 22, fontFamily: 'Georgia')) : null,
+                child: profile.avatarData == null || profile.avatarData!.isEmpty ? Text(initial, style: const TextStyle(color: kBronzeDark, fontWeight: FontWeight.w800, fontSize: 22, fontFamily: 'Georgia')) : null,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -241,7 +236,7 @@ class _AccountCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: _ink,
+                        color: kInk,
                         height: 1.2,
                       ),
                     ),
@@ -250,7 +245,7 @@ class _AccountCard extends StatelessWidget {
                       profile.email,
                       style: const TextStyle(
                         fontSize: 13,
-                        color: _muted,
+                        color: kMuted,
                         height: 1.35,
                       ),
                     ),
@@ -260,7 +255,7 @@ class _AccountCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _oliveSoft,
+                  color: kSageSoft,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -268,7 +263,7 @@ class _AccountCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: _olive,
+                    color: kSage,
                     height: 1.3,
                   ),
                 ),
@@ -307,15 +302,15 @@ class _Group extends StatelessWidget {
               fontSize: 11,
               letterSpacing: 1.2,
               fontWeight: FontWeight.w700,
-              color: _bronze,
+              color: kBronze,
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: _paper,
+            color: kPaper,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _line),
+            border: Border.all(color: kLine),
           ),
           child: child ?? Column(children: children ?? const <Widget>[]),
         ),
@@ -347,7 +342,7 @@ class _ModeRow extends ConsumerWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
-            bottom: mode != kModeBoth ? const BorderSide(color: _line) : BorderSide.none,
+            bottom: mode != kModeBoth ? const BorderSide(color: kLine) : BorderSide.none,
           ),
         ),
         child: Row(
@@ -356,13 +351,13 @@ class _ModeRow extends ConsumerWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFF0E3D4) : _surface,
+                color: isSelected ? kSoftBronze : kSurface,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
                 size: 20,
-                color: isSelected ? _bronze : _mutedLight,
+                color: isSelected ? kBronze : kMutedLight,
               ),
             ),
             const SizedBox(width: 12),
@@ -375,7 +370,7 @@ class _ModeRow extends ConsumerWidget {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-                      color: _ink,
+                      color: kInk,
                       height: 1.25,
                     ),
                   ),
@@ -384,7 +379,7 @@ class _ModeRow extends ConsumerWidget {
                     body,
                     style: TextStyle(
                       fontSize: 12,
-                      color: _muted,
+                      color: kMuted,
                       height: 1.35,
                     ),
                   ),
@@ -392,7 +387,7 @@ class _ModeRow extends ConsumerWidget {
               ),
             ),
             if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: _bronze, size: 20),
+              const Icon(Icons.check_circle_rounded, color: kBronze, size: 20),
           ],
         ),
       ),
@@ -409,7 +404,7 @@ class _InfoRow extends StatelessWidget {
       padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       child: Text(
         'Mizan is designed to hold space for your intentions, reflections, and quiet acts of goodness — without comparison or a public feed.',
-        style: TextStyle(fontSize: 13, height: 1.55, color: _muted),
+        style: TextStyle(fontSize: 13, height: 1.55, color: kMuted),
       ),
     );
   }
@@ -451,9 +446,9 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = _bronze;
+    final accent = kBronze;
     return Material(
-      color: _paper,
+      color: kPaper,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -478,7 +473,7 @@ class _SettingsCard extends StatelessWidget {
                     Text(
                       title,
                       style: const TextStyle(
-                        color: _ink,
+                        color: kInk,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -487,7 +482,7 @@ class _SettingsCard extends StatelessWidget {
                     Text(
                       subtitle,
                       style: const TextStyle(
-                        color: _muted,
+                        color: kMuted,
                         fontSize: 12.5,
                         height: 1.35,
                       ),
@@ -495,7 +490,7 @@ class _SettingsCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: _mutedLight, size: 18),
+              Icon(Icons.chevron_right_rounded, color: kMutedLight, size: 18),
             ],
           ),
         ),

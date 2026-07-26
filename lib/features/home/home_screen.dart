@@ -4,16 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../family/family_theme.dart' show FamilyJarView;
 import '../../core/act_store.dart';
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 import 'add_act_screen.dart';
 import '../../core/mode_provider.dart';
-
-const _ink = Color(0xFF30261F);
-const _muted = Color(0xFF76695E);
-const _bronze = Color(0xFF8B6842);
-const _sage = Color(0xFF58705C);
-const _paper = Color(0xFFFFFCF8);
-const _line = Color(0xFFE8DDD1);
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -43,7 +37,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFF8F2E9), Color(0xFFF2E8DB), Color(0xFFF9F4ED)],
+            colors: [kSurface, kClayLight, kPaper],
           ),
         ),
         child: SafeArea(
@@ -72,7 +66,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                   toolbarHeight: 64,
                   collapsedHeight: 64,
                   expandedHeight: 64,
-                  backgroundColor: const Color(0xFFE8DCC8),
+                  backgroundColor: kClayLight,
                   surfaceTintColor: Colors.transparent,
                   elevation: 0,
                   title: const Text('Sanctuary'),
@@ -87,21 +81,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                     const SizedBox(height: 24),
                      _AddTodayCard(onTap: () => AddActScreen.show(context)),
                     const SizedBox(height: 24),
-                     const _SadaqahIdeas(),
-                     const SizedBox(height: 14),
-                     _CharityQuickLink(onTap: () => context.push('/charities')),
-                     const SizedBox(height: 30),
-                     const _SectionHeading('Continue reading'),
-                     const SizedBox(height: 12),
-                     const _ReadingCard(),
-                     const SizedBox(height: 30),
-                     const _RhythmOfTheDayCard(),
-                     const SizedBox(height: 30),
-                     const _SectionHeading('Recent adhkar'),
-                    const SizedBox(height: 12),
-                    const _AdhkarRow(),
+                     _TodaysGentleActs(),
                     const SizedBox(height: 30),
-                    const _ReminderCard(),
+                     _LastReadCard(),
+                    const SizedBox(height: 30),
+                     _TodaysReflection(),
+                    const SizedBox(height: 30),
+                     _RhythmOfTheDayCard(onTap: () => context.push('/journey')),
                   ]),
                 ),
               ],
@@ -122,13 +108,19 @@ class _HomeHeader extends StatelessWidget {
     return FutureBuilder<UserProfile>(
       future: BackendApi.instance.getUserProfile(),
       builder: (context, snapshot) {
-        final name = snapshot.data?.username ?? '';
-        final display = name.isNotEmpty ? 'Assalamu alaikum, $name' : 'Assalamu alaikum';
+        String display;
+        if (snapshot.hasData && snapshot.data!.username.isNotEmpty) {
+          display = 'Assalamu alaikum, ${snapshot.data!.username}';
+        } else if (snapshot.hasError) {
+          display = 'Assalamu alaikum';
+        } else {
+          display = 'Assalamu alaikum';
+        }
         return Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(display, style: const TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 23, fontWeight: FontWeight.w700)),
+            Text(display, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 23, fontWeight: FontWeight.w700)),
             const SizedBox(height: 5),
-            const Text('Small goodness, beautifully kept.', style: TextStyle(color: _muted, fontSize: 13)),
+            const Text('Small goodness, beautifully kept.', style: TextStyle(color: kMuted, fontSize: 13)),
           ])),
         ]);
       },
@@ -140,7 +132,7 @@ class _NotifIcon extends StatelessWidget {
   const _NotifIcon();
   @override
   Widget build(BuildContext context) => IconButton(
-        icon: const Icon(Icons.notifications_none_outlined, color: _ink),
+        icon: const Icon(Icons.notifications_none_outlined, color: kInk),
         tooltip: 'Notifications',
         onPressed: () => context.push('/notifications'),
       );
@@ -154,27 +146,41 @@ class _StreakPill extends StatelessWidget {
     return FutureBuilder<StreakInfo>(
       future: BackendApi.instance.getStreak(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: kClayPale,
+              borderRadius: BorderRadius.circular(99),
+              border: Border.all(color: kLine),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2.2, color: kBronze)),
+              const SizedBox(width: 8),
+            ]),
+          );
+        }
         final streak = snapshot.data?.currentStreak ?? 0;
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF8EF),
+            color: kClayPale,
             borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: _line),
+            border: Border.all(color: kLine),
           ),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
             Container(
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: const Color(0xFFFFE0C0),
+                color: kBronzeLight,
                 borderRadius: BorderRadius.circular(10),
                 boxShadow: const [BoxShadow(color: Color(0x26FF8C00), blurRadius: 8, offset: Offset(0, 2))],
               ),
-              child: const Icon(Icons.local_fire_department_rounded, color: Color(0xFFD4541A), size: 18),
+              child: const Icon(Icons.local_fire_department_rounded, color: kDanger, size: 18),
             ),
             const SizedBox(width: 8),
-            Text('$streak', style: const TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 14)),
+            Text('$streak', style: const TextStyle(color: kInk, fontWeight: FontWeight.w800, fontSize: 14)),
           ]),
         );
       },
@@ -193,21 +199,21 @@ class _JarHero extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
         decoration: BoxDecoration(
-          color: _ink,
+          color: kInk,
           borderRadius: BorderRadius.circular(30),
           boxShadow: const [BoxShadow(color: Color(0x22000000), blurRadius: 24, offset: Offset(0, 12))],
         ),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('MY SADAQAH JAR', style: TextStyle(color: Color(0xFFE6C99F), fontSize: 10.5, letterSpacing: 1.5, fontWeight: FontWeight.w800)),
+            const Text('MY SADAQAH JAR', style: TextStyle(color: kBronzeLight, fontSize: 10.5, letterSpacing: 1.5, fontWeight: FontWeight.w800)),
             const SizedBox(height: 14),
             Text('${(progress * 100).round()}% filled', style: const TextStyle(color: Colors.white, fontFamily: 'Georgia', fontSize: 27, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
-            Text('$totalActs acts of goodness this month', style: const TextStyle(color: Color(0xFFD8CABE), fontSize: 13)),
+            Text('$totalActs acts of goodness this month', style: const TextStyle(color: kMutedLight, fontSize: 13)),
             const SizedBox(height: 18),
-            ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress, minHeight: 7, color: const Color(0xFFE5B877), backgroundColor: const Color(0xFF59483D))),
+            ClipRRect(borderRadius: BorderRadius.circular(99), child: LinearProgressIndicator(value: progress, minHeight: 7, color: kBronzeLight, backgroundColor: kInk)),
             const SizedBox(height: 8),
-            Text('$remainingActs more acts to reach your intention', style: const TextStyle(color: Color(0xFFE1D5CA), fontSize: 11.5)),
+            Text('$remainingActs more acts to reach your intention', style: const TextStyle(color: kClayLight, fontSize: 11.5)),
           ])),
           const SizedBox(width: 8),
           ExcludeSemantics(child: SizedBox(width: 110, height: 166, child: FamilyJarView(fill: progress, size: 108, glow: .9))),
@@ -220,75 +226,70 @@ class _AddTodayCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-        color: _paper,
+        color: kPaper,
         borderRadius: BorderRadius.circular(24),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(24),
           child: Container(
             padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), border: Border.all(color: _line)),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), border: Border.all(color: kLine)),
             child: const Row(children: [
-              CircleAvatar(radius: 24, backgroundColor: Color(0xFFE8DCCF), child: Icon(Icons.add_rounded, color: _bronze, size: 28)),
+              CircleAvatar(radius: 24, backgroundColor: Color(0xFFE8DCCF), child: Icon(Icons.add_rounded, color: kBronze, size: 28)),
               SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Add sadaqah for today', style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w800)),
+                Text('Add sadaqah for today', style: TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w800)),
                 SizedBox(height: 4),
-                Text('A gift, dhikr, a kindness, a prayer - it all counts.', style: TextStyle(color: _muted, fontSize: 12.5, height: 1.35)),
+                Text('A gift, dhikr, a kindness, a prayer - it all counts.', style: TextStyle(color: kMuted, fontSize: 12.5, height: 1.35)),
               ])),
-              Icon(Icons.arrow_forward_rounded, color: _bronze),
+              Icon(Icons.arrow_forward_rounded, color: kBronze),
             ]),
           ),
         ),
       );
 }
 
-class _SadaqahIdeas extends StatelessWidget {
-  const _SadaqahIdeas();
-  @override
-  Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
-        _SectionHeading('Little sadaqah reminders'),
-        SizedBox(height: 12),
-        Row(children: [
-          Expanded(child: _IdeaTile(icon: Icons.brightness_5_outlined, title: 'Tahlil', body: 'La ilaha illallah')),
-          SizedBox(width: 10),
-          Expanded(child: _IdeaTile(icon: Icons.wb_sunny_outlined, title: 'Tahmid', body: 'Alhamdulillah')),
-        ]),
-        SizedBox(height: 10),
-        Row(children: [
-          Expanded(child: _IdeaTile(icon: Icons.clean_hands_outlined, title: 'Clear harm', body: 'Move it from the road')),
-          SizedBox(width: 10),
-          Expanded(child: _IdeaTile(icon: Icons.sentiment_satisfied_alt_rounded, title: 'Smile', body: 'A quiet gift')),
-        ]),
-      ]);
-}
+class _SectionHeading extends StatelessWidget { const _SectionHeading(this.text); final String text; @override Widget build(BuildContext context) => Text(text, style: const TextStyle(fontFamily: 'Georgia', fontSize: 21, color: kInk, fontWeight: FontWeight.w700)); }
 
-class _IdeaTile extends StatelessWidget {
-  const _IdeaTile({required this.icon, required this.title, required this.body});
-  final IconData icon;
-  final String title;
-  final String body;
+class _TodaysGentleActs extends StatelessWidget {
+  const _TodaysGentleActs();
   @override
-  Widget build(BuildContext context) => Container(
-        constraints: const BoxConstraints(minHeight: 104),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(color: _paper, borderRadius: BorderRadius.circular(18), border: Border.all(color: _line)),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Icon(icon, color: _bronze, size: 23),
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: BackendApi.instance.getTodaysGentleActs(limit: 3),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const _Surface(child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))));
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const _Surface(child: Padding(
+            padding: EdgeInsets.all(18),
+            child: Text('Pick a gentle act today.', style: TextStyle(color: kMuted, fontSize: 14)),
+          ));
+        }
+        final acts = snapshot.data!;
+        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const _SectionHeading('Today\'s gentle acts'),
           const SizedBox(height: 12),
-          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 14)),
-          const SizedBox(height: 4),
-          Text(body, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: _muted, fontSize: 12, height: 1.4)),
-        ]),
-      );
+          ...acts.map((act) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _Surface(
+              child: Row(children: [
+                Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(12)), child: Icon(Icons.volunteer_activism_outlined, color: kBronze, size: 20)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(act['title']?.toString() ?? '', style: const TextStyle(color: kInk, fontWeight: FontWeight.w700, fontSize: 14.5))),
+              ]),
+            ),
+          )),
+        ]);
+      },
+    );
+  }
 }
-
-class _SectionHeading extends StatelessWidget { const _SectionHeading(this.text); final String text; @override Widget build(BuildContext context) => Text(text, style: const TextStyle(fontFamily: 'Georgia', fontSize: 21, color: _ink, fontWeight: FontWeight.w700)); }
-
-class _ReadingCard extends StatelessWidget { const _ReadingCard(); @override Widget build(BuildContext context) => const _Surface(child: Row(children: [Icon(Icons.menu_book_outlined, color: _sage), SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('On patience', style: TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 16)), SizedBox(height: 4), Text('A quiet reflection - 2 minutes left', style: TextStyle(color: _muted, fontSize: 12.5))])), Icon(Icons.arrow_forward_rounded, color: _bronze)])); }
 
 class _RhythmOfTheDayCard extends StatefulWidget {
-  const _RhythmOfTheDayCard();
+  const _RhythmOfTheDayCard({required this.onTap});
+  final VoidCallback onTap;
 
   @override
   State<_RhythmOfTheDayCard> createState() => _RhythmOfTheDayCardState();
@@ -408,87 +409,124 @@ class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard> with WidgetsBi
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const _Surface(
-        child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842)))),
+      return _Surface(
+        child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))),
       );
     }
 
     final isFriday = _isFriday;
     final icon = isFriday ? Icons.menu_book_outlined : Icons.wb_sunny_outlined;
-    final accent = isFriday ? const Color(0xFF58705C) : const Color(0xFF8B6842);
+    final accent = isFriday ? kSage : kBronze;
 
-    return _Surface(
-      child: Row(children: [
+    return InkWell(
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: _Surface(
+          child: Row(children: [
         Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: accent, size: 22)),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(isFriday ? 'Today\'s light' : 'Rhythm of the day', style: TextStyle(color: _ink, fontSize: 10.5, letterSpacing: 1.3, fontWeight: FontWeight.w800)),
+          Text(isFriday ? 'Today\'s light' : 'Rhythm of the day', style: TextStyle(color: kInk, fontSize: 10.5, letterSpacing: 1.3, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          Text(_title ?? '', style: TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 16, fontWeight: FontWeight.w800, height: 1.3)),
+          Text(_title ?? '', style: TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 16, fontWeight: FontWeight.w800, height: 1.3)),
           if (_arabic != null && _arabic!.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(_arabic!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: Color(0xFF30261F), fontSize: 18, height: 1.6)),
+            Text(_arabic!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: kInk, fontSize: 18, height: 1.6)),
           ],
           if (_body != null && _body!.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(_body!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF76695E), fontSize: 12.5, height: 1.4)),
+            Text(_body!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kMuted, fontSize: 12.5, height: 1.4)),
           ],
           if (_source != null && _source!.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text(_source!, style: const TextStyle(color: Color(0xFF8F7B6B), fontSize: 11, fontStyle: FontStyle.italic)),
+            Text(_source!, style: const TextStyle(color: kMutedLight, fontSize: 11, fontStyle: FontStyle.italic)),
           ],
         ])),
-        Icon(Icons.arrow_forward_rounded, color: const Color(0xFF8B6842), size: 18),
+        Icon(Icons.arrow_forward_rounded, color: kBronze, size: 18),
       ]),
-    );
-  }
+    ),
+  );
+}
 }
 
 enum _TimeOfDay { morning, dhuhrAsr, afterAsr }
 
-class _AdhkarRow extends StatelessWidget { const _AdhkarRow(); @override Widget build(BuildContext context) => const Row(children: [Expanded(child: _Dhikr('SubhanAllah', '33')), SizedBox(width: 10), Expanded(child: _Dhikr('Alhamdulillah', '33')), SizedBox(width: 10), Expanded(child: _Dhikr('Allahu Akbar', '34'))]); }
-class _Dhikr extends StatelessWidget { const _Dhikr(this.label, this.count); final String label, count; @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 6), decoration: BoxDecoration(color: _paper, borderRadius: BorderRadius.circular(18), border: Border.all(color: _line)), child: Column(children: [Text(count, style: const TextStyle(fontFamily: 'Georgia', fontSize: 20, color: _bronze, fontWeight: FontWeight.w700)), const SizedBox(height: 4), Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10, color: _muted))])); }
-class _ReminderCard extends StatelessWidget { const _ReminderCard(); @override Widget build(BuildContext context) => const _Surface(child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Icon(Icons.auto_awesome_outlined, color: _bronze), SizedBox(width: 12), Expanded(child: Text('Kindness is never lost. Let it be quiet, let it be steady.', style: TextStyle(fontFamily: 'Georgia', fontSize: 16, height: 1.4, color: _ink)))])); }
-class _Surface extends StatelessWidget { const _Surface({required this.child}); final Widget child; @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: _paper, borderRadius: BorderRadius.circular(22), border: Border.all(color: _line)), child: child); }
-class _CharityQuickLink extends StatelessWidget {
-  const _CharityQuickLink({required this.onTap});
-  final VoidCallback onTap;
+class _LastReadCard extends StatelessWidget {
+  const _LastReadCard();
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(22),
-    child: Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF0E3D4),
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _line),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: _paper,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.volunteer_activism_outlined, color: _bronze, size: 22),
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: BackendApi.instance.getLastReadingProgress(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const _Surface(child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))));
+        }
+        final progress = snapshot.data;
+        if (progress == null) {
+          return InkWell(
+            onTap: () => context.push('/journey'),
+            child: const _Surface(child: Row(children: [Icon(Icons.menu_book_outlined, color: kSage), SizedBox(width: 14), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Start your first reading', style: TextStyle(color: kInk, fontWeight: FontWeight.w800, fontSize: 16)), SizedBox(height: 4), Text('Open the journey to explore', style: TextStyle(color: kMuted, fontSize: 12.5))])), Icon(Icons.arrow_forward_rounded, color: kBronze)])),
+          );
+        }
+        final bookId = progress['book_id'] as int? ?? 0;
+        final chapter = progress['chapter_number'] as int? ?? 1;
+        return InkWell(
+          onTap: () => context.push('/journey'),
+          child: _Surface(
+            child: Row(children: [
+              Container(width: 44, height: 44, decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(14)), child: Icon(Icons.bookmark_rounded, color: kSage, size: 22)),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Continue reading', style: TextStyle(color: kInk, fontWeight: FontWeight.w800, fontSize: 15)),
+                const SizedBox(height: 4),
+                Text('Book $bookId, Chapter $chapter', style: const TextStyle(color: kMuted, fontSize: 12.5)),
+              ])),
+              Icon(Icons.arrow_forward_rounded, color: kMuted, size: 18),
+            ]),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Give to verified causes', style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w800, height: 1.25)),
-                const SizedBox(height: 3),
-                Text('Trusted places to donate externally', style: TextStyle(color: _muted, fontSize: 12.5, height: 1.35)),
-              ],
-            ),
-          ),
-          Icon(Icons.arrow_forward_rounded, color: _muted, size: 20),
-        ],
-      ),
-    ),
-  );
+        );
+      },
+    );
+  }
 }
+
+class _TodaysReflection extends StatelessWidget {
+  const _TodaysReflection();
+  static const _verses = [
+    {'arabic': 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ', 'translation': 'In the name of Allah, the Most Gracious, the Most Merciful.', 'source': 'Quran 1:1'},
+    {'arabic': 'إِنَّ مَعَ الْعُسْرِ يُسْرًا', 'translation': 'Indeed, with hardship comes ease.', 'source': 'Quran 94:6'},
+    {'arabic': 'اللَّهُ نُورُ السَّمَاوَاتِ وَالْأَرْضِ', 'translation': 'Allah is the Light of the heavens and the earth.', 'source': 'Quran 24:35'},
+    {'arabic': 'وَأَنَّ اللَّهَ مَعَ الصَّابِرِينَ', 'translation': 'And Allah is with the patient.', 'source': 'Quran 2:153'},
+    {'arabic': 'فَاذْكُرُونِي أَذْكُرْكُمْ', 'translation': 'So remember Me; I will remember you.', 'source': 'Quran 2:152'},
+  ];
+  @override
+  Widget build(BuildContext context) {
+    final verse = _verses[DateTime.now().day % _verses.length];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const _SectionHeading('Today\'s reflection'),
+      const SizedBox(height: 12),
+      _Surface(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.menu_book_rounded, color: kBronze, size: 20)),
+            const SizedBox(width: 12),
+            Expanded(child: Text(verse['source']!, style: const TextStyle(color: kMuted, fontSize: 12.5, fontStyle: FontStyle.italic))),
+          ]),
+          const SizedBox(height: 16),
+          Text(verse['arabic']!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: kInk, fontSize: 20, height: 1.8, fontFamily: 'Georgia')),
+          const SizedBox(height: 12),
+          Text(verse['translation']!, style: const TextStyle(color: kInk, fontSize: 15, height: 1.5, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () => context.push('/journey'),
+            icon: const Icon(Icons.edit_outlined, size: 18),
+            label: const Text('Reflect'),
+            style: FilledButton.styleFrom(backgroundColor: kBronze, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10)),
+          ),
+        ]),
+      ),
+    ]);
+  }
+}
+
+class _Surface extends StatelessWidget { const _Surface({required this.child}); final Widget child; @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: kPaper, borderRadius: BorderRadius.circular(22), border: Border.all(color: kLine)), child: child); }

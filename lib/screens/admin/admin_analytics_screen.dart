@@ -1,6 +1,7 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 
 class AdminAnalyticsScreen extends StatefulWidget {
@@ -39,7 +40,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analytics'),
-        backgroundColor: const Color(0xFFE5D6C3),
+        backgroundColor: kClayLight,
         actions: [
           IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
         ],
@@ -89,7 +90,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                             toY: data.topActs[index].count.toDouble(),
                             width: 18,
                             borderRadius: BorderRadius.circular(4),
-                            color: const Color(0xFF8B6842),
+                            color: kBronze,
                           ),
                         ],
                       ),
@@ -130,13 +131,13 @@ class _MetricCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4EFE6),
+        color: kSurface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Color(0xFF6C6258))),
+          Text(title, style: const TextStyle(color: kMuted)),
           const SizedBox(height: 8),
           Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
         ],

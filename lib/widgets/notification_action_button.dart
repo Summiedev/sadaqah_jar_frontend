@@ -1,13 +1,14 @@
 ﻿import 'package:flutter/material.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../services/backend_api.dart';
 
 class NotificationActionButton extends StatelessWidget {
   const NotificationActionButton({
     super.key,
     required this.onPressed,
-    this.backgroundColor = const Color(0xFFF7F3ED),
-    this.iconColor = const Color(0xFF8B6842),
+    this.backgroundColor = kClayPale,
+    this.iconColor = kBronze,
   });
 
   final VoidCallback onPressed;
@@ -42,7 +43,7 @@ class NotificationActionButton extends StatelessWidget {
                         constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFB07B3E),
+                          color: kBronzeDark,
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(color: backgroundColor, width: 1.5),
                         ),
