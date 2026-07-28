@@ -70,23 +70,7 @@ class _ActivityTimelineScreenState extends State<ActivityTimelineScreen> {
   }
 
   List<_DayGroup> _buildGroups(FamilyJar jar) {
-    return [
-      _DayGroup('Today', [
-        _Activity(Icons.auto_awesome_outlined, fOlive, 'A family member shared a reflection.'),
-        _Activity(Icons.favorite_border_outlined, fBronze, 'A family member logged an act of charity.'),
-        _Activity(Icons.visibility_off_outlined, fStoneLight, 'A family member completed a private act of charity.'),
-      ]),
-      _DayGroup('Yesterday', [
-        _Activity(Icons.wb_sunny_outlined, fBronze, 'A family member completed Morning Adhkar.'),
-        _Activity(Icons.flag_outlined, fOlive, 'The family reached progress on this month\'s goal.'),
-        _Activity(Icons.menu_book_outlined, fBronzeDark, 'A family member shared a weekly reflection.'),
-      ]),
-      _DayGroup('This week', [
-        _Activity(Icons.volunteer_activism_outlined, fOlive, 'A family member helped a neighbour.'),
-        _Activity(Icons.visibility_off_outlined, fStoneLight, 'A family member completed a private act of charity.'),
-        _Activity(Icons.groups_outlined, fBronze, 'Someone encouraged the family with a kind note.'),
-      ]),
-    ];
+    return const [];
   }
 }
 

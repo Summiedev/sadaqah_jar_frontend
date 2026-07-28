@@ -63,9 +63,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
       GoRoute(path: '/mode', builder: (context, state) => const ModeSelectionScreen()),
       GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
-      GoRoute(path: '/forgot-password', builder: (context, state) => const ForgotPasswordScreen(onBack: _dummyBack)),
-      GoRoute(path: '/reset-password', builder: (context, state) => const ResetPasswordScreen(onBack: _dummyBack)),
-      GoRoute(path: '/verification', builder: (context, state) => const VerificationScreen(onContinue: _dummyContinue, onLogin: _dummyLogin)),
+      GoRoute(path: '/forgot-password', builder: (context, state) => ForgotPasswordScreen(onBack: () => context.pop())),
+      GoRoute(path: '/reset-password', builder: (context, state) => ResetPasswordScreen(onBack: () => context.pop())),
+      GoRoute(path: '/verification', builder: (context, state) => VerificationScreen(onContinue: () => context.go('/auth'), onLogin: () => context.go('/auth'))),
       GoRoute(path: '/charities', builder: (context, state) => const CharitiesListScreen()),
       GoRoute(path: '/notifications', builder: (context, state) => const NotificationCenterScreen()),
       GoRoute(
@@ -143,9 +143,6 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-void _dummyBack() {}
-void _dummyContinue() {}
-void _dummyLogin() {}
 
 class MizanApp extends ConsumerWidget {
   const MizanApp({super.key});

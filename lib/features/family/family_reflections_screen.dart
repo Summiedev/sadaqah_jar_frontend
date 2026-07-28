@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../services/backend_api.dart';
@@ -29,18 +31,30 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
   final TextEditingController _c = TextEditingController();
   bool _loading = true;
   String? _error;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _jar = getFamilyById(widget.id);
     _loadReflections();
+    _startAutoRefresh();
   }
 
   @override
   void dispose() {
     _c.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        _loadReflections();
+      }
+    });
   }
 
   Future<void> _loadReflections() async {

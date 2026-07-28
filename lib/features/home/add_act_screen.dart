@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/backend_api.dart';
+import '../../core/act_store.dart';
 
 const _ink = Color(0xFF30261F);
 const _muted = Color(0xFF76695E);
@@ -93,6 +94,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
     try {
       await BackendApi.instance.addJarStar(type: _selected!, note: _note.text.trim());
       if (!mounted) return;
+      ref.read(actStoreProvider).add(type: _selected!, note: _note.text.trim());
       setState(() => _saved = true);
     } on BackendApiException catch (e) {
       if (!mounted) return;
@@ -110,10 +112,12 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
             maxChildSize: 0.88,
             expand: false,
             builder: (context, scrollController) {
-              return Container(
-                key: const ValueKey('add-sheet'),
-                width: double.infinity,
-                decoration: const BoxDecoration(
+              return Material(
+                color: Colors.transparent,
+                child: Container(
+                    key: const ValueKey('add-sheet'),
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
                   color: _surface,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
                 ),
@@ -235,9 +239,10 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                     ),
                   ],
                 ),
-              );
-            },
-          );
+              ),
+            );
+          },
+        );
   }
 
   void _onSuggestion(String value) {

@@ -137,7 +137,6 @@ class _JourneySegments extends StatelessWidget {
 
 class _ReflectionsTab extends StatefulWidget {
   const _ReflectionsTab();
-
   @override
   State<_ReflectionsTab> createState() => _ReflectionsTabState();
 }
@@ -196,7 +195,7 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
     }
     final grouped = <String, List<JourneyReflection>>{};
     for (final item in _items) {
-      final label = _labelFor(item.date);
+      final label = _labelFor(DateTime.tryParse(item.createdAt));
       grouped.putIfAbsent(label, () => []).add(item);
     }
     final order = grouped.keys.toList();
@@ -233,7 +232,7 @@ class _ReflectionSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(padding: const EdgeInsets.only(top: 6, bottom: 12), child: _SectionLabel(title)),
-        ...entries.map((e) => Padding(padding: const EdgeInsets.only(bottom: 14), child: _ReflectionTile(entry: _Reflection(e.mood, e.title, e.body, e.date, e.isPrivate)))),
+        ...entries.map((e) => Padding(padding: const EdgeInsets.only(bottom: 14), child: _ReflectionTile(entry: _Reflection(e.mood, e.title, e.body, DateTime.tryParse(e.createdAt), e.isPrivate)))),
       ]);
   }
 
@@ -275,10 +274,19 @@ class _ReflectionTile extends StatelessWidget {
 }
 
 class _Pill extends StatelessWidget {
-  const _Pill(this.text, {required this.color, required this.textColor});
+  const _Pill(this.text, {required this.color, required this.textColor, this.onTap, this.selected});
   final String text;
   final Color color, textColor;
-  @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(99)), child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w700)));
+  final VoidCallback? onTap;
+  final bool? selected;
+  @override Widget build(BuildContext context) {
+    final effectiveColor = selected == true ? color.withValues(alpha: 0.25) : color;
+    final child = Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: effectiveColor, borderRadius: BorderRadius.circular(99)), child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w700)));
+    if (onTap != null) {
+      return Material(color: Colors.transparent, child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(99), child: child));
+    }
+    return child;
+  }
 }
 
 class _ComposeButton extends StatelessWidget {
@@ -440,7 +448,7 @@ class _ReadingTile extends StatelessWidget {
                 ],
                 const SizedBox(height: 14),
                 Text(
-                  '${book.chapterCount} chapters \u00b7 ${book.totalReadingTime} min read',
+                  '${book.chapterCount ?? 0} chapters \u00b7 ${book.totalReadingTime ?? 0} min read',
                   style: const TextStyle(color: kMuted, fontSize: 11.5),
                 ),
               ],
@@ -595,39 +603,86 @@ void _openReader(BuildContext context, dynamic data) {
   }
 }
 class _ReaderPage extends StatelessWidget { const _ReaderPage({required this.data}); final _ReaderData data; @override Widget build(BuildContext context) => Scaffold(backgroundColor: kPaper, appBar: AppBar(backgroundColor: kPaper, surfaceTintColor: Colors.transparent, leading: BackButton(color: kInk), actions: const [Icon(Icons.bookmark_border_rounded, color: kBronze), SizedBox(width: 16)]), body: ListView(padding: const EdgeInsets.fromLTRB(30, 24, 30, 44), children: [Text(data.kicker.toUpperCase(), style: const TextStyle(color: kBronze, letterSpacing: 1.8, fontWeight: FontWeight.w700, fontSize: 11)), const SizedBox(height: 16), Text(data.title, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 32, height: 1.18, fontWeight: FontWeight.w700)), const SizedBox(height: 11), Text(data.meta, style: const TextStyle(color: kMuted, fontStyle: FontStyle.italic)), const SizedBox(height: 28), const Divider(color: kLine), const SizedBox(height: 26), Text(data.body, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 19, height: 1.8))])); }
-void _composeReflection(BuildContext context) => showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: kPaper,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      builder: (context) => Padding(
-        padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Write reflection', style: TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 25, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 18),
-            const TextField(decoration: InputDecoration(hintText: 'A title for this moment')),
-            const SizedBox(height: 14),
-            const TextField(minLines: 4, maxLines: 7, decoration: InputDecoration(hintText: 'What is on your heart?', border: OutlineInputBorder())),
-            const SizedBox(height: 16),
-            const Text('How are you feeling?', style: TextStyle(color: kInk, fontSize: 12, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 10),
-            Row(children: [Expanded(child: _Pill('Grateful', color: kSoftSage, textColor: kSage)), const SizedBox(width: 8), Expanded(child: _Pill('Peaceful', color: kSoftBronze, textColor: kBronze)), const SizedBox(width: 8), Expanded(child: _Pill('Hopeful', color: const Color(0xFFE8D5C0), textColor: const Color(0xFF9E7B5A)))]),
-            const SizedBox(height: 16),
-            Row(children: [Text('Share with family', style: TextStyle(color: kInk, fontSize: 13, fontWeight: FontWeight.w700)), const Spacer(), Switch(value: false, onChanged: null)]),
-            const SizedBox(height: 18),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(context),
-                style: FilledButton.styleFrom(backgroundColor: kBronze),
-                child: const Text('Save privately'),
-              ),
+void _composeReflection(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: kPaper,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+    builder: (context) => const _ComposeSheet(),
+  );
+}
+
+class _ComposeSheet extends StatefulWidget {
+  const _ComposeSheet();
+
+  @override
+  State<_ComposeSheet> createState() => _ComposeSheetState();
+}
+
+class _ComposeSheetState extends State<_ComposeSheet> {
+  final _titleController = TextEditingController();
+  final _bodyController = TextEditingController();
+  String? _mood;
+  bool _shareWithFamily = false;
+  bool _saving = false;
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final title = _titleController.text.trim();
+    final body = _bodyController.text.trim();
+    if (title.isEmpty || body.isEmpty || _mood == null) return;
+    setState(() => _saving = true);
+    try {
+      await BackendApi.instance.createReflection(
+        title: title,
+        body: body,
+        mood: _mood!,
+        isPrivate: !_shareWithFamily,
+      );
+      if (mounted) Navigator.pop(context);
+    } catch (_) {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Write reflection', style: TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 25, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 18),
+          TextField(controller: _titleController, decoration: const InputDecoration(hintText: 'A title for this moment')),
+          const SizedBox(height: 14),
+          TextField(controller: _bodyController, minLines: 4, maxLines: 7, decoration: const InputDecoration(hintText: 'What is on your heart?', border: OutlineInputBorder())),
+          const SizedBox(height: 16),
+          const Text('How are you feeling?', style: TextStyle(color: kInk, fontSize: 12, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 10),
+          Row(children: [Expanded(child: _Pill('Grateful', color: kSoftSage, textColor: kSage, selected: _mood == 'Grateful', onTap: () => setState(() => _mood = 'Grateful'))), const SizedBox(width: 8), Expanded(child: _Pill('Peaceful', color: kSoftBronze, textColor: kBronze, selected: _mood == 'Peaceful', onTap: () => setState(() => _mood = 'Peaceful'))), const SizedBox(width: 8), Expanded(child: _Pill('Hopeful', color: const Color(0xFFE8D5C0), textColor: const Color(0xFF9E7B5A), selected: _mood == 'Hopeful', onTap: () => setState(() => _mood = 'Hopeful')))]),
+          const SizedBox(height: 16),
+          Row(children: [Text('Share with family', style: TextStyle(color: kInk, fontSize: 13, fontWeight: FontWeight.w700)), const Spacer(), Switch(value: _shareWithFamily, onChanged: (v) => setState(() => _shareWithFamily = v))]),
+          const SizedBox(height: 18),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton(
+              onPressed: _saving ? null : _save,
+              style: FilledButton.styleFrom(backgroundColor: kBronze),
+              child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Save privately'),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
+  }
+}
 String _date(DateTime? value) { if (value == null) return ''; const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']; return '${value.day} ${months[value.month - 1]} ${value.year}'; }

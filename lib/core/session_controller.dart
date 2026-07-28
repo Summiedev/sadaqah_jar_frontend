@@ -16,9 +16,19 @@ class SessionController extends ChangeNotifier {
   Future<void> restore() async {
     final prefs = await SharedPreferences.getInstance();
     _onboardingComplete = prefs.getBool('mizan.onboarding.complete') ?? false;
-    _status = (prefs.getBool('mizan.local.session') ?? false)
-        ? SessionStatus.authenticated
-        : SessionStatus.anonymous;
+    final hasLocalSession = prefs.getBool('mizan.local.session') ?? false;
+    if (hasLocalSession) {
+      try {
+        final state = await BackendApi.instance.bootstrapSession();
+        _status = state == SessionBootstrapState.restored
+            ? SessionStatus.authenticated
+            : SessionStatus.anonymous;
+      } catch (_) {
+        _status = SessionStatus.anonymous;
+      }
+    } else {
+      _status = SessionStatus.anonymous;
+    }
     notifyListeners();
   }
 

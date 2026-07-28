@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../services/backend_api.dart';
@@ -31,18 +33,30 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
   final TextEditingController _c = TextEditingController();
   bool _loading = true;
   String? _error;
+  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _jar = getFamilyById(widget.id);
     _loadPrayers();
+    _startAutoRefresh();
   }
 
   @override
   void dispose() {
     _c.dispose();
+    _refreshTimer?.cancel();
     super.dispose();
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        _loadPrayers();
+      }
+    });
   }
 
   Future<void> _loadPrayers() async {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
@@ -38,34 +39,94 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               scrollable: true,
-              title: Text(book == null ? 'Add Book' : 'Edit Book'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Text(book == null ? 'Add Book' : 'Edit Book', style: const TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    TextField(controller: titleController, decoration: const InputDecoration(labelText: 'Title')),
-                    TextField(controller: authorController, decoration: const InputDecoration(labelText: 'Author')),
-                    TextField(controller: categoryController, decoration: const InputDecoration(labelText: 'Category')),
-                    TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Description'), maxLines: 3),
-                    TextField(controller: coverController, decoration: const InputDecoration(labelText: 'Cover URL (optional)')),
-                    TextField(controller: languageController, decoration: const InputDecoration(labelText: 'Language')),
-                    TextField(controller: sortController, decoration: const InputDecoration(labelText: 'Sort Order'), keyboardType: TextInputType.number),
+                    _FormField(
+                      controller: titleController,
+                      label: 'Title',
+                      icon: Icons.title,
+                      required: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: authorController,
+                      label: 'Author',
+                      icon: Icons.person_outline,
+                      required: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: categoryController,
+                      label: 'Category',
+                      icon: Icons.category_outlined,
+                      required: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: descriptionController,
+                      label: 'Description',
+                      icon: Icons.description_outlined,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: coverController,
+                      label: 'Cover URL (optional)',
+                      icon: Icons.image_outlined,
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _FormField(
+                            controller: languageController,
+                            label: 'Language',
+                            icon: Icons.language,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: _FormField(
+                            controller: sortController,
+                            label: 'Sort Order',
+                            icon: Icons.sort,
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
                     SwitchListTile(
                       value: published,
                       onChanged: (value) => setDialogState(() => published = value),
-                      title: const Text('Published'),
+                      title: const Text('Published', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Whether the book is visible to all users'),
+                      activeThumbColor: kBronze,
                     ),
                   ],
                 ),
               ),
               actions: [
-                TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
                 ElevatedButton(
                   onPressed: () async {
                     final title = titleController.text.trim();
                     final author = authorController.text.trim();
                     final category = categoryController.text.trim();
-                    if (title.isEmpty || author.isEmpty || category.isEmpty) return;
+                    if (title.isEmpty || author.isEmpty || category.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: const Text('Please fill in all required fields'), backgroundColor: Colors.red),
+                      );
+                      return;
+                    }
                     try {
                       if (book == null) {
                         await BackendApi.instance.createAdminBook(
@@ -93,13 +154,15 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                       }
                       if (context.mounted) Navigator.of(context).pop(true);
                     } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+                        );
                       }
                     }
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: kBronze),
-                  child: Text(book == null ? 'Create' : 'Save'),
+                  style: ElevatedButton.styleFrom(backgroundColor: kBronze, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: Text(book == null ? 'Create' : 'Save', style: const TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -117,11 +180,15 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete book?'),
-        content: Text('Are you sure you want to delete "${book.title}"?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Delete book?', style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
+        content: Text('Are you sure you want to delete "${book.title}"? This action cannot be undone.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
     );
@@ -129,13 +196,28 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
     try {
       await BackendApi.instance.deleteAdminBook(book.id);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Book deleted')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Book deleted'), backgroundColor: kBronze));
         _refresh();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red));
       }
+    }
+  }
+
+  Future<void> _uploadBookFile(AdminBookRecord book) async {
+    final selection = await FilePicker.platform.pickFiles(withData: true, type: FileType.custom, allowedExtensions: const ['pdf', 'epub', 'txt', 'md']);
+    final file = selection?.files.single;
+    if (file == null || file.bytes == null) return;
+    try {
+      await BackendApi.instance.uploadAdminBookFile(bookId: book.id, bytes: file.bytes!, filename: file.name);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reading file uploaded and ready for users.')));
+        _refresh();
+      }
+    } catch (_) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Upload failed. Please use a file smaller than 25 MB.'), backgroundColor: Colors.red));
     }
   }
 
@@ -167,7 +249,18 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
           }
           final books = snapshot.data?.data ?? [];
           if (books.isEmpty) {
-            return const Center(child: Text('No books yet. Tap + to add one.', style: TextStyle(color: kMuted)));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.menu_book_outlined, size: 64, color: kClay),
+                  const SizedBox(height: 16),
+                  Text('No books yet', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kMuted, fontFamily: 'Georgia')),
+                  const SizedBox(height: 8),
+                  const Text('Tap the + button to add your first book.', style: TextStyle(color: kMuted)),
+                ],
+              ),
+            );
           }
           return ListView.separated(
             padding: const EdgeInsets.all(20),
@@ -177,9 +270,24 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
               final book = books[index];
               return Container(
                 padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(color: kPaper, borderRadius: BorderRadius.circular(16), border: Border.all(color: kLine)),
+                decoration: BoxDecoration(
+                  color: kPaper,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kLine),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                ),
                 child: Row(
                   children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: kSoftBronze.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(Icons.menu_book_outlined, color: kBronze, size: 24),
+                    ),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,6 +314,11 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                       ),
                     ),
                     IconButton(
+                      onPressed: () => _uploadBookFile(book),
+                      icon: Icon(book.fileUrl == null ? Icons.upload_file_outlined : Icons.file_present_rounded, color: kSage),
+                      tooltip: book.fileUrl == null ? 'Upload PDF, EPUB, TXT, or Markdown' : 'Replace reading file',
+                    ),
+                    IconButton(
                       onPressed: () => _openForm(book: book),
                       icon: const Icon(Icons.edit_outlined, color: kBronze),
                       tooltip: 'Edit',
@@ -228,6 +341,44 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add Book'),
+      ),
+    );
+  }
+}
+
+class _FormField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final bool required;
+  final int maxLines;
+  final TextInputType? keyboardType;
+
+  const _FormField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.required = false,
+    this.maxLines = 1,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label + (required ? ' *' : ''),
+        labelStyle: const TextStyle(color: kMuted),
+        prefixIcon: Icon(icon, size: 20, color: kBronze),
+        filled: true,
+        fillColor: kClayPale,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: kClay)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: kClay)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: kBronze)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       ),
     );
   }

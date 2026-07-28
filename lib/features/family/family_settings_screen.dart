@@ -96,7 +96,18 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
               _Tile(icon: Icons.shield_outlined, label: 'Permissions', trailing: 'Contribute & view', onTap: () {}),
             ])),
             SliverToBoxAdapter(child: _Section(title: 'Preferences', children: [
-              ..._notifs.keys.map((k) => _ToggleTile(label: k, value: _notifs[k]!, onChanged: (v) => setState(() => _notifs[k] = v))),
+              ..._notifs.keys.map((k) => _ToggleTile(label: k, value: _notifs[k]!, onChanged: (v) async {
+                final messenger = ScaffoldMessenger.of(context);
+                setState(() => _notifs[k] = v);
+                try {
+                  final familyId = int.tryParse(widget.id);
+                  if (familyId == null) return;
+                  await BackendApi.instance.updateFamilySettings(familyId, notificationPreferences: _notifs);
+                } catch (e) {
+                  if (!mounted) return;
+                  messenger.showSnackBar(SnackBar(content: Text('Failed to update preferences: $e'), backgroundColor: Colors.brown));
+                }
+              })),
               _Tile(icon: Icons.flag_outlined, label: 'Goals', trailing: '${jar?.goals.length ?? 0} active', onTap: () => context.push('/family/goals/${widget.id}')),
             ])),
             SliverToBoxAdapter(child: _DangerZone(

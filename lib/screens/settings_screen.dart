@@ -7,6 +7,9 @@ import 'package:image_picker/image_picker.dart';
 import '../../core/theme/app_theme.dart';
 import '../services/backend_api.dart';
 import '../services/push_notification_service.dart';
+import 'change_password_screen.dart';
+import 'help_screen.dart';
+import 'about_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key, required this.onLogout});
@@ -144,7 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: 'Change password',
                 subtitle: 'Update your password',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const SnackBar(content: Text('Password changes are coming soon.'))));
+                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen()));
                 },
               ),
             ),
@@ -165,9 +168,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: 'Support',
               subtitle: 'Help and product information',
               child: Column(children: [
-                _SettingsCard(icon: Icons.help_outline, title: 'Help', subtitle: 'Get support', onTap: null, enabled: false),
+                _SettingsCard(
+                  icon: Icons.help_outline,
+                  title: 'Help',
+                  subtitle: 'Get support',
+                  onTap: () {
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpScreen()));
+                  },
+                ),
                 const SizedBox(height: 10),
-                _SettingsCard(icon: Icons.info_outline, title: 'About', subtitle: 'Mizan version and legal', onTap: null, enabled: false),
+                _SettingsCard(
+                  icon: Icons.info_outline,
+                  title: 'About',
+                  subtitle: 'Mizan version and legal',
+                  onTap: () {
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutScreen()));
+                  },
+                ),
               ]),
             ),
             const SizedBox(height: 14),

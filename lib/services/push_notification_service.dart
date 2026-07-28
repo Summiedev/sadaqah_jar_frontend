@@ -36,15 +36,19 @@ class PushNotificationService {
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     await _local.initialize(const InitializationSettings(android: android, iOS: ios));
-    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
-    FirebaseMessaging.onMessage.listen((message) async {
-      final notification = message.notification;
-      if (notification == null) return;
-      await _local.show(notification.hashCode, notification.title, notification.body, const NotificationDetails(
-        android: AndroidNotificationDetails('reminders', 'Reminders', channelDescription: 'Prayer and adhkar reminders', importance: Importance.high, priority: Priority.high),
-        iOS: DarwinNotificationDetails(),
-      ));
-    });
+    try {
+      await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+      FirebaseMessaging.onMessage.listen((message) async {
+        final notification = message.notification;
+        if (notification == null) return;
+        await _local.show(notification.hashCode, notification.title, notification.body, const NotificationDetails(
+          android: AndroidNotificationDetails('reminders', 'Reminders', channelDescription: 'Prayer and adhkar reminders', importance: Importance.high, priority: Priority.high),
+          iOS: DarwinNotificationDetails(),
+        ));
+      });
+    } catch (e) {
+      // Firebase may not be initialized in some environments.
+    }
     _configured = true;
   }
 

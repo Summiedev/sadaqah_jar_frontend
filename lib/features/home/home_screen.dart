@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 import 'add_act_screen.dart';
 import '../../core/mode_provider.dart';
+import '../../widgets/motion.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -75,19 +76,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
                   sliver: SliverList.list(children: [
-                    const _HomeHeader(),
+                    const StaggeredEntrance(index: 0, child: _HomeHeader()),
                     const SizedBox(height: 22),
-                     _JarHero(totalActs: acts.totalStars, progress: acts.progress, onAdd: () => AddActScreen.show(context), remainingActs: acts.remainingActs),
+                     StaggeredEntrance(index: 1, child: _JarHero(totalActs: acts.totalStars, progress: acts.progress, onAdd: () => AddActScreen.show(context), remainingActs: acts.remainingActs)),
                     const SizedBox(height: 24),
-                     _AddTodayCard(onTap: () => AddActScreen.show(context)),
+                     StaggeredEntrance(index: 2, child: _AddTodayCard(onTap: () => AddActScreen.show(context))),
                     const SizedBox(height: 24),
-                     _TodaysGentleActs(),
+                     const StaggeredEntrance(index: 3, child: _TodaysGentleActs()),
                     const SizedBox(height: 30),
-                     _LastReadCard(),
+                     const StaggeredEntrance(index: 4, child: _LastReadCard()),
                     const SizedBox(height: 30),
-                     _TodaysReflection(),
+                     const StaggeredEntrance(index: 5, child: _TodaysReflection()),
                     const SizedBox(height: 30),
-                     _RhythmOfTheDayCard(onTap: () => context.push('/journey')),
+                     StaggeredEntrance(index: 6, child: _RhythmOfTheDayCard(onTap: () => context.push('/journey'))),
                   ]),
                 ),
               ],
@@ -100,13 +101,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with SingleTickerProvid
   }
 }
 
-class _HomeHeader extends StatelessWidget {
+class _HomeHeader extends StatefulWidget {
   const _HomeHeader();
+
+  @override
+  State<_HomeHeader> createState() => _HomeHeaderState();
+}
+
+class _HomeHeaderState extends State<_HomeHeader> {
+  Future<UserProfile>? _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = BackendApi.instance.getUserProfile();
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<UserProfile>(
-      future: BackendApi.instance.getUserProfile(),
+      future: _profileFuture,
       builder: (context, snapshot) {
         String display;
         if (snapshot.hasData && snapshot.data!.username.isNotEmpty) {
@@ -138,13 +152,26 @@ class _NotifIcon extends StatelessWidget {
       );
 }
 
-class _StreakPill extends StatelessWidget {
+class _StreakPill extends StatefulWidget {
   const _StreakPill();
+
+  @override
+  State<_StreakPill> createState() => _StreakPillState();
+}
+
+class _StreakPillState extends State<_StreakPill> {
+  Future<StreakInfo>? _streakFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _streakFuture = BackendApi.instance.getStreak();
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<StreakInfo>(
-      future: BackendApi.instance.getStreak(),
+      future: _streakFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Container(
@@ -253,37 +280,57 @@ class _SectionHeading extends StatelessWidget { const _SectionHeading(this.text)
 
 class _TodaysGentleActs extends StatelessWidget {
   const _TodaysGentleActs();
+
+  static const _hadiths = [
+    {
+      'arabic': 'إِنَّمَا الْأَعْمَالُ بِالنِّيَّاتِ',
+      'translation': 'Actions are judged by intentions.',
+      'source': 'Sahih al-Bukhari & Muslim',
+    },
+    {
+      'arabic': 'مَنْ نَفَّسَ عَنْ مُؤْمِنٍ كُرْبَةً مِنْ كُرَبِ الدُّنْيَا نَفَّسَ اللَّهُ عَنْهُ كُرْبَةً مِنْ كُرَبِ يَوْمِ الْقِيَامَةِ',
+      'translation': 'Whoever relieves a believer\'s distress in this world, Allah will relieve his distress on the Day of Judgment.',
+      'source': 'Sahih Muslim',
+    },
+    {
+      'arabic': 'الْكَلِمَةُ الطَّيِّبَةُ صَدَقَةٌ',
+      'translation': 'A kind word is charity.',
+      'source': 'Sahih al-Bukhari & Muslim',
+    },
+    {
+      'arabic': 'تَبَسُّمُكَ فِي وَجْهِ أَخِيكَ صَدَقَةٌ',
+      'translation': 'Your smile for your brother is charity.',
+      'source': 'Jami at-Tirmidhi',
+    },
+    {
+      'arabic': 'مَنْ كَانَ يُؤْمِنُ بِاللَّهِ وَالْيَوْمِ الْآخِرِ فَلْيَقُلْ خَيْرًا أَوْ لِيَصْمُتْ',
+      'translation': 'Whoever believes in Allah and the Last Day, let him speak good or remain silent.',
+      'source': 'Sahih al-Bukhari & Muslim',
+    },
+  ];
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: BackendApi.instance.getTodaysGentleActs(limit: 3),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _Surface(child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))));
-        }
-        if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const _Surface(child: Padding(
-            padding: EdgeInsets.all(18),
-            child: Text('Pick a gentle act today.', style: TextStyle(color: kMuted, fontSize: 14)),
-          ));
-        }
-        final acts = snapshot.data!;
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const _SectionHeading('Today\'s gentle acts'),
+    final hadith = _hadiths[DateTime.now().day % _hadiths.length];
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const _SectionHeading('Today\'s gentle act'),
+      const SizedBox(height: 12),
+      _Surface(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.auto_awesome_outlined, color: kBronze, size: 20)),
+            const SizedBox(width: 12),
+            const Expanded(child: Text('A hadith to carry with you', style: TextStyle(color: kMuted, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5))),
+          ]),
+          const SizedBox(height: 16),
+          Text(hadith['arabic']!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: kInk, fontSize: 20, height: 1.8, fontFamily: 'Georgia')),
           const SizedBox(height: 12),
-          ...acts.map((act) => Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: _Surface(
-              child: Row(children: [
-                Container(width: 40, height: 40, decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(12)), child: Icon(Icons.volunteer_activism_outlined, color: kBronze, size: 20)),
-                const SizedBox(width: 12),
-                Expanded(child: Text(act['title']?.toString() ?? '', style: const TextStyle(color: kInk, fontWeight: FontWeight.w700, fontSize: 14.5))),
-              ]),
-            ),
-          )),
-        ]);
-      },
-    );
+          Text(hadith['translation']!, style: const TextStyle(color: kInk, fontSize: 15, height: 1.5, fontStyle: FontStyle.italic)),
+          const SizedBox(height: 12),
+          Text(hadith['source']!, style: const TextStyle(color: kMutedLight, fontSize: 11.5, fontStyle: FontStyle.italic)),
+        ]),
+      ),
+    ]);
   }
 }
 
@@ -518,7 +565,7 @@ class _TodaysReflection extends StatelessWidget {
           Text(verse['translation']!, style: const TextStyle(color: kInk, fontSize: 15, height: 1.5, fontStyle: FontStyle.italic)),
           const SizedBox(height: 16),
           FilledButton.icon(
-            onPressed: () => context.push('/journey'),
+            onPressed: () => _showVerseReflection(context, verse),
             icon: const Icon(Icons.edit_outlined, size: 18),
             label: const Text('Reflect'),
             style: FilledButton.styleFrom(backgroundColor: kBronze, padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10)),
@@ -527,6 +574,34 @@ class _TodaysReflection extends StatelessWidget {
       ),
     ]);
   }
+}
+
+Future<void> _showVerseReflection(BuildContext context, Map<String, String> verse) async {
+  final controller = TextEditingController();
+  final saved = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: kPaper,
+    builder: (sheetContext) => Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(sheetContext).viewInsets.bottom),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Text('Reflect on ${verse['source']}', style: const TextStyle(fontFamily: 'Georgia', fontSize: 21, fontWeight: FontWeight.w700, color: kInk)),
+        const SizedBox(height: 8),
+        Text(verse['arabic']!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(fontSize: 18, color: kInk, height: 1.7)),
+        const SizedBox(height: 12),
+        TextField(controller: controller, minLines: 4, maxLines: 7, decoration: const InputDecoration(hintText: 'What does this verse invite you to carry today?')),
+        const SizedBox(height: 14),
+        FilledButton(onPressed: () async {
+          final body = controller.text.trim();
+          if (body.isEmpty) return;
+          await BackendApi.instance.createReflection(title: verse['source']!, body: '${verse['translation']}\n\n$body', mood: 'Reflective');
+          if (sheetContext.mounted) Navigator.pop(sheetContext, true);
+        }, child: const Text('Save reflection')),
+      ]),
+    ),
+  );
+  controller.dispose();
+  if (saved == true && context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Your reflection was saved.')));
 }
 
 class _Surface extends StatelessWidget { const _Surface({required this.child}); final Widget child; @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(color: kPaper, borderRadius: BorderRadius.circular(22), border: Border.all(color: kLine)), child: child); }

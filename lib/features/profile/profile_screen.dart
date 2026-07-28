@@ -63,70 +63,127 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-
-                    const SizedBox(height: 15),
-                    _AccountCard(),
-                    const SizedBox(height: 18),
-                    _Group(
-                      title: 'Your companion',
-                      children: [
-                        _ModeRow(
-                          icon: Icons.spa_outlined,
-                          title: 'Personal sanctuary',
-                          body: 'For private reflection and remembrance.',
-                          mode: kModePersonal,
-                          isSelected: selectedMode == kModePersonal,
-                        ),
-                        _ModeRow(
-                          icon: Icons.groups_outlined,
-                          title: 'Family home',
-                          body: 'For gentle growth with the people you love.',
-                          mode: kModeFamily,
-                          isSelected: selectedMode == kModeFamily,
-                        ),
-                        _ModeRow(
-                          icon: Icons.auto_awesome_outlined,
-                          title: 'Balanced',
-                          body: 'Keep both spaces close at hand.',
-                          mode: kModeBoth,
-                          isSelected: selectedMode == kModeBoth,
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    _Group(
-                      title: 'Notifications',
-                      subtitle: 'Gentle nudges and preferences',
-                      child: FutureBuilder<UserProfile>(
-                        future: BackendApi.instance.getUserProfile(),
-                        builder: (context, snapshot) {
-                          final profile = snapshot.data;
-                          final enabled = profile?.fridayReminder ?? false;
-                          return Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: kPaper,
-                              borderRadius: BorderRadius.circular(18),
-                              border: Border.all(color: kLine),
-                            ),
-                            child: SwitchListTile.adaptive(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text('Friday reminder', style: TextStyle(color: kInk, fontSize: 15, fontWeight: FontWeight.w700)),
-                              subtitle: Text(
-                                snapshot.connectionState == ConnectionState.waiting
-                                    ? 'Loading your preference...'
-                                    : 'Get a gentle Friday reminder when it is enabled.',
-                                style: TextStyle(color: kMuted, fontSize: 12.5, height: 1.4),
-                              ),
-                              value: enabled,
-                              onChanged: (value) => _toggleFridayReminder(profile, value),
-                              activeThumbColor: kBronze,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
+                   children: [
+                       FutureBuilder<UserProfile>(
+                         future: BackendApi.instance.getUserProfile(),
+                         builder: (context, snapshot) {
+                           final profile = snapshot.data;
+                           final loading = snapshot.connectionState == ConnectionState.waiting;
+                           return Column(
+                             crossAxisAlignment: CrossAxisAlignment.start,
+                             children: [
+                               if (!loading && profile != null && !profile.emailVerified) ...[
+                                 Container(
+                                   margin: const EdgeInsets.only(bottom: 14),
+                                   padding: const EdgeInsets.all(14),
+                                   decoration: BoxDecoration(
+                                     color: const Color(0xFFFFF3E0),
+                                     borderRadius: BorderRadius.circular(14),
+                                     border: Border.all(color: const Color(0xFFFFCC80)),
+                                   ),
+                                   child: Row(
+                                     children: [
+                                       const Icon(Icons.email_outlined, color: Color(0xFFE65100), size: 20),
+                                       const SizedBox(width: 10),
+                                       Expanded(
+                                         child: Column(
+                                           crossAxisAlignment: CrossAxisAlignment.start,
+                                           children: [
+                                             const Text(
+                                               'Verify your email',
+                                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFE65100)),
+                                             ),
+                                             const SizedBox(height: 2),
+                                             Text(
+                                               'Please verify your email to access all features.',
+                                               style: TextStyle(fontSize: 12, color: const Color(0xFF8D6E63), height: 1.4),
+                                             ),
+                                           ],
+                                         ),
+                                       ),
+                                       TextButton(
+onPressed: () async {
+                                            final messenger = ScaffoldMessenger.of(context);
+                                            try {
+                                              await BackendApi.instance.resendVerificationEmail();
+                                              if (mounted) {
+                                                messenger.showSnackBar(
+                                                  SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const SnackBar(content: Text('Verification email sent!'))),
+                                                );
+                                              }
+                                            } catch (e) {
+                                              if (mounted) {
+                                                messenger.showSnackBar(
+                                                  SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: SnackBar(content: Text('Could not resend email. Please try again.'))),
+                                                );
+                                              }
+                                            }
+                                          },
+                                         child: const Text('Resend', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE65100))),
+                                       ),
+                                     ],
+                                   ),
+                                 ),
+                               ],
+                               const SizedBox(height: 15),
+                               _AccountCard(profile: profile),
+                               const SizedBox(height: 18),
+                               _Group(
+                                 title: 'Your companion',
+                                 children: [
+                                   _ModeRow(
+                                     icon: Icons.spa_outlined,
+                                     title: 'Personal sanctuary',
+                                     body: 'For private reflection and remembrance.',
+                                     mode: kModePersonal,
+                                     isSelected: selectedMode == kModePersonal,
+                                   ),
+                                   _ModeRow(
+                                     icon: Icons.groups_outlined,
+                                     title: 'Family home',
+                                     body: 'For gentle growth with the people you love.',
+                                     mode: kModeFamily,
+                                     isSelected: selectedMode == kModeFamily,
+                                   ),
+                                   _ModeRow(
+                                     icon: Icons.auto_awesome_outlined,
+                                     title: 'Balanced',
+                                     body: 'Keep both spaces close at hand.',
+                                     mode: kModeBoth,
+                                     isSelected: selectedMode == kModeBoth,
+                                   ),
+                                 ],
+                               ),
+                               const SizedBox(height: 18),
+                               _Group(
+                                 title: 'Notifications',
+                                 subtitle: 'Gentle nudges and preferences',
+                                 child: Container(
+                                   padding: const EdgeInsets.all(14),
+                                   decoration: BoxDecoration(
+                                     color: kPaper,
+                                     borderRadius: BorderRadius.circular(18),
+                                     border: Border.all(color: kLine),
+                                   ),
+                                   child: SwitchListTile.adaptive(
+                                     contentPadding: EdgeInsets.zero,
+                                     title: Text('Friday reminder', style: TextStyle(color: kInk, fontSize: 15, fontWeight: FontWeight.w700)),
+                                     subtitle: Text(
+                                       loading
+                                           ? 'Loading your preference...'
+                                           : 'Get a gentle Friday reminder when it is enabled.',
+                                       style: TextStyle(color: kMuted, fontSize: 12.5, height: 1.4),
+                                     ),
+                                     value: profile?.fridayReminder ?? false,
+                                     onChanged: (value) => _toggleFridayReminder(profile, value),
+                                     activeThumbColor: kBronze,
+                                   ),
+                                 ),
+                               ),
+                             ],
+                           );
+                         },
+                       ),
                     const SizedBox(height: 18),
                     _Group(
                       title: 'Settings',
@@ -183,95 +240,92 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 }
 
 class _AccountCard extends StatelessWidget {
-  const _AccountCard();
+  const _AccountCard({this.profile});
+
+  final UserProfile? profile;
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserProfile>(
-      future: BackendApi.instance.getUserProfile(),
-      builder: (context, snapshot) {
-        final profile = snapshot.data;
-        if (profile == null) {
-          return Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: kPaper,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: kLine),
-            ),
-            child: const Row(children: [
-              CircleAvatar(radius: 26, backgroundColor: kClayLight, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))),
-              SizedBox(width: 14),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Loading...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kInk)),
-                SizedBox(height: 3),
-                Text('Loading...', style: TextStyle(fontSize: 13, color: kMuted)),
-              ])),
-            ]),
-          );
-        }
-        final initial = profile.username.isNotEmpty ? profile.username[0].toUpperCase() : '?';
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: kPaper,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: kLine),
+    final p = profile;
+    if (p == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kPaper,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: kLine),
+        ),
+        child: const Row(children: [
+          CircleAvatar(radius: 26, backgroundColor: kClayLight, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))),
+          SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('Loading...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kInk)),
+            SizedBox(height: 3),
+            Text('Loading...', style: TextStyle(fontSize: 13, color: kMuted)),
+          ])),
+        ]),
+      );
+    }
+    final initial = p.username.isNotEmpty ? p.username[0].toUpperCase() : '?';
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: kPaper,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: kLine),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: kClayLight,
+            backgroundImage: p.avatarData != null && p.avatarData!.isNotEmpty ? MemoryImage(base64Decode(p.avatarData!)) : null,
+            child: p.avatarData == null || p.avatarData!.isEmpty ? Text(initial, style: const TextStyle(color: kBronzeDark, fontWeight: FontWeight.w800, fontSize: 22, fontFamily: 'Georgia')) : null,
           ),
-          child: Row(
-            children: [
-              CircleAvatar(
-                radius: 26,
-                backgroundColor: kClayLight,
-                backgroundImage: profile.avatarData != null && profile.avatarData!.isNotEmpty ? MemoryImage(base64Decode(profile.avatarData!)) : null,
-                child: profile.avatarData == null || profile.avatarData!.isEmpty ? Text(initial, style: const TextStyle(color: kBronzeDark, fontWeight: FontWeight.w800, fontSize: 22, fontFamily: 'Georgia')) : null,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      profile.username,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: kInk,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      profile.email,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: kMuted,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: kSageSoft,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  profile.emailVerified ? 'Verified' : 'Unverified',
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  p.username,
                   style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: kSage,
-                    height: 1.3,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: kInk,
+                    height: 1.2,
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 3),
+                Text(
+                  p.email,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: kMuted,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
           ),
-        );
-      },
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: kSageSoft,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              p.emailVerified ? 'Verified' : 'Unverified',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: kSage,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

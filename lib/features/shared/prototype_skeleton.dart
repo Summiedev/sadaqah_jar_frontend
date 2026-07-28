@@ -16,7 +16,7 @@ class PrototypeSkeleton extends StatelessWidget {
   }
 }
 
-class SkeletonLine extends StatelessWidget {
+class SkeletonLine extends StatefulWidget {
   const SkeletonLine({super.key, required this.width, required this.height, this.radius = 12});
 
   final double width;
@@ -24,15 +24,24 @@ class SkeletonLine extends StatelessWidget {
   final double radius;
 
   @override
+  State<SkeletonLine> createState() => _SkeletonLineState();
+}
+
+class _SkeletonLineState extends State<SkeletonLine> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  @override void dispose() { _controller.dispose(); super.dispose(); }
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
+    final reduceMotion = MediaQuery.of(context).disableAnimations || MediaQuery.of(context).accessibleNavigation;
+    return AnimatedBuilder(animation: _controller, builder: (context, _) => Container(
+      width: widget.width,
+      height: widget.height,
       decoration: BoxDecoration(
-        color: kClayLight,
-        borderRadius: BorderRadius.circular(radius),
+        color: reduceMotion ? kClayLight : null,
+        gradient: reduceMotion ? null : LinearGradient(begin: Alignment(-1 + _controller.value * 2, 0), end: Alignment(_controller.value * 2, 0), colors: const [kClayLight, Color(0xFFFFF9F1), kClayLight]),
+        borderRadius: BorderRadius.circular(widget.radius),
       ),
-    );
+    ));
   }
 }
 

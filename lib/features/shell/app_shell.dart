@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../widgets/motion.dart';
 import '../home/home_screen.dart';
 import '../home/add_act_screen.dart';
 import '../journey/journey_screen.dart';
@@ -99,8 +100,8 @@ class _AppShellState extends ConsumerState<AppShell> {
   void _goTo(_NavDef tab) {
     _pageController.animateToPage(
       tab.page,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOutCubic,
+      duration: motionEnabled(context) ? const Duration(milliseconds: 280) : Duration.zero,
+      curve: Curves.easeOutCubic,
     );
     context.go(tab.location);
   }
@@ -129,14 +130,21 @@ class _AppShellState extends ConsumerState<AppShell> {
           onPageChanged: (i) => setState(() => _index = i),
           children: _pages.map((p) => _KeepAlivePage(key: ValueKey(p.runtimeType), child: p)).toList(),
         ),
-        floatingActionButton: FloatingActionButton(
-          elevation: 6,
-          backgroundColor: kBronze,
-          foregroundColor: Colors.white,
-          tooltip: 'Add sadaqah',
-          onPressed: () => AddActScreen.show(context),
-          shape: const CircleBorder(),
-          child: const Icon(Icons.add_rounded, size: 30),
+        floatingActionButton: Hero(
+          tag: 'mizan-add-action',
+          child: PressableSpring(
+            scale: .92,
+            onTap: () => AddActScreen.show(context),
+            child: FloatingActionButton(
+              elevation: 6,
+              backgroundColor: kBronze,
+              foregroundColor: Colors.white,
+              tooltip: 'Add sadaqah',
+              onPressed: null,
+              shape: const CircleBorder(),
+              child: const Icon(Icons.add_rounded, size: 30),
+            ),
+          ),
         ),
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: BottomAppBar(
@@ -149,9 +157,9 @@ class _AppShellState extends ConsumerState<AppShell> {
           child: _DockedNavBar(
             tabs: tabs,
             selectedPage: _index,
-            onTap: _goTo,
+          onTap: _goTo,
           ),
-        ),
+      ),
       ),
     );
   }
@@ -194,17 +202,21 @@ class _DockedNavItem extends StatelessWidget {
       button: true,
       label: tab.label,
       child: InkWell(
-        onTap: onTap,
+        onTap: null,
         borderRadius: BorderRadius.circular(18),
-        child: AnimatedContainer(
+        child: PressableSpring(
+          onTap: onTap,
+          scale: .96,
+          child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
           decoration: BoxDecoration(color: selected ? const Color(0x148B6842) : Colors.transparent, borderRadius: BorderRadius.circular(18)),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
-            Icon(selected ? tab.selectedIcon : tab.icon, color: color, size: 23),
+            AnimatedScale(duration: const Duration(milliseconds: 240), curve: Curves.elasticOut, scale: selected && motionEnabled(context) ? 1.12 : 1, child: Icon(selected ? tab.selectedIcon : tab.icon, color: color, size: 23)),
             const SizedBox(height: 4),
             Text(tab.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 11, fontWeight: selected ? FontWeight.w800 : FontWeight.w700)),
           ]),
+          ),
         ),
       ),
     );

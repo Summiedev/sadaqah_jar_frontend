@@ -462,8 +462,8 @@ class FamilyJarView extends StatefulWidget {
 }
 
 class _FamilyJarViewState extends State<FamilyJarView> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1400));
-  late final Animation<double> _fill = Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutCubic));
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
+  late Animation<double> _fill = Tween<double>(begin: 0, end: widget.fill).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack));
 
   @override
   void initState() {
@@ -478,6 +478,14 @@ class _FamilyJarViewState extends State<FamilyJarView> with SingleTickerProvider
   }
 
   @override
+  void didUpdateWidget(covariant FamilyJarView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.fill == widget.fill) return;
+    _fill = Tween<double>(begin: oldWidget.fill, end: widget.fill.clamp(0.0, 1.0)).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack));
+    _c.forward(from: 0);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _fill,
@@ -487,8 +495,8 @@ class _FamilyJarViewState extends State<FamilyJarView> with SingleTickerProvider
           height: widget.size * 1.22,
           child: CustomPaint(
             painter: _FamilyJarPainter(
-              fill: widget.fill * _fill.value,
-              glow: widget.glow,
+              fill: _fill.value,
+              glow: widget.glow + (_c.isAnimating ? (1 - _c.value) * .35 : 0),
             ),
           ),
         );
@@ -655,11 +663,11 @@ CustomTransitionPage<dynamic> mizanPage({required Widget child, String? name, Ob
   return CustomTransitionPage<dynamic>(
     child: child,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      if (MediaQuery.of(context).disableAnimations || MediaQuery.of(context).accessibleNavigation) return child;
       final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-      final slide = Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero)
-          .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-      return FadeTransition(opacity: fade, child: SlideTransition(position: slide, child: child));
+      final scale = Tween<double>(begin: .985, end: 1).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+      return FadeTransition(opacity: fade, child: ScaleTransition(scale: scale, child: child));
     },
-    transitionDuration: const Duration(milliseconds: 420),
+    transitionDuration: const Duration(milliseconds: 280),
   );
 }

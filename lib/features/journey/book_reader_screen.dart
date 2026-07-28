@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/backend_api.dart';
 
@@ -61,7 +62,19 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
           }
           final chapters = snapshot.data ?? [];
           if (chapters.isEmpty) {
-            return const Center(child: Text('No chapters available.', style: TextStyle(color: _muted)));
+            if (widget.book.fileUrl != null && widget.book.fileUrl!.isNotEmpty) {
+              return Center(child: Padding(
+                padding: const EdgeInsets.all(28),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.picture_as_pdf_outlined, color: _bronze, size: 52),
+                  const SizedBox(height: 14),
+                  const Text('This book is available as a reading file.', style: TextStyle(color: _ink, fontSize: 16, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(onPressed: () => launchUrl(Uri.parse('${BackendApi.instance.baseUrl}${widget.book.fileUrl}'), mode: LaunchMode.externalApplication), icon: const Icon(Icons.open_in_new), label: const Text('Open book')),
+                ]),
+              ));
+            }
+            return const Center(child: Text('No reading content is available yet.', style: TextStyle(color: _muted)));
           }
           if (_currentChapter == null || _selectedIndex >= chapters.length) {
             _currentChapter = chapters[0];
@@ -84,7 +97,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                       const SizedBox(height: 24),
                       const Divider(color: _line),
                       const SizedBox(height: 20),
-                      Text(chapter.content, style: const TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 19, height: 1.9)),
+                      Text(chapter.content ?? '', style: const TextStyle(color: _ink, fontFamily: 'Georgia', fontSize: 19, height: 1.9)),
                     ],
                   ),
                 ),

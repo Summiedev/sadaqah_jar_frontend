@@ -111,10 +111,10 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(color: kSoftSage, borderRadius: BorderRadius.circular(8)),
-                                    child: Text('${book.chapterCount} chapters', style: const TextStyle(color: kSage, fontSize: 11, fontWeight: FontWeight.w700)),
+                                    child: Text('${book.chapterCount ?? 0} chapters', style: const TextStyle(color: kSage, fontSize: 11, fontWeight: FontWeight.w700)),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text('${book.totalReadingTime} min', style: const TextStyle(color: kMuted, fontSize: 11.5)),
+                                  Text('${book.totalReadingTime ?? 0} min', style: const TextStyle(color: kMuted, fontSize: 11.5)),
                                 ],
                               ),
                             ],

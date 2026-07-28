@@ -37,21 +37,61 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               scrollable: true,
-              title: Text(evidence == null ? 'Add Evidence' : 'Edit Evidence'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              title: Text(evidence == null ? 'Add Evidence' : 'Edit Evidence', style: const TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    TextField(controller: actIdController, decoration: const InputDecoration(labelText: 'Act ID'), keyboardType: TextInputType.number),
-                    TextField(controller: sourceTypeController, decoration: const InputDecoration(labelText: 'Source Type')),
-                    TextField(controller: referenceController, decoration: const InputDecoration(labelText: 'Reference')),
-                    TextField(controller: gradeController, decoration: const InputDecoration(labelText: 'Grade')),
-                    TextField(controller: arabicController, decoration: const InputDecoration(labelText: 'Arabic text'), maxLines: 3),
-                    TextField(controller: englishController, decoration: const InputDecoration(labelText: 'English text'), maxLines: 3),
+                    _FormField(
+                      controller: actIdController,
+                      label: 'Act ID',
+                      icon: Icons.numbers,
+                      keyboardType: TextInputType.number,
+                      required: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: sourceTypeController,
+                      label: 'Source Type',
+                      icon: Icons.source_outlined,
+                      required: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: referenceController,
+                      label: 'Reference',
+                      icon: Icons.link,
+                      required: true,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: gradeController,
+                      label: 'Grade',
+                      icon: Icons.star_outline,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: arabicController,
+                      label: 'Arabic Text',
+                      icon: Icons.text_fields,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 14),
+                    _FormField(
+                      controller: englishController,
+                      label: 'English Text',
+                      icon: Icons.translate,
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 14),
                     SwitchListTile(
                       value: verified,
                       onChanged: (value) => setDialogState(() => verified = value),
-                      title: const Text('Verified'),
+                      title: const Text('Verified', style: TextStyle(fontWeight: FontWeight.w600)),
+                      subtitle: const Text('Mark as verified evidence'),
+                      activeThumbColor: kBronze,
                     ),
                   ],
                 ),
@@ -64,6 +104,9 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                     final sourceType = sourceTypeController.text.trim();
                     final reference = referenceController.text.trim();
                     if (actId == null || sourceType.isEmpty || reference.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: const Text('Please fill in all required fields'), backgroundColor: Colors.red),
+                      );
                       return;
                     }
                     try {
@@ -88,16 +131,15 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                           isVerified: verified,
                         );
                       }
-                      if (context.mounted) {
-                        Navigator.of(context).pop(true);
-                      }
+                      if (context.mounted) Navigator.of(context).pop(true);
                     } catch (error) {
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString()), backgroundColor: Colors.red));
                       }
                     }
                   },
-                  child: Text(evidence == null ? 'Create' : 'Save'),
+                  style: ElevatedButton.styleFrom(backgroundColor: kBronze, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                  child: Text(evidence == null ? 'Create' : 'Save', style: const TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -115,12 +157,15 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        scrollable: true,
-        title: const Text('Delete evidence?'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Delete evidence?', style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
         content: Text('This will remove evidence #${evidence.id}.'),
         actions: [
           TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
-          ElevatedButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Colors.red, fontWeight: FontWeight.w700)),
+          ),
         ],
       ),
     );
@@ -132,64 +177,130 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Evidence'), backgroundColor: kClayLight),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openForm(),
-        child: const Icon(Icons.add),
+      appBar: AppBar(
+        title: const Text('Evidence', style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
+        backgroundColor: kClayLight,
+        foregroundColor: kInk,
+        surfaceTintColor: Colors.transparent,
+        actions: [
+          IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh_rounded, color: kInk), tooltip: 'Refresh'),
+        ],
       ),
+      backgroundColor: kClayLight,
       body: FutureBuilder<AdminEvidencePage>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: kBronze));
           }
           if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
+            return Center(child: Text(snapshot.error.toString(), style: const TextStyle(color: kMuted)));
           }
           final rows = snapshot.data?.data ?? const <AdminEvidenceRecord>[];
           if (rows.isEmpty) {
             return const Center(child: Text('No evidence yet.'));
           }
-          return SingleChildScrollView(
+          return ListView.separated(
             padding: const EdgeInsets.all(16),
-            scrollDirection: Axis.vertical,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Act')),
-                  DataColumn(label: Text('Source')),
-                  DataColumn(label: Text('Reference')),
-                  DataColumn(label: Text('Verified')),
-                  DataColumn(label: Text('Actions')),
-                ],
-                rows: rows
-                    .map(
-                      (evidence) => DataRow(
-                        cells: [
-                          DataCell(Text('#${evidence.actId}'), onTap: () => _openForm(evidence: evidence)),
-                          DataCell(Text(evidence.sourceType)),
-                          DataCell(Text(evidence.reference)),
-                          DataCell(Text(evidence.isVerified ? 'Yes' : 'No')),
-                          DataCell(
-                            Wrap(
-                              spacing: 8,
-                              children: [
-                                TextButton(onPressed: () => _openForm(evidence: evidence), child: const Text('Edit')),
-                                TextButton(onPressed: () => _confirmDelete(evidence), child: const Text('Delete')),
-                              ],
-                            ),
+            itemCount: rows.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (context, index) {
+              final evidence = rows[index];
+              return Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: kPaper,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kLine),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: evidence.isVerified ? kSoftSage : kDraftBg,
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        ],
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
+                          child: Text(evidence.isVerified ? 'Verified' : 'Unverified', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: evidence.isVerified ? kSage : kDanger)),
+                        ),
+                        const Spacer(),
+                        IconButton(onPressed: () => _openForm(evidence: evidence), icon: const Icon(Icons.edit_outlined, size: 18, color: kBronze), tooltip: 'Edit'),
+                        IconButton(onPressed: () => _confirmDelete(evidence), icon: const Icon(Icons.delete_outline, size: 18, color: kDanger), tooltip: 'Delete'),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text('Act #${evidence.actId}', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: kInk)),
+                    const SizedBox(height: 4),
+                    Text('Source: ${evidence.sourceType}', style: const TextStyle(fontSize: 12, color: kMuted)),
+                    const SizedBox(height: 2),
+                    Text('Reference: ${evidence.reference}', style: const TextStyle(fontSize: 12, color: kMuted)),
+                    if (evidence.arabicText != null && evidence.arabicText!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(evidence.arabicText!, style: const TextStyle(fontSize: 13, color: kInk, fontStyle: FontStyle.italic)),
+                    ],
+                    if (evidence.englishText != null && evidence.englishText!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(evidence.englishText!, style: const TextStyle(fontSize: 12, color: kMuted)),
+                    ],
+                    if (evidence.grade != null && evidence.grade!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text('Grade: ${evidence.grade}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: kBronze)),
+                    ],
+                  ],
+                ),
+              );
+            },
           );
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _openForm(),
+        backgroundColor: kBronze,
+        foregroundColor: Colors.white,
+        child: const Icon(Icons.add),
       ),
     );
   }
 }
 
+class _FormField extends StatelessWidget {
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final bool required;
+  final int maxLines;
+  final TextInputType? keyboardType;
+
+  const _FormField({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.required = false,
+    this.maxLines = 1,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label + (required ? ' *' : ''),
+        labelStyle: const TextStyle(color: kMuted),
+        prefixIcon: Icon(icon, size: 20, color: kBronze),
+        filled: true,
+        fillColor: kClayPale,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: kClay)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: kClay)),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: kBronze)),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      ),
+    );
+  }
+}

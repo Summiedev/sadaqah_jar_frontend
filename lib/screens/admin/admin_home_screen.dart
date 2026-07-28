@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 
@@ -19,28 +20,28 @@ class AdminHomeScreen extends StatelessWidget {
             icon: Icons.menu_book_outlined,
             title: 'Books',
             subtitle: 'Manage Islamic library books and chapters',
-            onTap: () => Navigator.of(context).pushNamed('/admin/books'),
+            onTap: () => context.push('/admin/books'),
           ),
           const SizedBox(height: 12),
           _AdminTile(
             icon: Icons.volunteer_activism_outlined,
             title: 'Charities',
             subtitle: 'Manage charity records and verification status',
-            onTap: () => Navigator.of(context).pushNamed('/admin/charities'),
+            onTap: () => context.push('/admin/charities'),
           ),
           const SizedBox(height: 12),
           _AdminTile(
             icon: Icons.menu_book_outlined,
             title: 'Evidence',
             subtitle: 'Review and maintain act evidence entries',
-            onTap: () => Navigator.of(context).pushNamed('/admin/evidence'),
+            onTap: () => context.push('/admin/evidence'),
           ),
           const SizedBox(height: 12),
           _AdminTile(
             icon: Icons.insights_outlined,
             title: 'Analytics',
             subtitle: 'View admin metrics and live summaries',
-            onTap: () => Navigator.of(context).pushNamed('/admin/analytics'),
+            onTap: () => context.push('/admin/analytics'),
           ),
         ],
       ),

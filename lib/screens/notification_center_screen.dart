@@ -99,10 +99,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       setState(() {
         _items[index] = NotificationItem(
           id: _items[index].id,
+          type: _items[index].type,
           title: _items[index].title,
-          message: _items[index].message,
+          body: _items[index].body,
           isRead: true,
           createdAt: _items[index].createdAt,
+          data: _items[index].data,
         );
       });
       _notifyUnreadCount();
@@ -122,10 +124,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         for (var i = 0; i < _items.length; i++) {
           _items[i] = NotificationItem(
             id: _items[i].id,
+            type: _items[i].type,
             title: _items[i].title,
-            message: _items[i].message,
+            body: _items[i].body,
             isRead: true,
             createdAt: _items[i].createdAt,
+            data: _items[i].data,
           );
         }
       });
@@ -138,15 +142,24 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     }
   }
 
-  void _archive(int index) {
+  Future<void> _archive(int index) async {
     final item = _items[index];
-    setState(() => _items.removeAt(index));
-    _notifyUnreadCount();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: const Text('Notification archived'), action: SnackBarAction(label: 'Undo', onPressed: () {
-        if (mounted) setState(() => _items.insert(index.clamp(0, _items.length).toInt(), item));
-      })),
-    );
+    try {
+      await BackendApi.instance.deleteNotification(item.id);
+      if (!mounted) return;
+      setState(() => _items.removeAt(index));
+      _notifyUnreadCount();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: const Text('Notification archived'), action: SnackBarAction(label: 'Undo', onPressed: () {
+          if (mounted) setState(() => _items.insert(index.clamp(0, _items.length).toInt(), item));
+        })),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not archive notification: $e')),
+      );
+    }
   }
 
   @override
@@ -321,11 +334,9 @@ class _NotificationCard extends StatelessWidget {
                       ],
                     ),
                     SizedBox(height: s(4)),
-                    Text(notification.message, style: TextStyle(fontSize: s(13), color: kMuted, height: 1.35)),
-                    if (notification.createdAt != null) ...[
-                      SizedBox(height: s(8)),
-                      Text(_formatDate(notification.createdAt!), style: TextStyle(fontSize: s(11.2), color: kMuted)),
-                    ],
+                    Text(notification.body, style: TextStyle(fontSize: s(13), color: kMuted, height: 1.35)),
+                    SizedBox(height: s(8)),
+                      Text(_formatDate(notification.createdAt), style: TextStyle(fontSize: s(11.2), color: kMuted)),
                   ],
                 ),
               ),
@@ -337,7 +348,7 @@ class _NotificationCard extends StatelessWidget {
   }
 
   (IconData, Color) _presentationFor(NotificationItem item) {
-    final text = '${item.title} ${item.message}'.toLowerCase();
+    final text = '${item.title} ${item.body}'.toLowerCase();
     if (text.contains('prayer') || text.contains('salah')) return (Icons.mosque_outlined, kSage);
     if (text.contains('family') || text.contains('invite')) return (Icons.groups_outlined, kBronze);
     if (text.contains('goal')) return (Icons.flag_outlined, kBronzeDark);
