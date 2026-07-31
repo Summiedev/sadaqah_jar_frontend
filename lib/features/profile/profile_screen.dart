@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/animations.dart';
 import '../../services/backend_api.dart';
 import '../../services/push_notification_service.dart';
 
@@ -19,7 +20,8 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _scrolled = false;
 
-  Color get _appBarColor => kClayLight;
+  Color get _appBarColor => _scrolled ? kPaper : kClayLight;
+  double get _appBarElevation => _scrolled ? 2 : 0;
 
   @override
   Widget build(BuildContext context) {
@@ -44,12 +46,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               pinned: true,
               floating: false,
               toolbarHeight: 64,
-              elevation: 0,
+              elevation: _appBarElevation,
               backgroundColor: _appBarColor,
               foregroundColor: kInk,
               surfaceTintColor: Colors.transparent,
-              title: const Text('Profile',
-                  style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
+              title: const Text(
+                'Profile',
+                style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700),
+              ),
               actions: [
                 IconButton(
                   onPressed: () => context.push('/notifications'),
@@ -63,147 +67,184 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                       FutureBuilder<UserProfile>(
-                         future: BackendApi.instance.getUserProfile(),
-                         builder: (context, snapshot) {
-                           final profile = snapshot.data;
-                           final loading = snapshot.connectionState == ConnectionState.waiting;
-                           return Column(
-                             crossAxisAlignment: CrossAxisAlignment.start,
-                             children: [
-                               if (!loading && profile != null && !profile.emailVerified) ...[
-                                 Container(
-                                   margin: const EdgeInsets.only(bottom: 14),
-                                   padding: const EdgeInsets.all(14),
-                                   decoration: BoxDecoration(
-                                     color: const Color(0xFFFFF3E0),
-                                     borderRadius: BorderRadius.circular(14),
-                                     border: Border.all(color: const Color(0xFFFFCC80)),
-                                   ),
-                                   child: Row(
-                                     children: [
-                                       const Icon(Icons.email_outlined, color: Color(0xFFE65100), size: 20),
-                                       const SizedBox(width: 10),
-                                       Expanded(
-                                         child: Column(
-                                           crossAxisAlignment: CrossAxisAlignment.start,
-                                           children: [
-                                             const Text(
-                                               'Verify your email',
-                                               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFE65100)),
-                                             ),
-                                             const SizedBox(height: 2),
-                                             Text(
-                                               'Please verify your email to access all features.',
-                                               style: TextStyle(fontSize: 12, color: const Color(0xFF8D6E63), height: 1.4),
-                                             ),
-                                           ],
-                                         ),
-                                       ),
-                                       TextButton(
-onPressed: () async {
-                                            final messenger = ScaffoldMessenger.of(context);
-                                            try {
-                                              await BackendApi.instance.resendVerificationEmail();
-                                              if (mounted) {
-                                                messenger.showSnackBar(
-                                                  SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const SnackBar(content: Text('Verification email sent!'))),
-                                                );
-                                              }
-                                            } catch (e) {
-                                              if (mounted) {
-                                                messenger.showSnackBar(
-                                                  SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: SnackBar(content: Text('Could not resend email. Please try again.'))),
-                                                );
-                                              }
+                  children: [
+                    FutureBuilder<UserProfile>(
+                      future: BackendApi.instance.getUserProfile(),
+                      builder: (context, snapshot) {
+                        final profile = snapshot.data;
+                        final loading = snapshot.connectionState == ConnectionState.waiting;
+                        return AnimatedSwitcher(
+                          key: const ValueKey('profile-content'),
+                          duration: MizanMotion.normal,
+                          switchInCurve: MizanMotion.gentle,
+                          switchOutCurve: MizanMotion.gentle,
+                          child: Column(
+                            key: ValueKey(profile),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (!loading && profile != null && !profile.emailVerified) ...[
+                                Container(
+                                  margin: const EdgeInsets.only(bottom: 14),
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFFFF3E0),
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: const Color(0xFFFFCC80)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.email_outlined, color: Color(0xFFE65100), size: 20),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'Verify your email',
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFFE65100),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 2),
+                                            Text(
+                                              'Please verify your email to access all features.',
+                                              style: TextStyle(fontSize: 12, color: const Color(0xFF8D6E63), height: 1.4),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      TextButton(
+                                        onPressed: () async {
+                                          final messenger = ScaffoldMessenger.of(context);
+                                          try {
+                                            await BackendApi.instance.resendVerificationEmail();
+                                            if (mounted) {
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  behavior: SnackBarBehavior.floating,
+                                                  margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+                                                  content: const Text('Verification email sent!'),
+                                                ),
+                                              );
                                             }
-                                          },
-                                         child: const Text('Resend', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE65100))),
-                                       ),
-                                     ],
-                                   ),
-                                 ),
-                               ],
-                               const SizedBox(height: 15),
-                               _AccountCard(profile: profile),
-                               const SizedBox(height: 18),
-                               _Group(
-                                 title: 'Your companion',
-                                 children: [
-                                   _ModeRow(
-                                     icon: Icons.spa_outlined,
-                                     title: 'Personal sanctuary',
-                                     body: 'For private reflection and remembrance.',
-                                     mode: kModePersonal,
-                                     isSelected: selectedMode == kModePersonal,
-                                   ),
-                                   _ModeRow(
-                                     icon: Icons.groups_outlined,
-                                     title: 'Family home',
-                                     body: 'For gentle growth with the people you love.',
-                                     mode: kModeFamily,
-                                     isSelected: selectedMode == kModeFamily,
-                                   ),
-                                   _ModeRow(
-                                     icon: Icons.auto_awesome_outlined,
-                                     title: 'Balanced',
-                                     body: 'Keep both spaces close at hand.',
-                                     mode: kModeBoth,
-                                     isSelected: selectedMode == kModeBoth,
-                                   ),
-                                 ],
-                               ),
-                               const SizedBox(height: 18),
-                               _Group(
-                                 title: 'Notifications',
-                                 subtitle: 'Gentle nudges and preferences',
-                                 child: Container(
-                                   padding: const EdgeInsets.all(14),
-                                   decoration: BoxDecoration(
-                                     color: kPaper,
-                                     borderRadius: BorderRadius.circular(18),
-                                     border: Border.all(color: kLine),
-                                   ),
-                                   child: SwitchListTile.adaptive(
-                                     contentPadding: EdgeInsets.zero,
-                                     title: Text('Friday reminder', style: TextStyle(color: kInk, fontSize: 15, fontWeight: FontWeight.w700)),
-                                     subtitle: Text(
-                                       loading
-                                           ? 'Loading your preference...'
-                                           : 'Get a gentle Friday reminder when it is enabled.',
-                                       style: TextStyle(color: kMuted, fontSize: 12.5, height: 1.4),
-                                     ),
-                                     value: profile?.fridayReminder ?? false,
-                                     onChanged: (value) => _toggleFridayReminder(profile, value),
-                                     activeThumbColor: kBronze,
-                                   ),
-                                 ),
-                               ),
-                             ],
-                           );
-                         },
-                       ),
+                                          } catch (e) {
+                                            if (mounted) {
+                                              messenger.showSnackBar(
+                                                SnackBar(
+                                                  behavior: SnackBarBehavior.floating,
+                                                  margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+                                                  content: const Text('Could not resend email. Please try again.'),
+                                                ),
+                                              );
+                                            }
+                                          }
+                                        },
+                                        child: const Text(
+                                          'Resend',
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE65100)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 15),
+                              CardEntrance(index: 0, child: _AccountCard(profile: profile)),
+                              const SizedBox(height: 18),
+                              CardEntrance(
+                                index: 1,
+                                child: _Group(
+                                  title: 'Your companion',
+                                  children: [
+                                    _ModeRow(
+                                      icon: Icons.spa_outlined,
+                                      title: 'Personal sanctuary',
+                                      body: 'For private reflection and remembrance.',
+                                      mode: kModePersonal,
+                                      isSelected: selectedMode == kModePersonal,
+                                    ),
+                                    _ModeRow(
+                                      icon: Icons.groups_outlined,
+                                      title: 'Family home',
+                                      body: 'For gentle growth with the people you love.',
+                                      mode: kModeFamily,
+                                      isSelected: selectedMode == kModeFamily,
+                                    ),
+                                    _ModeRow(
+                                      icon: Icons.auto_awesome_outlined,
+                                      title: 'Balanced',
+                                      body: 'Keep both spaces close at hand.',
+                                      mode: kModeBoth,
+                                      isSelected: selectedMode == kModeBoth,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 18),
+                              CardEntrance(
+                                index: 2,
+                                child: _Group(
+                                  title: 'Notifications',
+                                  subtitle: 'Gentle nudges and preferences',
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: kPaper,
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(color: kLine),
+                                    ),
+                                    child: SwitchListTile.adaptive(
+                                      contentPadding: EdgeInsets.zero,
+                                      title: Text(
+                                        'Friday reminder',
+                                        style: TextStyle(color: kInk, fontSize: 15, fontWeight: FontWeight.w700),
+                                      ),
+                                      subtitle: Text(
+                                        loading
+                                            ? 'Loading your preference...'
+                                            : 'Get a gentle Friday reminder when it is enabled.',
+                                        style: TextStyle(color: kMuted, fontSize: 12.5, height: 1.4),
+                                      ),
+                                      value: profile?.fridayReminder ?? false,
+                                      onChanged: (value) => _toggleFridayReminder(profile, value),
+                                      activeThumbColor: kBronze,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                     const SizedBox(height: 18),
-                    _Group(
-                      title: 'Settings',
-                      subtitle: 'Reminders and account details',
-                      child: _SettingsCard(
-                        icon: Icons.tune_outlined,
+                    CardEntrance(
+                      index: 3,
+                      child: _Group(
                         title: 'Settings',
                         subtitle: 'Reminders and account details',
-                        onTap: () => context.push('/settings'),
+                        child: _SettingsCard(
+                          icon: Icons.tune_outlined,
+                          title: 'Settings',
+                          subtitle: 'Reminders and account details',
+                          onTap: () => context.push('/settings'),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 18),
-                    _AdminPortalTile(),
+                    CardEntrance(index: 4, child: _AdminPortalTile()),
                     const SizedBox(height: 18),
-                    _Group(
-                      title: 'About Mizan',
-                      subtitle: 'Product information',
-                      children: const [
-                        _InfoRow(),
-                      ],
+                    CardEntrance(
+                      index: 5,
+                      child: _Group(
+                        title: 'About Mizan',
+                        subtitle: 'Product information',
+                        children: const [
+                          _InfoRow(),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 20),
                     const Center(
@@ -233,7 +274,13 @@ onPressed: () async {
       setState(() {});
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: SnackBar(content: Text(error.toString()))));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
+            content: Text(error.toString()),
+          ),
+        );
       }
     }
   }
@@ -256,13 +303,26 @@ class _AccountCard extends StatelessWidget {
           border: Border.all(color: kLine),
         ),
         child: const Row(children: [
-          CircleAvatar(radius: 26, backgroundColor: kClayLight, child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))),
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: kClayLight,
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: kBronze),
+            ),
+          ),
           SizedBox(width: 14),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Loading...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kInk)),
-            SizedBox(height: 3),
-            Text('Loading...', style: TextStyle(fontSize: 13, color: kMuted)),
-          ])),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Loading...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kInk)),
+                SizedBox(height: 3),
+                Text('Loading...', style: TextStyle(fontSize: 13, color: kMuted)),
+              ],
+            ),
+          ),
         ]),
       );
     }
@@ -279,8 +339,14 @@ class _AccountCard extends StatelessWidget {
           CircleAvatar(
             radius: 26,
             backgroundColor: kClayLight,
-            backgroundImage: p.avatarData != null && p.avatarData!.isNotEmpty ? MemoryImage(base64Decode(p.avatarData!)) : null,
-            child: p.avatarData == null || p.avatarData!.isEmpty ? Text(initial, style: const TextStyle(color: kBronzeDark, fontWeight: FontWeight.w800, fontSize: 22, fontFamily: 'Georgia')) : null,
+            backgroundImage:
+                p.avatarData != null && p.avatarData!.isNotEmpty ? MemoryImage(base64Decode(p.avatarData!)) : null,
+            child: p.avatarData == null || p.avatarData!.isEmpty
+                ? Text(
+                    initial,
+                    style: const TextStyle(color: kBronzeDark, fontWeight: FontWeight.w800, fontSize: 22, fontFamily: 'Georgia'),
+                  )
+                : null,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -440,8 +506,7 @@ class _ModeRow extends ConsumerWidget {
                 ],
               ),
             ),
-            if (isSelected)
-              const Icon(Icons.check_circle_rounded, color: kBronze, size: 20),
+            if (isSelected) const Icon(Icons.check_circle_rounded, color: kBronze, size: 20),
           ],
         ),
       ),

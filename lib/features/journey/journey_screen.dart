@@ -280,7 +280,7 @@ class _Pill extends StatelessWidget {
   final VoidCallback? onTap;
   final bool? selected;
   @override Widget build(BuildContext context) {
-    final effectiveColor = selected == true ? color.withValues(alpha: 0.25) : color;
+    final effectiveColor = selected == true ? color.withOpacity(0.25) : color;
     final child = Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: effectiveColor, borderRadius: BorderRadius.circular(99)), child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w700)));
     if (onTap != null) {
       return Material(color: Colors.transparent, child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(99), child: child));
@@ -375,7 +375,7 @@ class _DhikrTile extends StatelessWidget {
   const _DhikrTile({required this.item, required this.saved, required this.count, required this.onSave, required this.onCount});
   final _Dhikr item; final bool saved; final int count; final VoidCallback onSave, onCount;
   @override Widget build(BuildContext context) => Material(color: kPaper, borderRadius: BorderRadius.circular(22), child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: Text(item.arabic, textDirection: TextDirection.rtl, style: const TextStyle(color: kInk, fontSize: 26, height: 1.6))), IconButton(onPressed: onSave, icon: Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, color: kBronze))]),
+    Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: Text(item.arabic, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: kInk, fontSize: 26, height: 1.7))), IconButton(onPressed: onSave, icon: Icon(saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded, color: kBronze))]),
     const SizedBox(height: 10), Text(item.transliteration, style: const TextStyle(color: kBronze, fontFamily: 'Georgia', fontStyle: FontStyle.italic, fontSize: 16)), const SizedBox(height: 6), Text(item.translation, style: const TextStyle(color: kMuted, height: 1.5)), const SizedBox(height: 14),
     Row(children: [Text(item.reference, style: const TextStyle(color: kMuted, fontSize: 11.5, fontStyle: FontStyle.italic)), const Spacer(), IconButton(onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio playback is coming soon.'))), icon: const Icon(Icons.volume_up_outlined, color: kBronze)), _Counter(value: count, onTap: onCount)]),
   ])));
@@ -393,11 +393,29 @@ class _ReadingTab extends StatelessWidget {
           return const Center(child: CircularProgressIndicator(color: kBronze));
         }
         if (snapshot.hasError) {
-          return Center(child: Text('Could not load library: ${snapshot.error}', style: const TextStyle(color: kMuted)));
+          return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Icon(Icons.wifi_off_rounded, size: 36, color: kBronze),
+            const SizedBox(height: 16),
+            const Text('Could not load library', style: TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
+            const SizedBox(height: 8),
+            Text(snapshot.error.toString(), textAlign: TextAlign.center, style: const TextStyle(color: kMuted, fontSize: 13)),
+            const SizedBox(height: 16),
+            TextButton.icon(onPressed: () => (context as Element).reassemble(), icon: const Icon(Icons.refresh_rounded), label: const Text('Try again')),
+          ]));
         }
         final books = snapshot.data ?? [];
         if (books.isEmpty) {
-          return const Center(child: Text('No books available yet.', style: TextStyle(color: kMuted)));
+          return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Container(
+              width: 72, height: 72,
+              decoration: BoxDecoration(color: kSoftBronze, shape: BoxShape.circle, border: Border.all(color: kLine)),
+              child: const Icon(Icons.menu_book_outlined, size: 32, color: kBronze),
+            ),
+            const SizedBox(height: 18),
+            const Text('No books available yet', style: TextStyle(color: kInk, fontSize: 17, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
+            const SizedBox(height: 8),
+            const Text('New books will appear here as they are added.', textAlign: TextAlign.center, style: TextStyle(color: kMuted, fontSize: 13, height: 1.5)),
+          ]));
         }
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),

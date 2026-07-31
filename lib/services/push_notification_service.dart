@@ -1,13 +1,11 @@
 import 'dart:math';
 
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backend_api.dart';
-import '../firebase_options.dart';
 
 /// Opt-in push setup. Call only from an explicit reminder-enable action.
 class PushNotificationService {
@@ -20,9 +18,6 @@ class PushNotificationService {
 
   Future<bool> enableForReminders() async {
     if (kIsWeb) return false;
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
     final settings = await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
     if (settings.authorizationStatus != AuthorizationStatus.authorized && settings.authorizationStatus != AuthorizationStatus.provisional) return false;
     await _configureForegroundNotifications();

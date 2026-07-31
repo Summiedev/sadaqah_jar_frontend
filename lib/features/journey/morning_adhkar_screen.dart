@@ -67,11 +67,15 @@ class _MorningAdhkarListState extends ConsumerState<MorningAdhkarList> {
                         const SizedBox(height: 8),
                       ],
                       if (hasArabic)
-                        Text(
-                          dua.arabic,
-                          textDirection: TextDirection.rtl,
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(color: Color(0xFF30241E), fontSize: 24, height: 1.7),
+                        SizedBox(
+                          width: double.infinity,
+                          child: Text(
+                            dua.arabic,
+                            textDirection: TextDirection.rtl,
+                            textAlign: TextAlign.right,
+                            softWrap: true,
+                            style: const TextStyle(color: Color(0xFF30241E), fontSize: 24, height: 1.7),
+                          ),
                         ),
                       if (hasTransliteration) ...[
                         const SizedBox(height: 10),

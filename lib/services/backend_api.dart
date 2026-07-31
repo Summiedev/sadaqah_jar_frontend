@@ -1107,6 +1107,104 @@ class BackendApi {
     return list.map((i) => Map<String, dynamic>.from(i as Map)).toList();
   }
 
+  // ── Goals API ──────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> createGoal({
+    required String title,
+    String? subtitle,
+    required int actsTarget,
+    String? month,
+  }) async {
+    final response = await _post(
+      '/goals',
+      auth: true,
+      body: jsonEncode({
+        'title': title,
+        if (subtitle != null && subtitle.isNotEmpty) 'subtitle': subtitle,
+        'acts_target': actsTarget,
+        if (month != null) 'month': month,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> getGoals({String? status, String? month}) async {
+    final query = <String, dynamic>{};
+    if (status != null) query['status'] = status;
+    if (month != null) query['month'] = month;
+    final response = await _get('/goals', auth: true, query: query);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> getGoal(int goalId) async {
+    final response = await _get('/goals/$goalId', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> updateGoalProgress(int goalId, int actsDone) async {
+    final response = await _patch(
+      '/goals/$goalId/progress',
+      auth: true,
+      body: jsonEncode({'acts_done': actsDone}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> updateGoalStatus(int goalId, String status) async {
+    final response = await _patch(
+      '/goals/$goalId/status',
+      auth: true,
+      body: jsonEncode({'status': status}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<void> deleteGoal(int goalId) async {
+    await _delete('/goals/$goalId', auth: true);
+  }
+
+  Future<Map<String, dynamic>> checkMonthlyReview() async {
+    final response = await _get('/goals/reviews/check', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> submitMonthlyReview({
+    String? actionTaken,
+    String? notes,
+    int goalsCompleted = 0,
+    int goalsActive = 0,
+    int totalActsDone = 0,
+    int streakAtReview = 0,
+  }) async {
+    final response = await _post(
+      '/goals/reviews',
+      auth: true,
+      body: jsonEncode({
+        if (actionTaken != null) 'action_taken': actionTaken,
+        if (notes != null) 'notes': notes,
+        'goals_completed': goalsCompleted,
+        'goals_active': goalsActive,
+        'total_acts_done': totalActsDone,
+        'streak_at_review': streakAtReview,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<void> leaveFamilyJar({required int jarId}) async {
     final response = await _post('/family/$jarId/leave', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
@@ -1292,6 +1390,16 @@ class BackendApi {
 
   Future<Map<String, dynamic>> getFamilyDetail(int familyId) async {
     final response = await _get('/family/$familyId', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> addFamilyAct(int familyId) async {
+    final response = await _post(
+      '/family/$familyId/add-act',
+      auth: true,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
     return Map<String, dynamic>.from(data as Map);

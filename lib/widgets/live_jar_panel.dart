@@ -17,13 +17,18 @@ class LiveJarPanel extends StatefulWidget {
   State<LiveJarPanel> createState() => _LiveJarPanelState();
 }
 
+enum ConnectionStatus { connecting, live, offline, disconnected, updated }
+
 class _LiveJarPanelState extends State<LiveJarPanel> {
   JarStats? _jar;
   bool _loading = true;
-  String _status = 'Connecting';
+  ConnectionStatus _status = ConnectionStatus.connecting;
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   int? _userId;
+  int _reconnectAttempts = 0;
+  Timer? _reconnectTimer;
+  static const int _maxReconnectDelay = 30000;
 
   @override
   void initState() {
@@ -41,40 +46,48 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
       _userId = userId;
       _jar = jar;
       _loading = false;
-      _status = userId == null || token == null ? 'Offline' : 'Live';
+      _status = userId == null || token == null || token.isEmpty ? ConnectionStatus.offline : ConnectionStatus.live;
     });
 
     if (userId == null || token == null || token.isEmpty) {
       return;
     }
 
+    await _connect(userId, token);
+  }
+
+  Future<void> _connect(int userId, String token) async {
+    _reconnectTimer?.cancel();
     try {
       final uri = BackendApi.instance.userWebSocketUri(userId, token);
       _channel = WebSocketChannel.connect(uri);
       _subscription = _channel!.stream.listen(
         _handleEvent,
         onError: (_) {
-          if (mounted) {
-            setState(() {
-              _status = 'Disconnected';
-            });
-          }
+          if (mounted) setState(() => _status = ConnectionStatus.disconnected);
+          _scheduleReconnect(userId, token);
         },
         onDone: () {
-          if (mounted) {
-            setState(() {
-              _status = 'Disconnected';
-            });
-          }
+          if (mounted) setState(() => _status = ConnectionStatus.disconnected);
+          _scheduleReconnect(userId, token);
         },
       );
+      if (mounted) setState(() { _status = ConnectionStatus.live; _reconnectAttempts = 0; });
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _status = 'Disconnected';
-        });
-      }
+      if (mounted) setState(() => _status = ConnectionStatus.disconnected);
+      _scheduleReconnect(userId, token);
     }
+  }
+
+  void _scheduleReconnect(int userId, String token) {
+    _reconnectTimer?.cancel();
+    final delay = (_reconnectAttempts == 0)
+        ? const Duration(seconds: 1)
+        : Duration(milliseconds: (1000 * (1 << _reconnectAttempts)).clamp(1000, _maxReconnectDelay));
+    _reconnectAttempts++;
+    _reconnectTimer = Timer(delay, () {
+      if (mounted && _userId != null) _connect(userId, token);
+    });
   }
 
   void _handleEvent(dynamic event) {
@@ -90,7 +103,7 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
               capacity: capacity ?? _jar?.capacity ?? 33,
               completedAt: decoded['completed_at']?.toString() ?? _jar?.completedAt,
             );
-            _status = 'Updated';
+            _status = ConnectionStatus.updated;
           });
         }
       }
@@ -101,6 +114,7 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
 
   @override
   void dispose() {
+    _reconnectTimer?.cancel();
     _subscription?.cancel();
     _channel?.sink.close();
     super.dispose();
@@ -166,7 +180,7 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                             borderRadius: BorderRadius.circular(999),
                           ),
                           child: Text(
-                            _status,
+                            _status.name,
                             style: TextStyle(fontSize: s(11), color: kBronzeDark, fontWeight: FontWeight.w700),
                           ),
                         ),

@@ -16,15 +16,28 @@ class PrayerRequestsScreen extends StatefulWidget {
 }
 
 class _PRequest {
-  _PRequest(this.author, this.accent, this.text, this.time, {this.id, this.ameen = 0, this.ease = 0, this.accept = 0});
+  const _PRequest(this.author, this.accent, this.text, this.time, {this.id, this.ameen = 0, this.ease = 0, this.accept = 0});
   final String? id;
   final String author;
   final Color accent;
   final String text;
   final String time;
-  int ameen;
-  int ease;
-  int accept;
+  final int ameen;
+  final int ease;
+  final int accept;
+
+  _PRequest copyWith({String? id, String? author, Color? accent, String? text, String? time, int? ameen, int? ease, int? accept}) {
+    return _PRequest(
+      author ?? this.author,
+      accent ?? this.accent,
+      text ?? this.text,
+      time ?? this.time,
+      id: id ?? this.id,
+      ameen: ameen ?? this.ameen,
+      ease: ease ?? this.ease,
+      accept: accept ?? this.accept,
+    );
+  }
 }
 
 class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
@@ -131,11 +144,11 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     final prayerId = int.tryParse(request.id ?? '');
     if (familyId == null || prayerId == null) {
       setState(() {
-        switch (type) {
-          case 'ameen': request.ameen++; break;
-          case 'grant_ease': request.ease++; break;
-          case 'accept': request.accept++; break;
-        }
+        final current = _requests[index];
+        final newAmeen = type == 'ameen' ? current.ameen + 1 : current.ameen;
+        final newEase = type == 'grant_ease' ? current.ease + 1 : current.ease;
+        final newAccept = type == 'accept' ? current.accept + 1 : current.accept;
+        _requests[index] = current.copyWith(ameen: newAmeen, ease: newEase, accept: newAccept);
       });
       return;
     }
@@ -146,9 +159,11 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
         ? Map<String, int>.from(result['response_counts'] as Map)
         : <String, int>{};
       setState(() {
-        _requests[index].ameen = counts['ameen'] ?? request.ameen;
-        _requests[index].ease = counts['grant_ease'] ?? request.ease;
-        _requests[index].accept = counts['accept'] ?? request.accept;
+        _requests[index] = _requests[index].copyWith(
+          ameen: counts['ameen'] ?? _requests[index].ameen,
+          ease: counts['grant_ease'] ?? _requests[index].ease,
+          accept: counts['accept'] ?? _requests[index].accept,
+        );
       });
     } on BackendApiException catch (e) {
       if (!mounted) return;
@@ -293,30 +308,34 @@ class _ResponseChipState extends State<_ResponseChip> with SingleTickerProviderS
   @override
   Widget build(BuildContext context) {
     final active = widget.active || _tapped;
-    return ScaleTransition(
-      scale: _a,
-      child: Material(
-        color: active ? fBronze.withValues(alpha: 0.12) : fWhite,
-        borderRadius: BorderRadius.circular(999),
-        child: InkWell(
+    return Semantics(
+      button: true,
+      label: '${widget.label}, ${widget.count} responses',
+      child: ScaleTransition(
+        scale: _a,
+        child: Material(
+          color: active ? fBronze.withValues(alpha: 0.12) : fWhite,
           borderRadius: BorderRadius.circular(999),
-          onTapDown: (_) => _c.forward(),
-          onTapUp: (_) => _c.reverse(),
-          onTapCancel: () => _c.reverse(),
-          onTap: () {
-            setState(() => _tapped = true);
-            widget.onTap();
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(999), border: Border.all(color: active ? fBronze : fClay)),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(widget.label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: active ? fBronze : fStone)),
-                if (active) const SizedBox(width: 6),
-                if (active) const Icon(Icons.check, size: 12, color: fBronze),
-              ],
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTapDown: (_) => _c.forward(),
+            onTapUp: (_) => _c.reverse(),
+            onTapCancel: () => _c.reverse(),
+            onTap: () {
+              setState(() => _tapped = true);
+              widget.onTap();
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(borderRadius: BorderRadius.circular(999), border: Border.all(color: active ? fBronze : fClay)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(widget.label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: active ? fBronze : fStone)),
+                  if (active) const SizedBox(width: 6),
+                  if (active) const Icon(Icons.check, size: 12, color: fBronze),
+                ],
+              ),
             ),
           ),
         ),

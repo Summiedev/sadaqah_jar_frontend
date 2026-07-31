@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/animations.dart';
 import '../../widgets/motion.dart';
 import '../home/home_screen.dart';
 import '../home/add_act_screen.dart';
@@ -112,7 +113,7 @@ class _AppShellState extends ConsumerState<AppShell> {
     final tabs = _visibleTabs(mode);
     final isScrolled = ref.watch(isScrolledProvider);
 
-    return PopScope(
+return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
@@ -130,23 +131,6 @@ class _AppShellState extends ConsumerState<AppShell> {
           onPageChanged: (i) => setState(() => _index = i),
           children: _pages.map((p) => _KeepAlivePage(key: ValueKey(p.runtimeType), child: p)).toList(),
         ),
-        floatingActionButton: Hero(
-          tag: 'mizan-add-action',
-          child: PressableSpring(
-            scale: .92,
-            onTap: () => AddActScreen.show(context),
-            child: FloatingActionButton(
-              elevation: 6,
-              backgroundColor: kBronze,
-              foregroundColor: Colors.white,
-              tooltip: 'Add sadaqah',
-              onPressed: null,
-              shape: const CircleBorder(),
-              child: const Icon(Icons.add_rounded, size: 30),
-            ),
-          ),
-        ),
-        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: BottomAppBar(
           shape: const CircularNotchedRectangle(),
           notchMargin: 8,
@@ -157,19 +141,21 @@ class _AppShellState extends ConsumerState<AppShell> {
           child: _DockedNavBar(
             tabs: tabs,
             selectedPage: _index,
-          onTap: _goTo,
+            onTap: _goTo,
+            onAdd: () => AddActScreen.show(context),
           ),
-      ),
+        ),
       ),
     );
   }
 }
 
 class _DockedNavBar extends StatelessWidget {
-  const _DockedNavBar({required this.tabs, required this.selectedPage, required this.onTap});
+  const _DockedNavBar({required this.tabs, required this.selectedPage, required this.onTap, this.onAdd});
   final List<_NavDef> tabs;
   final int selectedPage;
   final ValueChanged<_NavDef> onTap;
+  final VoidCallback? onAdd;
 
   @override
   Widget build(BuildContext context) {
@@ -178,13 +164,38 @@ class _DockedNavBar extends StatelessWidget {
       final right = tabs.skip(2);
       return Row(children: [
         for (final tab in left) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
-        const SizedBox(width: 74),
+        if (onAdd != null) _DockedAddButton(onAdd: onAdd!),
+        const SizedBox(width: 16),
         for (final tab in right) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
       ]);
     }
     return Row(children: [
       for (final tab in tabs) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
+      if (onAdd != null) ...[
+        const SizedBox(width: 8),
+        _DockedAddButton(onAdd: onAdd!),
+        const SizedBox(width: 8),
+      ],
     ]);
+  }
+}
+
+class _DockedAddButton extends StatelessWidget {
+  const _DockedAddButton({required this.onAdd});
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return PressableSpring(
+      scale: .92,
+      onTap: onAdd,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: const BoxDecoration(color: kBronze, shape: BoxShape.circle),
+        child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+      ),
+    );
   }
 }
 
@@ -208,14 +219,19 @@ class _DockedNavItem extends StatelessWidget {
           onTap: onTap,
           scale: .96,
           child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
-          decoration: BoxDecoration(color: selected ? const Color(0x148B6842) : Colors.transparent, borderRadius: BorderRadius.circular(18)),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            AnimatedScale(duration: const Duration(milliseconds: 240), curve: Curves.elasticOut, scale: selected && motionEnabled(context) ? 1.12 : 1, child: Icon(selected ? tab.selectedIcon : tab.icon, color: color, size: 23)),
-            const SizedBox(height: 4),
-            Text(tab.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 11, fontWeight: selected ? FontWeight.w800 : FontWeight.w700)),
-          ]),
+            duration: MizanMotion.fast,
+            padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
+            decoration: BoxDecoration(color: selected ? const Color(0x148B6842) : Colors.transparent, borderRadius: BorderRadius.circular(18)),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              AnimatedScale(
+                duration: MizanMotion.normal,
+                curve: MizanMotion.gentle,
+                scale: selected && motionEnabled(context) ? 1.08 : 1,
+                child: Icon(selected ? tab.selectedIcon : tab.icon, color: color, size: 23),
+              ),
+              const SizedBox(height: 4),
+              Text(tab.label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: 11, fontWeight: selected ? FontWeight.w800 : FontWeight.w700)),
+            ]),
           ),
         ),
       ),

@@ -16,18 +16,32 @@ class FamilySettingsScreen extends StatefulWidget {
 
 class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
   FamilyJar? _jar;
-
-  final Map<String, bool> _notifs = {
-    'New contributions': true,
-    'Reflections shared': true,
-    'Prayer requests': true,
-    'Member joined': false,
-  };
+  Map<String, bool> _notifs = {};
+  bool _loadingNotifs = true;
 
   @override
   void initState() {
     super.initState();
     _jar = getFamilyById(widget.id);
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final familyId = int.tryParse(widget.id);
+    if (familyId == null) {
+      setState(() => _loadingNotifs = false);
+      return;
+    }
+    try {
+      final settings = await BackendApi.instance.getFamilySettings(familyId);
+      final prefs = settings['notification_preferences'] as Map<String, dynamic>? ?? {};
+      setState(() {
+        _notifs = Map<String, bool>.from(prefs.map((k, v) => MapEntry(k, v == true)));
+        _loadingNotifs = false;
+      });
+    } catch (e) {
+      setState(() => _loadingNotifs = false);
+    }
   }
 
   Future<void> _handleLeave() async {
@@ -91,23 +105,33 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
             ),
             SliverToBoxAdapter(child: _CoverCard(jar: jar)),
             SliverToBoxAdapter(child: _Section(title: 'People', children: [
-              _Tile(icon: Icons.groups_outlined, label: 'Members', trailing: '${jar?.memberCount ?? 0}', onTap: () {}),
-              _Tile(icon: Icons.badge_outlined, label: 'Roles', trailing: 'Admin · Member', onTap: () {}),
-              _Tile(icon: Icons.shield_outlined, label: 'Permissions', trailing: 'Contribute & view', onTap: () {}),
+              _Tile(icon: Icons.groups_outlined, label: 'Members', trailing: '${jar?.memberCount ?? 0}', onTap: () => context.push('/family/members/${widget.id}')),
+              _Tile(icon: Icons.badge_outlined, label: 'Roles', trailing: 'Admin · Member', onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Roles management is coming soon.'), behavior: SnackBarBehavior.floating));
+              }),
+              _Tile(icon: Icons.shield_outlined, label: 'Permissions', trailing: 'Contribute & view', onTap: () {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Permissions management is coming soon.'), behavior: SnackBarBehavior.floating));
+              }),
             ])),
             SliverToBoxAdapter(child: _Section(title: 'Preferences', children: [
-              ..._notifs.keys.map((k) => _ToggleTile(label: k, value: _notifs[k]!, onChanged: (v) async {
-                final messenger = ScaffoldMessenger.of(context);
-                setState(() => _notifs[k] = v);
-                try {
-                  final familyId = int.tryParse(widget.id);
-                  if (familyId == null) return;
-                  await BackendApi.instance.updateFamilySettings(familyId, notificationPreferences: _notifs);
-                } catch (e) {
-                  if (!mounted) return;
-                  messenger.showSnackBar(SnackBar(content: Text('Failed to update preferences: $e'), backgroundColor: Colors.brown));
-                }
-              })),
+              if (_loadingNotifs)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: fBronze)),
+                )
+              else
+                ..._notifs.keys.map((k) => _ToggleTile(label: k, value: _notifs[k]!, onChanged: (v) async {
+                  final messenger = ScaffoldMessenger.of(context);
+                  setState(() => _notifs[k] = v);
+                  try {
+                    final familyId = int.tryParse(widget.id);
+                    if (familyId == null) return;
+                    await BackendApi.instance.updateFamilySettings(familyId, notificationPreferences: _notifs);
+                  } catch (e) {
+                    if (!mounted) return;
+                    messenger.showSnackBar(SnackBar(content: Text('Failed to update preferences: $e'), backgroundColor: Colors.brown));
+                  }
+                })),
               _Tile(icon: Icons.flag_outlined, label: 'Goals', trailing: '${jar?.goals.length ?? 0} active', onTap: () => context.push('/family/goals/${widget.id}')),
             ])),
             SliverToBoxAdapter(child: _DangerZone(
@@ -168,7 +192,9 @@ class _CoverCard extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(onPressed: () {}, icon: const Icon(Icons.edit_outlined, size: 18, color: fBronze), visualDensity: VisualDensity.compact),
+             IconButton(onPressed: () {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cover edit is coming soon.'), behavior: SnackBarBehavior.floating));
+             }, icon: const Icon(Icons.edit_outlined, size: 18, color: fBronze), visualDensity: VisualDensity.compact),
           ],
         ),
       ),
@@ -210,22 +236,26 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: fBronze),
-              const SizedBox(width: 12),
-              Expanded(child: Text(label, style: const TextStyle(fontSize: 13.5, color: fWalnut))),
-              Text(trailing, style: const TextStyle(fontSize: 11, color: fStoneLight)),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right, size: 18, color: fStonePale),
-            ],
+    return Semantics(
+      button: true,
+      label: '$label, $trailing',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: fBronze),
+                const SizedBox(width: 12),
+                Expanded(child: Text(label, style: const TextStyle(fontSize: 13.5, color: fWalnut))),
+                Text(trailing, style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, size: 18, color: fStonePale),
+              ],
+            ),
           ),
         ),
       ),
@@ -295,21 +325,25 @@ class _Action extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = danger ? const Color(0xFFA8554E) : fStone;
-    return Material(
-      color: fWhite,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: fWhite,
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: fClay)),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 12),
-              Expanded(child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color))),
-            ],
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: fClay)),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: color),
+                const SizedBox(width: 12),
+                Expanded(child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: color))),
+              ],
+            ),
           ),
         ),
       ),

@@ -2,6 +2,7 @@
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/animations.dart';
 import '../services/backend_api.dart' show BackendApi, NotificationItem;
 
 class NotificationCenterScreen extends StatefulWidget {
@@ -34,6 +35,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
   @override
   void dispose() {
+    _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     super.dispose();
   }
@@ -166,7 +168,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final scale = (width / 390).clamp(0.90, 1.08);
-    double s(double v) => v * scale;
+  double s(double v) => (v * scale).roundToDouble();
     final unreadCount = _items.where((n) => !n.isRead).length;
 
     return Scaffold(
@@ -191,85 +193,95 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(s(18), s(12), s(18), s(18)),
-          child: _initialLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null && _items.isEmpty
-                  ? _StateMessage(message: 'Failed to load notifications.', detail: _error!, onRetry: _retry)
-                  : _items.isEmpty
-                      ? const _StateMessage(
-                          message: 'No notifications yet.',
-                          detail: 'Gentle updates from your family space and reminders will appear here.',
-                        )
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: double.infinity,
-                              padding: EdgeInsets.all(s(16)),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [kClayLight, kClayPale],
+          child: AnimatedSwitcher(
+            key: const ValueKey('notification-content'),
+            duration: MizanMotion.normal,
+            switchInCurve: MizanMotion.gentle,
+            switchOutCurve: MizanMotion.gentle,
+            child: _initialLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null && _items.isEmpty
+                    ? _StateMessage(message: 'Failed to load notifications.', detail: _error!, onRetry: _retry)
+                    : _items.isEmpty
+                        ? const _StateMessage(
+                            message: 'No notifications yet.',
+                            detail: 'Gentle updates from your family space and reminders will appear here.',
+                          )
+                        : Column(
+                            key: const ValueKey('notification-list'),
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              FadeScaleTransition(
+                                beginScale: 0.97,
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: EdgeInsets.all(s(16)),
+                                  decoration: BoxDecoration(
+                                    gradient: const LinearGradient(
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
+                                      colors: [kClayLight, kClayPale],
+                                    ),
+                                    borderRadius: BorderRadius.circular(s(20)),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '$_total notification${_total == 1 ? '' : 's'}',
+                                        style: TextStyle(fontSize: s(16), fontWeight: FontWeight.w800, color: kInk),
+                                      ),
+                                      SizedBox(height: s(4)),
+                                      Text(
+                                        unreadCount == 0
+                                            ? 'You are all caught up.'
+                                            : '$unreadCount unread update${unreadCount == 1 ? '' : 's'} waiting.',
+                                        style: TextStyle(fontSize: s(12.8), color: kMuted),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                                borderRadius: BorderRadius.circular(s(20)),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '$_total notification${_total == 1 ? '' : 's'}',
-                                    style: TextStyle(fontSize: s(16), fontWeight: FontWeight.w800, color: kInk),
-                                  ),
-                                  SizedBox(height: s(4)),
-                                  Text(
-                                    unreadCount == 0
-                                        ? 'You are all caught up.'
-                                        : '$unreadCount unread update${unreadCount == 1 ? '' : 's'} waiting.',
-                                    style: TextStyle(fontSize: s(12.8), color: kMuted),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            SizedBox(height: s(12)),
-                            Expanded(
-                              child: ListView.separated(
-                                controller: _scrollController,
-                                itemCount: _items.length + (_hasMore && _error == null ? 1 : 0),
-                                separatorBuilder: (_, __) => SizedBox(height: s(10)),
-                                itemBuilder: (context, index) {
-                                  if (index >= _items.length) {
-                                    return Padding(
-                                      padding: EdgeInsets.symmetric(vertical: s(10)),
-                                      child: const Center(child: CircularProgressIndicator()),
+                              SizedBox(height: s(12)),
+                              Expanded(
+                                child: ListView.separated(
+                                  controller: _scrollController,
+                                  itemCount: _items.length + (_hasMore && _error == null ? 1 : 0),
+                                  separatorBuilder: (_, __) => SizedBox(height: s(10)),
+                                  itemBuilder: (context, index) {
+                                    if (index >= _items.length) {
+                                      return Padding(
+                                        padding: EdgeInsets.symmetric(vertical: s(10)),
+                                        child: const Center(child: CircularProgressIndicator()),
+                                      );
+                                    }
+                                    final notification = _items[index];
+                                    return Dismissible(
+                                      key: ValueKey(notification.id),
+                                      direction: DismissDirection.endToStart,
+                                      background: Container(
+                                        alignment: Alignment.centerRight,
+                                        padding: EdgeInsets.only(right: s(22)),
+                                        decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.circular(s(16))),
+                                        child: const Icon(Icons.archive_outlined, color: Colors.white),
+                                      ),
+                                      onDismissed: (_) => _archive(index),
+                                      child: _NotificationCard(
+                                        scale: scale,
+                                        notification: notification,
+                                        onTap: notification.isRead ? null : () => _markRead(notification.id, index),
+                                      ),
                                     );
-                                  }
-                                  final notification = _items[index];
-                                  return Dismissible(
-                                    key: ValueKey(notification.id),
-                                    direction: DismissDirection.endToStart,
-                                    background: Container(
-                                      alignment: Alignment.centerRight,
-                                      padding: EdgeInsets.only(right: s(22)),
-                                      decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.circular(s(16))),
-                                      child: const Icon(Icons.archive_outlined, color: Colors.white),
-                                    ),
-                                    onDismissed: (_) => _archive(index),
-                                    child: _NotificationCard(
-                                      scale: scale,
-                                      notification: notification,
-                                      onTap: notification.isRead ? null : () => _markRead(notification.id, index),
-                                    ),
-                                  );
-                                },
+                                  },
+                                ),
                               ),
-                            ),
-                            if (_error != null) ...[
-                              SizedBox(height: s(8)),
-                              TextButton(onPressed: _retry, child: const Text('Retry loading more')),
+                              if (_error != null) ...[
+                                SizedBox(height: s(8)),
+                                TextButton(onPressed: _retry, child: const Text('Retry loading more')),
+                              ],
                             ],
-                          ],
-                        ),
+                          ),
+          ),
         ),
       ),
     );
@@ -288,59 +300,63 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final presentation = _presentationFor(notification);
-    return Material(
-      color: notification.isRead ? kClayPale : kSoftBronze,
-      borderRadius: BorderRadius.circular(s(16)),
-      child: InkWell(
-        onTap: onTap,
+    return Semantics(
+      button: true,
+      label: notification.title,
+      child: Material(
+        color: notification.isRead ? kClayPale : kSoftBronze,
         borderRadius: BorderRadius.circular(s(16)),
-        child: Padding(
-          padding: EdgeInsets.all(s(14)),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: s(38),
-                height: s(38),
-                decoration: BoxDecoration(
-                  color: presentation.$2.withValues(alpha: .13),
-                  borderRadius: BorderRadius.circular(s(12)),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(s(16)),
+          child: Padding(
+            padding: EdgeInsets.all(s(14)),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: s(38),
+                  height: s(38),
+                  decoration: BoxDecoration(
+                    color: presentation.$2.withOpacity(0.13),
+                    borderRadius: BorderRadius.circular(s(12)),
+                  ),
+                  child: Icon(presentation.$1, color: presentation.$2, size: s(20)),
                 ),
-                child: Icon(presentation.$1, color: presentation.$2, size: s(20)),
-              ),
-              SizedBox(width: s(12)),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            notification.title,
-                            style: TextStyle(
-                              fontSize: s(15),
-                              fontWeight: notification.isRead ? FontWeight.w600 : FontWeight.w800,
-                              color: kInk,
+                SizedBox(width: s(12)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              notification.title,
+                              style: TextStyle(
+                                fontSize: s(15),
+                                fontWeight: notification.isRead ? FontWeight.w600 : FontWeight.w800,
+                                color: kInk,
+                              ),
                             ),
                           ),
-                        ),
-                        if (!notification.isRead)
-                          Container(
-                            width: s(8),
-                            height: s(8),
-                            decoration: const BoxDecoration(color: kBronzeDark, shape: BoxShape.circle),
-                          ),
-                      ],
-                    ),
-                    SizedBox(height: s(4)),
-                    Text(notification.body, style: TextStyle(fontSize: s(13), color: kMuted, height: 1.35)),
-                    SizedBox(height: s(8)),
+                          if (!notification.isRead)
+                            Container(
+                              width: s(8),
+                              height: s(8),
+                              decoration: const BoxDecoration(color: kBronzeDark, shape: BoxShape.circle),
+                            ),
+                        ],
+                      ),
+                      SizedBox(height: s(4)),
+                      Text(notification.body, style: TextStyle(fontSize: s(13), color: kMuted, height: 1.35)),
+                      SizedBox(height: s(8)),
                       Text(_formatDate(notification.createdAt), style: TextStyle(fontSize: s(11.2), color: kMuted)),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -380,18 +396,21 @@ class _StateMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(detail, textAlign: TextAlign.center),
-          if (onRetry != null) ...[
-            const SizedBox(height: 12),
-            FilledButton(onPressed: onRetry, child: const Text('Retry')),
+    return CardEntrance(
+      index: 0,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 8),
+            Text(detail, textAlign: TextAlign.center),
+            if (onRetry != null) ...[
+              const SizedBox(height: 12),
+              FilledButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

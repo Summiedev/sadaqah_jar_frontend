@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
-import '../../main.dart' show sessionProvider;
+import '../../core/session_controller.dart';
 import '../family/family_theme.dart' show FamilyJarView;
 
 const _ink = Color(0xFF30261F);

@@ -93,12 +93,35 @@ class FamilyJar {
 // integration is wired into each family sub-screen.
 // ─────────────────────────────────────────────────────────────
 
-const List<FamilyJar> _jars = [];
+// ─────────────────────────────────────────────────────────────
+// LOCAL CACHE
+// ─────────────────────────────────────────────────────────────
 
-const List<String> pendingRequests = [];
+final List<FamilyJar> _familyCache = [];
+final List<String> _pendingRequests = [];
 
-List<FamilyJar> allFamilies() => _jars;
+void cacheFamilies(List<FamilyJar> families) {
+  _familyCache.clear();
+  _familyCache.addAll(families);
+}
 
-FamilyJar? getFamilyById(String id) => null;
+List<String> get pendingRequests => _pendingRequests;
 
-FamilyMember? getMember(FamilyJar jar, String id) => null;
+FamilyJar? getFamilyById(String id) {
+  try {
+    return _familyCache.firstWhere((f) => f.id == id);
+  } on StateError {
+    return null;
+  }
+}
+
+List<FamilyJar> allFamilies() => List.unmodifiable(_familyCache);
+
+FamilyMember? getMember(FamilyJar? jar, String id) {
+  if (jar == null) return null;
+  try {
+    return jar.members.firstWhere((m) => m.id == id);
+  } on StateError {
+    return null;
+  }
+}

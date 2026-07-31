@@ -28,29 +28,10 @@ class _PressableSpringState extends State<PressableSpring> {
       child: AnimatedScale(
         scale: enabled && _pressed ? widget.scale : 1,
         duration: Duration(milliseconds: _pressed ? 90 : 220),
-        curve: _pressed ? Curves.easeOut : Curves.elasticOut,
+        curve: _pressed ? Curves.easeOut : Curves.easeOutCubic,
         child: widget.child,
       ),
     );
-  }
-}
-
-class StaggeredEntrance extends StatefulWidget {
-  const StaggeredEntrance({super.key, required this.index, required this.child, this.delay = const Duration(milliseconds: 38)});
-  final int index;
-  final Widget child;
-  final Duration delay;
-  @override State<StaggeredEntrance> createState() => _StaggeredEntranceState();
-}
-
-class _StaggeredEntranceState extends State<StaggeredEntrance> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 280));
-  @override void initState() { super.initState(); if (widget.index == 0) _controller.forward(); else Future<void>.delayed(widget.delay * widget.index, () { if (mounted) _controller.forward(); }); }
-  @override void dispose() { _controller.dispose(); super.dispose(); }
-  @override Widget build(BuildContext context) {
-    if (!motionEnabled(context)) return widget.child;
-    final curved = CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
-    return FadeTransition(opacity: curved, child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, .035), end: Offset.zero).animate(curved), child: widget.child));
   }
 }
 

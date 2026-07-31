@@ -45,7 +45,7 @@ class SoftCard extends StatelessWidget {
     required this.child,
     super.key,
     this.padding = const EdgeInsets.all(16),
-    this.color = fPaper,
+    this.color = fWhite,
     this.borderColor = fClay,
     this.radius = fRadius,
     this.onTap,
@@ -160,7 +160,7 @@ class ProgressTrack extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: fClayLight,
+        color: fClay,
         borderRadius: BorderRadius.circular(99),
       ),
       child: FractionallySizedBox(
@@ -653,21 +653,4 @@ class _FamilyJarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _FamilyJarPainter old) => old.fill != fill || old.glow != glow;
-}
-
-// ─────────────────────────────────────────────────────────────
-// ROUTE TRANSITION — gentle, shared-element feel
-// ─────────────────────────────────────────────────────────────
-
-CustomTransitionPage<dynamic> mizanPage({required Widget child, String? name, Object? extra}) {
-  return CustomTransitionPage<dynamic>(
-    child: child,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      if (MediaQuery.of(context).disableAnimations || MediaQuery.of(context).accessibleNavigation) return child;
-      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
-      final scale = Tween<double>(begin: .985, end: 1).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
-      return FadeTransition(opacity: fade, child: ScaleTransition(scale: scale, child: child));
-    },
-    transitionDuration: const Duration(milliseconds: 280),
-  );
 }

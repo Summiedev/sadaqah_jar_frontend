@@ -20,20 +20,31 @@ class ActStore extends ChangeNotifier {
     return stamp != null && stamp.year == now.year && stamp.month == now.month && stamp.day == now.day;
   }).length;
 
-  int get totalStars => _jarCurrentStars ?? _acts.length;
+  int get totalStars => _goalActsDone ?? _jarCurrentStars ?? _acts.length;
 
   int get remainingActs {
-    if (_jarCapacity == null || _jarCurrentStars == null) return 0;
-    return (_jarCapacity! - _jarCurrentStars!).clamp(0, _jarCapacity!);
+    final capacity = _goalTarget ?? _jarCapacity;
+    final done = _goalActsDone ?? _jarCurrentStars;
+    if (capacity == null || done == null) return 0;
+    return (capacity - done).clamp(0, capacity);
   }
 
   double get progress {
-    if (_jarCurrentStars == null || _jarCapacity == null || _jarCapacity == 0) return 0.0;
-    return (_jarCurrentStars! / _jarCapacity!).clamp(0.0, 1.0);
+    final capacity = _goalTarget ?? _jarCapacity;
+    final done = _goalActsDone ?? _jarCurrentStars;
+    if (done == null || capacity == null || capacity == 0) return 0.0;
+    return (done / capacity).clamp(0.0, 1.0);
   }
 
   int? _jarCurrentStars;
   int? _jarCapacity;
+  int? _goalActsDone;
+  int? _goalTarget;
+  String? _goalTitle;
+  int? _currentStreak;
+
+  int? get currentStreak => _currentStreak;
+  String? get goalTitle => _goalTitle;
 
   Future<void> _refreshJarProgress() async {
     try {
@@ -43,6 +54,32 @@ class ActStore extends ChangeNotifier {
     } catch (_) {
       _jarCurrentStars = null;
       _jarCapacity = null;
+    }
+    try {
+      final now = DateTime.now();
+      final month = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+      final goals = await BackendApi.instance.getGoals(status: 'active', month: month);
+      final goalList = goals['goals'] as List? ?? [];
+      if (goalList.isNotEmpty) {
+        final firstGoal = goalList.first as Map<String, dynamic>;
+        _goalActsDone = (firstGoal['acts_done'] as num?)?.toInt() ?? _jarCurrentStars;
+        _goalTarget = (firstGoal['acts_target'] as num?)?.toInt() ?? _jarCapacity;
+        _goalTitle = firstGoal['title']?.toString();
+      } else {
+        _goalActsDone = null;
+        _goalTarget = null;
+        _goalTitle = null;
+      }
+    } catch (_) {
+      _goalActsDone = null;
+      _goalTarget = null;
+      _goalTitle = null;
+    }
+    try {
+      final streak = await BackendApi.instance.getStreak();
+      _currentStreak = streak.currentStreak;
+    } catch (_) {
+      _currentStreak = null;
     }
     notifyListeners();
   }
@@ -71,7 +108,7 @@ class ActStore extends ChangeNotifier {
       await prefs.setString(_key, jsonEncode(_acts));
     }).catchError((_) {});
     await _writeQueue;
-    _refreshJarProgress();
+    await _refreshJarProgress();
   }
 }
 

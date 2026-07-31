@@ -1,6 +1,6 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/backend_api.dart';
@@ -206,13 +206,19 @@ class _InvitePanel extends StatelessWidget {
               const SizedBox(height: 4),
               const Text('A quiet doorway into the family jar.', style: TextStyle(fontSize: 11.5, color: fStone)),
               const SizedBox(height: 16),
-              Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(color: fWhite, borderRadius: BorderRadius.circular(20), border: Border.all(color: fClay)),
-                padding: const EdgeInsets.all(14),
-                child: CustomPaint(painter: _QrPainter(seed: code)),
-              ),
+               Container(
+                 width: 180,
+                 height: 180,
+                 decoration: BoxDecoration(color: fWhite, borderRadius: BorderRadius.circular(20), border: Border.all(color: fClay)),
+                 padding: const EdgeInsets.all(14),
+                 child: QrImageView(
+                   data: code,
+                   version: QrVersions.auto,
+                   size: 152,
+                   backgroundColor: fWhite,
+                   errorCorrectionLevel: QrErrorCorrectLevel.M,
+                 ),
+               ),
               const SizedBox(height: 14),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -343,36 +349,40 @@ class _RoomOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: fPaper,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
+    return Semantics(
+      button: true,
+      label: 'Join ${jar.name}, ${jar.memberCount} members',
+      child: Material(
+        color: fPaper,
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: fClay)),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(14)),
-                child: Icon(jar.coverIcon, color: fBronze, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(jar.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
-                    const SizedBox(height: 2),
-                    Text('${jar.memberCount} members', style: const TextStyle(fontSize: 11, color: fStoneLight)),
-                  ],
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: fClay)),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(14)),
+                  child: Icon(jar.coverIcon, color: fBronze, size: 20),
                 ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: fBronze, size: 20),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(jar.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
+                      const SizedBox(height: 2),
+                      Text('${jar.memberCount} members', style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: fBronze, size: 20),
+              ],
+            ),
           ),
         ),
       ),
@@ -390,36 +400,40 @@ class _InviteOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: fPaper,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: fPaper,
         borderRadius: BorderRadius.circular(18),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(color: fBronze.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
-                child: Icon(icon, size: 20, color: fBronze),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
-                    const SizedBox(height: 2),
-                    Text(subtitle, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
-                  ],
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(color: fBronze.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(14)),
+                  child: Icon(icon, size: 20, color: fBronze),
                 ),
-              ),
-              const Icon(Icons.chevron_right, size: 18, color: fBronze),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
+                      const SizedBox(height: 2),
+                      Text(subtitle, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right, size: 18, color: fBronze),
+              ],
+            ),
           ),
         ),
       ),
@@ -509,38 +523,4 @@ class _PendingPanel extends StatelessWidget {
       },
     );
   }
-}
-
-// Decorative, dependency-free QR-style square (prototype placeholder).
-class _QrPainter extends CustomPainter {
-  _QrPainter({required this.seed});
-  final String seed;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final rng = math.Random(seed.hashCode);
-    final cells = 11;
-    final cell = size.width / cells;
-    final paint = Paint()..color = fWalnut;
-    for (int y = 0; y < cells; y++) {
-      for (int x = 0; x < cells; x++) {
-        if (rng.nextBool()) {
-          canvas.drawRect(Rect.fromLTWH(x * cell, y * cell, cell, cell), paint);
-        }
-      }
-    }
-    // Finder squares
-    _drawFinder(canvas, paint, 0, 0, cell);
-    _drawFinder(canvas, paint, size.width - cell * 3, 0, cell);
-    _drawFinder(canvas, paint, 0, size.height - cell * 3, cell);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
-}
-
-void _drawFinder(Canvas canvas, Paint paint, double fx, double fy, double cell) {
-  canvas.drawRect(Rect.fromLTWH(fx, fy, cell * 3, cell * 3), paint);
-  canvas.drawRect(Rect.fromLTWH(fx + cell * 0.6, fy + cell * 0.6, cell * 1.8, cell * 1.8), Paint()..color = fWhite);
-  canvas.drawRect(Rect.fromLTWH(fx + cell, fy + cell, cell, cell), paint);
 }

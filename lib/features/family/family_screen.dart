@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/backend_api.dart';
 import '../../core/mode_provider.dart';
+import '../../core/animations.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
@@ -53,41 +54,43 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     final nameController = TextEditingController();
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: fIvory,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('Create a family jar', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Start a shared space for your family.', style: TextStyle(color: fStone, fontSize: 13)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: nameController,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Family name',
-                hintText: 'e.g. The Ahmad Family',
-                filled: true,
-                fillColor: fPaper,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: fClay)),
+      builder: (ctx) => DialogFadeScale(
+        child: AlertDialog(
+          backgroundColor: fIvory,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          title: const Text('Create a family jar', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Start a shared space for your family.', style: TextStyle(color: fStone, fontSize: 13)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: nameController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Family name',
+                  hintText: 'e.g. The Ahmad Family',
+                  filled: true,
+                  fillColor: fPaper,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: fClay)),
+                ),
               ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: fStone))),
+            FilledButton(
+              onPressed: () {
+                final name = nameController.text.trim();
+                if (name.isEmpty) return;
+                Navigator.pop(ctx, name);
+              },
+              style: FilledButton.styleFrom(backgroundColor: fBronze),
+              child: const Text('Create'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: fStone))),
-          FilledButton(
-            onPressed: () {
-              final name = nameController.text.trim();
-              if (name.isEmpty) return;
-              Navigator.pop(ctx, name);
-            },
-            style: FilledButton.styleFrom(backgroundColor: fBronze),
-            child: const Text('Create'),
-          ),
-        ],
       ),
     );
 
@@ -98,51 +101,53 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       final inviteCode = response['invite_code'] as String? ?? '';
       await showDialog(
         context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: fIvory,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          title: const Text('Family jar created!', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Share this code with your family members:', style: TextStyle(color: fStone, fontSize: 13)),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: fPaper,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: fClay),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        inviteCode,
-                        style: const TextStyle(fontFamily: 'Georgia', fontSize: 22, fontWeight: FontWeight.w800, color: fWalnut, letterSpacing: 1.5),
+        builder: (ctx) => DialogFadeScale(
+          child: AlertDialog(
+            backgroundColor: fIvory,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            title: const Text('Family jar created!', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Share this code with your family members:', style: TextStyle(color: fStone, fontSize: 13)),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: fPaper,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: fClay),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          inviteCode,
+                          style: const TextStyle(fontFamily: 'Georgia', fontSize: 22, fontWeight: FontWeight.w800, color: fWalnut, letterSpacing: 1.5),
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      onPressed: () {
-                        Clipboard.setData(ClipboardData(text: inviteCode));
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const Text('Invite code copied!')));
-                      },
-                      icon: const Icon(Icons.copy_rounded, color: fBronze),
-                      tooltip: 'Copy code',
-                    ),
-                  ],
+                      IconButton(
+                        onPressed: () {
+                          Clipboard.setData(ClipboardData(text: inviteCode));
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const Text('Invite code copied!')));
+                        },
+                        icon: const Icon(Icons.copy_rounded, color: fBronze),
+                        tooltip: 'Copy code',
+                      ),
+                    ],
+                  ),
                 ),
+              ],
+            ),
+            actions: [
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                style: FilledButton.styleFrom(backgroundColor: fBronze),
+                child: const Text('Done'),
               ),
             ],
           ),
-          actions: [
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx),
-              style: FilledButton.styleFrom(backgroundColor: fBronze),
-              child: const Text('Done'),
-            ),
-          ],
         ),
       );
       _loadFamilies();
@@ -156,41 +161,43 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     final codeController = TextEditingController();
     final result = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: fIvory,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('Join a family jar', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Enter the invite code shared with you.', style: TextStyle(color: fStone, fontSize: 13)),
-            const SizedBox(height: 14),
-            TextField(
-              controller: codeController,
-              autofocus: true,
-              decoration: InputDecoration(
-                labelText: 'Invite code',
-                hintText: 'e.g. MIZAN-ABC-123',
-                filled: true,
-                fillColor: fPaper,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: fClay)),
+      builder: (ctx) => DialogFadeScale(
+        child: AlertDialog(
+          backgroundColor: fIvory,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+          title: const Text('Join a family jar', style: TextStyle(fontFamily: 'Georgia', fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Enter the invite code shared with you.', style: TextStyle(color: fStone, fontSize: 13)),
+              const SizedBox(height: 14),
+              TextField(
+                controller: codeController,
+                autofocus: true,
+                decoration: InputDecoration(
+                  labelText: 'Invite code',
+                  hintText: 'e.g. MIZAN-ABC-123',
+                  filled: true,
+                  fillColor: fPaper,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: fClay)),
+                ),
               ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: fStone))),
+            FilledButton(
+              onPressed: () {
+                final code = codeController.text.trim();
+                if (code.isEmpty) return;
+                Navigator.pop(ctx, code);
+              },
+              style: FilledButton.styleFrom(backgroundColor: fBronze),
+              child: const Text('Join'),
             ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel', style: TextStyle(color: fStone))),
-          FilledButton(
-            onPressed: () {
-              final code = codeController.text.trim();
-              if (code.isEmpty) return;
-              Navigator.pop(ctx, code);
-            },
-            style: FilledButton.styleFrom(backgroundColor: fBronze),
-            child: const Text('Join'),
-          ),
-        ],
       ),
     );
 
@@ -227,89 +234,114 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
           child: CustomScrollView(
             physics: const BouncingScrollPhysics(),
             slivers: [
-            SliverAppBar(
-              pinned: true,
-              floating: false,
-              toolbarHeight: 64,
-              collapsedHeight: 64,
-              expandedHeight: 64,
-              backgroundColor: const Color(0xFFE8DCC8),
-              foregroundColor: fWalnutLight,
-              surfaceTintColor: Colors.transparent,
-              elevation: 0,
-              title: const Text('Family'),
-              actions: [
-                Container(
-                  margin: const EdgeInsets.only(right: 12),
-                  child: IconButton(
-                    onPressed: () => context.push('/family/invitations'),
-                    tooltip: 'Invitations',
-                    icon: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0E0),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE8C99B)),
-                      ),
-                      child: Stack(
-                        children: [
-                          const Center(child: Icon(Icons.person_add_outlined, size: 18, color: Color(0xFF9E7B5A))),
-                          if (_pending.isNotEmpty)
-                            Positioned(
-                              right: 4,
-                              top: 4,
-                              child: Container(
-                                width: 14,
-                                height: 14,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFB6544D),
-                                  borderRadius: BorderRadius.circular(99),
-                                ),
-                                child: Center(
-                                  child: Text('${_pending.length}', style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.w800)),
+              SliverAppBar(
+                pinned: true,
+                floating: false,
+                toolbarHeight: 64,
+                collapsedHeight: 64,
+                expandedHeight: 64,
+                backgroundColor: const Color(0xFFE8DCC8),
+                foregroundColor: fWalnutLight,
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                title: const Text('Family'),
+                actions: [
+                  Container(
+                    margin: const EdgeInsets.only(right: 12),
+                    child: IconButton(
+                      onPressed: () => context.push('/family/invitations'),
+                      tooltip: 'Invitations',
+                      icon: Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF0E0),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE8C99B)),
+                        ),
+                        child: Stack(
+                          children: [
+                            const Center(child: Icon(Icons.person_add_outlined, size: 18, color: Color(0xFF9E7B5A))),
+                            if (_pending.isNotEmpty)
+                              Positioned(
+                                right: 4,
+                                top: 4,
+                                child: Container(
+                                  width: 14,
+                                  height: 14,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFB6544D),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: Center(
+                                    child: Text('${_pending.length}', style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.w800)),
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            if (_loading)
-              const SliverFillRemaining(child: Center(child: CircularProgressIndicator(color: fBronze)))
-            else if (_error != null)
-              SliverFillRemaining(child: _ErrorState(message: _error!, onRetry: _loadFamilies))
-            else if (_families.isEmpty)
-              SliverFillRemaining(child: _EmptyFamily(onJoin: _joinFamily, onCreate: _createFamily))
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final jar = _families[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _JarCard(jar: jar),
-                      );
-                    },
-                    childCount: _families.length,
-                  ),
+                ],
+              ),
+              SliverToBoxAdapter(
+                child: AnimatedSwitcher(
+                  key: const ValueKey('family-content'),
+                  duration: MizanMotion.normal,
+                  switchInCurve: MizanMotion.gentle,
+                  switchOutCurve: MizanMotion.gentle,
+                  child: _buildBody(context),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    if (_loading) {
+      return const SizedBox(
+        key: ValueKey('loading'),
+        height: 300,
+        child: Center(child: CircularProgressIndicator(color: fBronze)),
+      );
+    }
+    if (_error != null) {
+      return _ErrorState(
+        key: const ValueKey('error'),
+        message: _error!,
+        onRetry: _loadFamilies,
+      );
+    }
+    if (_families.isEmpty) {
+      return _EmptyFamily(
+        key: const ValueKey('empty'),
+        onJoin: _joinFamily,
+        onCreate: _createFamily,
+      );
+    }
+    return Padding(
+      key: const ValueKey('list'),
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      child: Column(
+        children: _families
+            .map(
+              (jar) => Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _JarCard(jar: jar),
+              ),
+            )
+            .toList(),
       ),
     );
   }
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
+  const _ErrorState({super.key, required this.message, required this.onRetry});
   final String message;
   final VoidCallback onRetry;
 
@@ -357,53 +389,56 @@ class _JarCard extends StatelessWidget {
     final progress = (jar['progress'] as num?)?.toDouble() ?? 0.0;
     final daysRemaining = (jar['days_remaining'] as num?)?.toInt() ?? 0;
     final goalLabel = jar['goal_label']?.toString() ?? '';
-    return Semantics(
-      button: true,
-      label: 'Open $name, $memberCount members, ${(progress * 100).round()} percent complete',
-      child: SoftCard(
-        onTap: () => context.push('/family/jar/${jar['id']}'),
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
-                  child: const Center(child: Icon(Icons.favorite_border_rounded, size: 28, color: fBronze)),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
-                      const SizedBox(height: 4),
-                      Text('$memberCount members', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
-                    ],
+    return CardEntrance(
+      index: 0,
+      child: Semantics(
+        button: true,
+        label: 'Open $name, $memberCount members, ${(progress * 100).round()} percent complete',
+        child: SoftCard(
+          onTap: () => context.push('/family/jar/${jar['id']}'),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
+                    child: const Center(child: Icon(Icons.favorite_border_rounded, size: 28, color: fBronze)),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: Text('$goalLabel · ${(progress * 100).round()}%', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fBronzeDark)),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  flex: 1,
-                  child: Text('$daysRemaining days left', textAlign: TextAlign.end, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ProgressTrack(value: progress),
-          ],
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+                        const SizedBox(height: 4),
+                        Text('$memberCount members', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: Text('$goalLabel · ${(progress * 100).round()}%', overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: fBronzeDark)),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 1,
+                    child: Text('$daysRemaining days left', textAlign: TextAlign.end, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SmoothProgress(value: progress),
+            ],
+          ),
         ),
       ),
     );
@@ -411,7 +446,7 @@ class _JarCard extends StatelessWidget {
 }
 
 class _EmptyFamily extends StatelessWidget {
-  const _EmptyFamily({required this.onJoin, required this.onCreate});
+  const _EmptyFamily({super.key, required this.onJoin, required this.onCreate});
 
   final VoidCallback onJoin;
   final VoidCallback onCreate;
@@ -423,12 +458,31 @@ class _EmptyFamily extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 96,
-            height: 96,
-            decoration: BoxDecoration(color: fClayPale, shape: BoxShape.circle, border: Border.all(color: fClay)),
-            child: const Center(child: Icon(Icons.groups_outlined, size: 40, color: fBronze)),
-          ),
+          if (MizanMotion.enabled(context))
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: MizanMotion.slow,
+              curve: MizanMotion.gentle,
+              builder: (context, value, child) {
+                return Transform.translate(
+                  offset: Offset(0, 6 * (1 - value)),
+                  child: Opacity(opacity: value, child: child),
+                );
+              },
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(color: fClayPale, shape: BoxShape.circle, border: Border.all(color: fClay)),
+                child: const Center(child: Icon(Icons.groups_outlined, size: 40, color: fBronze)),
+              ),
+            )
+          else
+            Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(color: fClayPale, shape: BoxShape.circle, border: Border.all(color: fClay)),
+              child: const Center(child: Icon(Icons.groups_outlined, size: 40, color: fBronze)),
+            ),
           const SizedBox(height: 20),
           const Text('No family yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
           const SizedBox(height: 8),

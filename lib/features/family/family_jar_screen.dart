@@ -134,7 +134,7 @@ class _JarHome extends StatelessWidget {
     children: [
       _GoalHero(goals: goals),
       const SizedBox(height: 18),
-      MizanButton(label: 'Add to our jar', onTap: () => _openContributionSheet(context)),
+      MizanButton(label: 'Add to our jar', onTap: () => _openContributionSheet(context, familyId: familyId)),
       const SizedBox(height: 10),
       Center(child: Text('Share an act with the family, or let it count privately.', style: const TextStyle(fontSize: 11.5, color: fStoneLight))),
       const SizedBox(height: 30),
@@ -220,7 +220,7 @@ class _MilestoneCard extends StatelessWidget {
     onTap: () => context.push('/family/goals/$jarId'),
     padding: const EdgeInsets.all(17),
     child: Row(children: [
-      Container(width: 44, height: 44, decoration: BoxDecoration(color: fBronze.withValues(alpha: .13), borderRadius: BorderRadius.circular(14)), child: Icon(Icons.flag_outlined, color: fBronze)),
+      Container(width: 44, height: 44, decoration: BoxDecoration(color: fBronze.withValues(alpha: .18), borderRadius: BorderRadius.circular(14)), child: Icon(Icons.flag_outlined, color: fBronze)),
       const SizedBox(width: 13),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(goal['title']?.toString() ?? 'Goal', style: const TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700, color: fWalnut, fontSize: 16)), const SizedBox(height: 4), Text('${goal['acts_done'] ?? 0} of ${goal['acts_target'] ?? 0} acts', style: const TextStyle(fontSize: 12, color: fStone))])),
       const Icon(Icons.arrow_forward_rounded, color: fBronze),
@@ -351,8 +351,9 @@ class _MemberRow extends StatelessWidget {
 
 class _SectionTitle extends StatelessWidget { const _SectionTitle({required this.title}); final String title; @override Widget build(BuildContext context) => Text(title, style: const TextStyle(fontFamily: 'Georgia', fontSize: 19, color: fWalnut, fontWeight: FontWeight.w700)); }
 
-void _openContributionSheet(BuildContext context) {
-  showModalBottomSheet<void>(context: context, backgroundColor: fIvory, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))), builder: (sheetContext) => Padding(padding: const EdgeInsets.fromLTRB(24, 12, 24, 30), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: fClay, borderRadius: BorderRadius.circular(99)))), const SizedBox(height: 24), const Text('How would you like to add it?', style: TextStyle(fontFamily: 'Georgia', color: fWalnut, fontSize: 22, fontWeight: FontWeight.w700)), const SizedBox(height: 7), const Text('Both choices grow the shared jar.', style: TextStyle(color: fStone, fontSize: 13)), const SizedBox(height: 20), _ContributionOption(icon: Icons.groups_outlined, title: 'Share with family', body: 'Your family can see this moment in the activity feed.', onTap: () { Navigator.pop(sheetContext); AddActScreen.show(context); }), const SizedBox(height: 10), _ContributionOption(icon: Icons.visibility_off_outlined, title: 'Keep it private', body: 'It counts toward the jar without showing who or what.', onTap: () { Navigator.pop(sheetContext); AddActScreen.show(context); })])));
+void _openContributionSheet(BuildContext context, {required String familyId}) {
+  final parsedFamilyId = int.tryParse(familyId);
+  showModalBottomSheet<void>(context: context, backgroundColor: fIvory, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))), builder: (sheetContext) => Padding(padding: const EdgeInsets.fromLTRB(24, 12, 24, 30), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: fClay, borderRadius: BorderRadius.circular(99)))), const SizedBox(height: 24), const Text('How would you like to add it?', style: TextStyle(fontFamily: 'Georgia', color: fWalnut, fontSize: 22, fontWeight: FontWeight.w700)), const SizedBox(height: 7), const Text('Both choices grow the shared jar.', style: const TextStyle(color: fStone, fontSize: 13)), const SizedBox(height: 20), _ContributionOption(icon: Icons.groups_outlined, title: 'Share with family', body: 'Your family can see this moment in the activity feed.', onTap: () { Navigator.pop(sheetContext); AddActScreen.show(context, familyId: parsedFamilyId); }), const SizedBox(height: 10), _ContributionOption(icon: Icons.visibility_off_outlined, title: 'Keep it private', body: 'It counts toward the jar without showing who or what.', onTap: () { Navigator.pop(sheetContext); AddActScreen.show(context, familyId: parsedFamilyId); })])));
 }
 
 class _ContributionOption extends StatelessWidget { const _ContributionOption({required this.icon, required this.title, required this.body, required this.onTap}); final IconData icon; final String title, body; final VoidCallback onTap; @override Widget build(BuildContext context) => SoftCard(onTap: onTap, padding: const EdgeInsets.all(16), child: Row(children: [Container(width: 42, height: 42, decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: fBronze)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: fWalnut, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(body, style: const TextStyle(fontSize: 11.5, height: 1.3, color: fStone))])), const Icon(Icons.arrow_forward_rounded, color: fBronze)])); }

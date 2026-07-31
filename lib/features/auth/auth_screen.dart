@@ -1,10 +1,12 @@
+import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-import '../../main.dart' show sessionProvider;
+import '../../core/session_controller.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/animations.dart';
 import '../../services/backend_api.dart';
 import 'verification_screen.dart';
 
@@ -53,36 +55,41 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               ),
 
               const SizedBox(height: 15),
-              Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF1E7DB),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFE3D3C3)),
-                    boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
+              FadeScaleTransition(
+                beginScale: 0.98,
+                child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1E7DB),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFE3D3C3)),
+                      boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
+                    ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _SegmentButton(
+                          selected: _register,
+                          label: 'Create account',
+                          onTap: () => setState(() => _register = true),
+                        ),
+                      ),
+                      Expanded(
+                        child: _SegmentButton(
+                          selected: !_register,
+                          label: 'Sign in',
+                          onTap: () => setState(() => _register = false),
+                        ),
+                      ),
+                    ],
                   ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _SegmentButton(
-                        selected: _register,
-                        label: 'Create account',
-                        onTap: () => setState(() => _register = true),
-                      ),
-                    ),
-                    Expanded(
-                      child: _SegmentButton(
-                        selected: !_register,
-                        label: 'Sign in',
-                        onTap: () => setState(() => _register = false),
-                      ),
-                    ),
-                  ],
                 ),
               ),
               const SizedBox(height: 16),
               AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
+                duration: MizanMotion.normal,
+                switchInCurve: MizanMotion.gentle,
+                switchOutCurve: MizanMotion.gentle,
                 child: _register
                     ? _RegisterForm(onDone: _onAuthSuccess)
                     : _SigninForm(onSuccess: _onAuthSuccess),
@@ -219,7 +226,7 @@ class _RegisterFormState extends State<_RegisterForm> {
   }
 
   bool _isValidEmail(String value) {
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+    return EmailValidator.validate(value);
   }
 
   Future<void> _submit() async {
@@ -350,35 +357,50 @@ class _RegisterFormState extends State<_RegisterForm> {
         ),
         if (_errorMessage != null) ...[
           const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: kDangerBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kDangerBorder),
-            ),
-            child: Text(
-              _errorMessage!,
-              style: const TextStyle(color: Color(0xFFB85450), fontSize: 13),
+          AnimatedSwitcher(
+            key: ValueKey(_errorMessage),
+            duration: MizanMotion.fast,
+            switchInCurve: MizanMotion.gentle,
+            switchOutCurve: MizanMotion.gentle,
+            child: Container(
+              key: ValueKey(_errorMessage),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: kDangerBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kDangerBorder),
+              ),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: Color(0xFFB85450), fontSize: 13),
+              ),
             ),
           ),
         ],
         const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: _loading
-              ? const SizedBox(height: 52, child: DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
-              : ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kBronze,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+        AnimatedSwitcher(
+          key: const ValueKey('register-button'),
+          duration: MizanMotion.fast,
+          switchInCurve: MizanMotion.gentle,
+          switchOutCurve: MizanMotion.gentle,
+          child: SizedBox(
+            key: ValueKey(_loading),
+            width: double.infinity,
+            height: 52,
+            child: _loading
+                ? const DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))))
+                : ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kBronze,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Create account', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
-                  child: const Text('Create account', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                ),
+          ),
         ),
       ],
     );
@@ -409,7 +431,7 @@ class _SigninFormState extends State<_SigninForm> {
   }
 
   bool _isValidEmail(String value) {
-    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(value);
+    return EmailValidator.validate(value);
   }
 
   Future<void> _submit() async {
@@ -489,35 +511,50 @@ class _SigninFormState extends State<_SigninForm> {
         ),
         if (_errorMessage != null) ...[
           const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: kDangerBg,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: kDangerBorder),
-            ),
-            child: Text(
-              _errorMessage!,
-              style: const TextStyle(color: Color(0xFFB85450), fontSize: 13),
+          AnimatedSwitcher(
+            key: ValueKey(_errorMessage),
+            duration: MizanMotion.fast,
+            switchInCurve: MizanMotion.gentle,
+            switchOutCurve: MizanMotion.gentle,
+            child: Container(
+              key: ValueKey(_errorMessage),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: kDangerBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: kDangerBorder),
+              ),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: Color(0xFFB85450), fontSize: 13),
+              ),
             ),
           ),
         ],
         const SizedBox(height: 14),
-        SizedBox(
-          width: double.infinity,
-          child: _loading
-              ? const SizedBox(height: 48, child: DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
-              : ElevatedButton(
-                  onPressed: _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: kBronze,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
+        AnimatedSwitcher(
+          key: const ValueKey('signin-button'),
+          duration: MizanMotion.fast,
+          switchInCurve: MizanMotion.gentle,
+          switchOutCurve: MizanMotion.gentle,
+          child: SizedBox(
+            key: ValueKey(_loading),
+            width: double.infinity,
+            height: 48,
+            child: _loading
+                ? const DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))))
+                : ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: kBronze,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    child: const Text('Sign in', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
-                  child: const Text('Sign in', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                ),
+          ),
         ),
       ],
     );

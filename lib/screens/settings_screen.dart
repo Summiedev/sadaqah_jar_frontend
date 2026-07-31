@@ -281,7 +281,7 @@ class _SettingsCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: enabled ? accent.withValues(alpha: 0.12) : kLine,
+                  color: enabled ? accent.withOpacity(0.12) : kLine,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: enabled ? accent : kMutedLight, size: 20),

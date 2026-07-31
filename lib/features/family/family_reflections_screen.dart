@@ -16,13 +16,24 @@ class FamilyReflectionsScreen extends StatefulWidget {
 }
 
 class _FReflection {
-  _FReflection(this.author, this.authorAccent, this.text, this.time, {this.id, Map<String, int>? encouragement}) : encouragement = encouragement ?? const {};
+  const _FReflection(this.author, this.authorAccent, this.text, this.time, {this.id, this.encouragement = const {}});
   final String? id;
   final String author;
   final Color authorAccent;
   final String text;
   final String time;
-  Map<String, int> encouragement;
+  final Map<String, int> encouragement;
+
+  _FReflection copyWith({String? id, String? author, Color? authorAccent, String? text, String? time, Map<String, int>? encouragement}) {
+    return _FReflection(
+      author ?? this.author,
+      authorAccent ?? this.authorAccent,
+      text ?? this.text,
+      time ?? this.time,
+      id: id ?? this.id,
+      encouragement: encouragement ?? this.encouragement,
+    );
+  }
 }
 
 class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
@@ -124,7 +135,11 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     final familyId = int.tryParse(widget.id);
     final reflectionId = int.tryParse(reflection.id ?? '');
     if (familyId == null || reflectionId == null) {
-      setState(() => _reflections[index].encouragement[type] = (_reflections[index].encouragement[type] ?? 0) + 1);
+      setState(() {
+        final updated = Map<String, int>.from(reflection.encouragement);
+        updated[type] = (updated[type] ?? 0) + 1;
+        _reflections[index] = reflection.copyWith(encouragement: updated);
+      });
       return;
     }
     try {
@@ -134,7 +149,7 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
         ? Map<String, int>.from(result['encouragement_counts'] as Map)
         : <String, int>{};
       setState(() {
-        _reflections[index].encouragement = Map<String, int>.from(counts);
+        _reflections[index] = reflection.copyWith(encouragement: counts);
       });
     } on BackendApiException catch (e) {
       if (!mounted) return;
@@ -244,33 +259,37 @@ class _ReflectionCard extends StatelessWidget {
             runSpacing: 8,
             children: _encourageOptions.map((k) {
               final count = r.encouragement[k] ?? 0;
-              return Material(
-                color: count > 0 ? r.authorAccent.withValues(alpha: 0.12) : fWhite,
-                borderRadius: BorderRadius.circular(999),
-                child: InkWell(
+              return Semantics(
+                button: true,
+                label: '$k, $count encouragements',
+                child: Material(
+                  color: count > 0 ? r.authorAccent.withValues(alpha: 0.12) : fWhite,
                   borderRadius: BorderRadius.circular(999),
-                  onTap: () => onPick(k),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: count > 0 ? r.authorAccent : fClay),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(k, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: count > 0 ? r.authorAccent : fStone)),
-                        ),
-                        if (count > 0) ...<Widget>[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                            decoration: BoxDecoration(color: r.authorAccent, borderRadius: BorderRadius.circular(999)),
-                            child: Text('$count', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fWhite)),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(999),
+                    onTap: () => onPick(k),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(color: count > 0 ? r.authorAccent : fClay),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Flexible(
+                            child: Text(k, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: count > 0 ? r.authorAccent : fStone)),
                           ),
+                          if (count > 0) ...<Widget>[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                              decoration: BoxDecoration(color: r.authorAccent, borderRadius: BorderRadius.circular(999)),
+                              child: Text('$count', style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: fWhite)),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),

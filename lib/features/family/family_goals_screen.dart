@@ -167,7 +167,7 @@ class _GoalCard extends StatelessWidget {
               Container(
                 width: 44,
                 height: 44,
-                decoration: BoxDecoration(color: goal.accent.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(14)),
+                decoration: BoxDecoration(color: goal.accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(14)),
                 child: Icon(Icons.flag_outlined, size: 20, color: goal.accent),
               ),
               const SizedBox(width: 12),
@@ -177,7 +177,7 @@ class _GoalCard extends StatelessWidget {
                   children: [
                     Text(goal.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
                     const SizedBox(height: 3),
-                    Text(goal.subtitle, style: const TextStyle(fontSize: 11.5, color: fStoneLight)),
+                    Text(goal.subtitle, style: const TextStyle(fontSize: 11.5, color: fStone)),
                   ],
                 ),
               ),
@@ -189,7 +189,7 @@ class _GoalCard extends StatelessWidget {
             children: [
               Container(
                 height: 10,
-                decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.circular(99)),
+                decoration: BoxDecoration(color: fClay, borderRadius: BorderRadius.circular(99)),
               ),
               FractionallySizedBox(
                 widthFactor: goal.progress.clamp(0.0, 1.0),
