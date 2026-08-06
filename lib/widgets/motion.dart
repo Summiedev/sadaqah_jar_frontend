@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/theme/app_theme.dart';
 
 /// Small, reusable motion primitives. All movement switches off when the
 /// platform asks for reduced motion.
@@ -50,7 +51,7 @@ class _FocusGlowState extends State<FocusGlow> {
     onFocusChange: (_) => setState(() {}),
     child: AnimatedContainer(
       duration: const Duration(milliseconds: 180), curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), boxShadow: _node.hasFocus && motionEnabled(context) ? const [BoxShadow(color: Color(0x338B6842), blurRadius: 18, spreadRadius: 1)] : const []),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(widget.radius), boxShadow: _node.hasFocus && motionEnabled(context) ? [BoxShadow(color: kBronze.withValues(alpha: 0.2), blurRadius: 18, spreadRadius: 1)] : []),
       child: widget.child,
     ),
   );

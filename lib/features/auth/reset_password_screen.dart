@@ -170,12 +170,18 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                     ],
                     const SizedBox(height: 16),
                     _loading
-                        ? const SizedBox(height: 48, child: DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white)))))
+                        ? SizedBox(
+                            height: 48,
+                            child: DecoratedBox(
+                              decoration: const BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))),
+                              child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Theme.of(context).colorScheme.onPrimary))),
+                            ),
+                          )
                         : ElevatedButton(
                             onPressed: _submit,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: kBronze,
-                              foregroundColor: Colors.white,
+                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                               elevation: 0,

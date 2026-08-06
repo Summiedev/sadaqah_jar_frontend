@@ -139,7 +139,7 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: kBronze, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  child: Text(evidence == null ? 'Create' : 'Save', style: const TextStyle(color: Colors.white)),
+                  child: Text(evidence == null ? 'Create' : 'Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
                 ),
               ],
             );
@@ -260,7 +260,7 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openForm(),
         backgroundColor: kBronze,
-        foregroundColor: Colors.white,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         child: const Icon(Icons.add),
       ),
     );

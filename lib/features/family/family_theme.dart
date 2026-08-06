@@ -28,7 +28,7 @@ const Color fStone = kMuted;
 const Color fStoneLight = kMutedLight;
 const Color fStonePale = kStonePale;
 const Color fWhite = kWhite;
-const Color fShadow = Color(0x0D000000);
+const Color fShadow = Colors.black12;
 const Color fShadowWarm = Color(0x1A8B6842);
 
 const EdgeInsets fScreenPad = EdgeInsets.fromLTRB(20, 10, 20, 20);
@@ -118,7 +118,7 @@ class MizanAvatar extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
+        decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: accent.withValues(alpha: 0.14),
         border: Border.all(color: ring, width: contributed && showRing ? 2 : 1.2),
@@ -549,7 +549,7 @@ class _FamilyJarPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: const [Color(0xFFE8D8C7), Color(0xFFD9C4AF), Color(0xFFC9B09A)],
+        colors: const [kClayLight, kClay, kBronzeLight],
         stops: const [0.0, 0.5, 1.0],
       ).createShader(Rect.fromLTWH(cx - 60 * s, cy - 80 * s, 120 * s, 160 * s));
     canvas.drawPath(jarPath, bodyPaint);
@@ -567,12 +567,12 @@ class _FamilyJarPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            fBronzeLight.withValues(alpha: 0.05),
-            fBronzeLight.withValues(alpha: 0.28),
-            fBronze.withValues(alpha: 0.42),
-          ],
+              fBronzeLight.withValues(alpha: 0.05),
+              fBronzeLight.withValues(alpha: 0.28),
+              fBronze.withValues(alpha: 0.42),
+            ],
           stops: const [0.0, 0.5, 1.0],
-        ).createShader(Rect.fromLTRB(cx - 60 * s, lightTop, cx + 60 * s, innerBottom));
+          ).createShader(Rect.fromLTRB(cx - 60 * s, lightTop, cx + 60 * s, innerBottom));
       canvas.drawRect(Rect.fromLTRB(cx - 60 * s, lightTop, cx + 60 * s, innerBottom), lightPaint);
 
       // Floating specks of light within the glow
@@ -600,7 +600,7 @@ class _FamilyJarPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: const [Color(0xFFD4BFA8), Color(0xFFC4AD94), Color(0xFFB89E84)],
+        colors: const [kClayLight, kClay, kClayPale],
       ).createShader(Rect.fromLTWH(cx - 42 * s, cy - 86 * s, 84 * s, 16 * s));
     canvas.drawPath(
       Path()
@@ -614,7 +614,7 @@ class _FamilyJarPainter extends CustomPainter {
     // Inner opening (dark)
     canvas.drawOval(
       Rect.fromCenter(center: Offset(cx, cy - 80 * s), width: 60 * s, height: 10 * s),
-      Paint()..color = const Color(0xFF8B7A6A),
+      Paint()..color = kBronzeLight,
     );
 
     // Decorative bands

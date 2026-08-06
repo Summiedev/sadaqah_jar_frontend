@@ -18,8 +18,9 @@ class InvitationsScreen extends StatefulWidget {
 
 class _InvitationsScreenState extends State<InvitationsScreen> with SingleTickerProviderStateMixin {
   late final TabController _tab;
-  final List<String> _pending = [...pendingRequests];
+  final List<String> _pending = [];
   FamilyJar? _selectedJar;
+
   String? _createdRoomName;
   String? _createdInviteCode;
   bool _creatingRoom = false;

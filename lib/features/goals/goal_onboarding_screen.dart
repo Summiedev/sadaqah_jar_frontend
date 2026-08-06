@@ -63,11 +63,16 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
         month: month,
       );
     } catch (e) {
+      // On failure, keep the user on the onboarding screen so they can
+      // retry. Do NOT mark goal setup complete or navigate away — that
+      // would strand the user with no goal actually created.
       if (mounted) {
+        setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not save goal: $e'), backgroundColor: kDanger),
         );
       }
+      return;
     }
 
     await ref.read(sessionProvider).completeGoalSetup();
@@ -76,6 +81,7 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
       context.go('/home');
     }
   }
+
 
   Future<void> _skip() async {
     setState(() => _skipped = true);
@@ -316,8 +322,8 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
                             child: _saving
-                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                                : const Text('Begin with this intention', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
+                              : const Text('Begin with this intention', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                           ),
                         ),
                       ),
@@ -335,58 +341,69 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
   Future<void> _showCustomGoalDialog() async {
     final titleController = TextEditingController();
     final targetController = TextEditingController(text: '10');
+    String? targetError;
 
     final _ = await showDialog<bool>(
       context: context,
-      builder: (ctx) => DialogFadeScale(
-        child: AlertDialog(
-          backgroundColor: kSurface,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-          title: const Text('Custom goal', style: TextStyle(fontFamily: 'Georgia', fontSize: 19, fontWeight: FontWeight.w700, color: kInk)),
-          content: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(
-              controller: titleController,
-              decoration: const InputDecoration(
-                labelText: 'What is your intention?',
-                hintText: 'e.g. Pray 5 daily prayers',
-                filled: true,
-                fillColor: kPaper,
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => DialogFadeScale(
+          child: AlertDialog(
+            backgroundColor: kSurface,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            title: const Text('Custom goal', style: TextStyle(fontFamily: 'Georgia', fontSize: 19, fontWeight: FontWeight.w700, color: kInk)),
+            content: Column(mainAxisSize: MainAxisSize.min, children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(
+                  labelText: 'What is your intention?',
+                  hintText: 'e.g. Pray 5 daily prayers',
+                  filled: true,
+                  fillColor: kPaper,
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: targetController,
-              decoration: const InputDecoration(
-                labelText: 'Target count',
-                hintText: 'e.g. 30',
-                filled: true,
-                fillColor: kPaper,
-                border: OutlineInputBorder(),
+              const SizedBox(height: 12),
+              TextField(
+                controller: targetController,
+                decoration: InputDecoration(
+                  labelText: 'Target count',
+                  hintText: 'e.g. 30',
+                  filled: true,
+                  fillColor: kPaper,
+                  border: const OutlineInputBorder(),
+                  errorText: targetError,
+                ),
+                keyboardType: TextInputType.number,
               ),
-              keyboardType: TextInputType.number,
-            ),
-          ]),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel', style: TextStyle(color: kMuted)),
-            ),
-            FilledButton(
-              onPressed: () {
-                final title = titleController.text.trim();
-                final target = int.tryParse(targetController.text.trim()) ?? 10;
-              if (title.isEmpty) return;
-              Navigator.pop(ctx, true);
-              _saveCustomGoal(title, target);
-            },
-            style: FilledButton.styleFrom(backgroundColor: kBronze),
-            child: const Text('Set goal'),
+            ]),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel', style: TextStyle(color: kMuted)),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final title = titleController.text.trim();
+                  final rawTarget = targetController.text.trim();
+                  final target = int.tryParse(rawTarget);
+                  if (target == null || target < 1 || target > 10000) {
+                    setDialogState(() {
+                      targetError = 'Enter a number between 1 and 10,000';
+                    });
+                    return;
+                  }
+                  if (title.isEmpty) return;
+                  Navigator.pop(ctx, true);
+                  _saveCustomGoal(title, target);
+                },
+                style: FilledButton.styleFrom(backgroundColor: kBronze),
+                child: const Text('Set goal'),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
-    ),
-  );
+    );
   }
 
   Future<void> _saveCustomGoal(String title, int target) async {
@@ -401,11 +418,15 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
         month: month,
       );
     } catch (e) {
+      // On failure, keep the user on the onboarding screen so they can
+      // retry. Do NOT mark goal setup complete or navigate away.
       if (mounted) {
+        setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not save goal: $e'), backgroundColor: kDanger),
         );
       }
+      return;
     }
 
     await ref.read(sessionProvider).completeGoalSetup();
@@ -415,3 +436,5 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
     }
   }
 }
+
+

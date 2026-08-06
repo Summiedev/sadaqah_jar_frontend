@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -17,11 +18,46 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
   late Future<List<BookChapterRead>> _future;
   int _selectedIndex = 0;
   BookChapterRead? _currentChapter;
+  bool _bookmarked = false;
 
   @override
   void initState() {
     super.initState();
     _future = BackendApi.instance.getBookChapters(widget.book.id);
+    _checkBookmark();
+  }
+
+  Future<void> _checkBookmark() async {
+    try {
+      final bookmarks = await BackendApi.instance.getBookmarks();
+      final isBookmarked = bookmarks.any((b) => b['book_id'] == widget.book.id);
+      if (mounted) {
+        setState(() => _bookmarked = isBookmarked);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _toggleBookmark() async {
+    try {
+      if (_bookmarked) {
+        await BackendApi.instance.unbookmarkBook(bookId: widget.book.id);
+        if (mounted) setState(() => _bookmarked = false);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bookmark removed'), behavior: SnackBarBehavior.floating));
+        }
+      } else {
+        final chapterNumber = _currentChapter?.chapterNumber;
+        await BackendApi.instance.bookmarkBook(bookId: widget.book.id, chapterNumber: chapterNumber);
+        if (mounted) setState(() => _bookmarked = true);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bookmark saved'), behavior: SnackBarBehavior.floating));
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save bookmark: $e'), backgroundColor: kDanger));
+      }
+    }
   }
 
   @override
@@ -38,10 +74,11 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         title: Text(widget.book.title, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
         actions: [
           IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bookmark saved'), behavior: SnackBarBehavior.floating));
-            },
-            icon: const Icon(Icons.bookmark_border_rounded, color: kBronze),
+            onPressed: _toggleBookmark,
+            icon: Icon(
+              _bookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+              color: kBronze,
+            ),
             tooltip: 'Bookmark',
           ),
           const SizedBox(width: 8),

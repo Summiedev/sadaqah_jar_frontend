@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'after_salah_adhkar_data.dart';
 
@@ -52,7 +53,7 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
               final hasTransliteration = _showTransliteration && dua.transliteration.isNotEmpty;
 
               return Material(
-                color: const Color(0xFFFFFBF6),
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(22),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
@@ -62,7 +63,7 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
                       if (dua.commonName != null && dua.commonName!.isNotEmpty) ...[
                         Text(
                           dua.commonName!,
-                          style: const TextStyle(color: Color(0xFF8B6842), fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.4),
+                          style: const TextStyle(color: kBronze, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.4),
                         ),
                         const SizedBox(height: 8),
                       ],
@@ -71,39 +72,39 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
                           dua.arabic,
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.right,
-                          style: const TextStyle(color: Color(0xFF30241E), fontSize: 24, height: 1.7),
+                          style: const TextStyle(color: kInk, fontSize: 24, height: 1.7),
                         ),
                       if (hasTransliteration) ...[
                         const SizedBox(height: 10),
-                        Text(dua.transliteration, style: const TextStyle(color: Color(0xFF92704B), fontFamily: 'Georgia', fontStyle: FontStyle.italic, fontSize: 15, height: 1.5)),
+                        Text(dua.transliteration, style: const TextStyle(color: kBronzeLight, fontFamily: 'Georgia', fontStyle: FontStyle.italic, fontSize: 15, height: 1.5)),
                       ],
                       if (hasTranslation) ...[
                         const SizedBox(height: 6),
-                        Text(dua.translation, style: const TextStyle(color: Color(0xFF756457), height: 1.55, fontSize: 14.5)),
+                        Text(dua.translation, style: const TextStyle(color: kMuted, height: 1.55, fontSize: 14.5)),
                       ],
                       if (dua.notes != null && dua.notes!.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.info_outline_rounded, size: 15, color: Color(0xFF8B6842)),
+                            const Icon(Icons.info_outline_rounded, size: 15, color: kBronze),
                             const SizedBox(width: 6),
-                            Expanded(child: Text(dua.notes!, style: const TextStyle(color: Color(0xFF8B6842), fontSize: 12.5, height: 1.45))),
+                            Expanded(child: Text(dua.notes!, style: const TextStyle(color: kBronze, fontSize: 12.5, height: 1.45))),
                           ],
                         ),
                       ],
                       const SizedBox(height: 10),
                       Text(
                         dua.source,
-                        style: const TextStyle(color: Color(0xFF8F7B6B), fontSize: 11, fontStyle: FontStyle.italic, height: 1.4),
+                        style: const TextStyle(color: kMutedLight, fontSize: 11, fontStyle: FontStyle.italic, height: 1.4),
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(99)),
-                            child: Text(dua.repetition, style: const TextStyle(color: Color(0xFF8B6842), fontSize: 11.5, fontWeight: FontWeight.w700)),
+                            decoration: BoxDecoration(color: kIvory, borderRadius: BorderRadius.circular(99)),
+                              child: Text(dua.repetition, style: const TextStyle(color: kBronze, fontSize: 11.5, fontWeight: FontWeight.w700)),
                           ),
                           const Spacer(),
                           if (count > 0)
@@ -111,7 +112,7 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
                           else
                             IconButton(
                               onPressed: () => setState(() => _counts[dua.id] = 1),
-                              icon: const Icon(Icons.add_circle_outline_rounded, color: Color(0xFF8B6842)),
+                              icon: const Icon(Icons.add_circle_outline_rounded, color: kBronze),
                               tooltip: 'Start counting',
                             ),
                           const SizedBox(width: 6),
@@ -119,7 +120,7 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
                             onPressed: () {
                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio playback is coming soon.')));
                             },
-                            icon: const Icon(Icons.volume_up_outlined, color: Color(0xFF8B6842)),
+                            icon: const Icon(Icons.volume_up_outlined, color: kBronze),
                             tooltip: 'Play audio',
                           ),
                         ],
@@ -148,22 +149,22 @@ class _ToggleChip extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(99),
-      child: AnimatedContainer(
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFF8B6842) : const Color(0xFFF0E3D4),
+          color: active ? kBronze : kIvory,
           borderRadius: BorderRadius.circular(99),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: active ? Colors.white : const Color(0xFF8B6842)),
+            Icon(icon, size: 16, color: active ? Theme.of(context).colorScheme.onPrimary : kBronze),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: active ? Colors.white : const Color(0xFF8B6842),
+                color: active ? Theme.of(context).colorScheme.onPrimary : kBronze,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -185,16 +186,16 @@ class _Counter extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(99),
-      child: AnimatedContainer(
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: value > 0 ? const Color(0xFFDCE7D8) : const Color(0xFFF0E3D4),
+          color: value > 0 ? kSoftSage : kIvory,
           borderRadius: BorderRadius.circular(99),
         ),
         child: Text(
           '$value',
-          style: const TextStyle(color: Color(0xFF8B6842), fontWeight: FontWeight.w700),
+          style: const TextStyle(color: kBronze, fontWeight: FontWeight.w700),
         ),
       ),
     );

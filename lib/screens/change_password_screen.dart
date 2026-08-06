@@ -192,8 +192,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         ),
                         onPressed: _loading ? null : _changePassword,
                         child: _loading
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : const Text('Change password', style: TextStyle(fontSize: 15, color: Colors.white, fontWeight: FontWeight.w700)),
+                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
+                          : Text('Change password', style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w700)),
                       ),
                     ),
                   ],

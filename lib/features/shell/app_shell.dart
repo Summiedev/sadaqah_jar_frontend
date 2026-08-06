@@ -5,12 +5,17 @@ import 'package:go_router/go_router.dart';
 import '../../core/mode_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/animations.dart';
+import '../../core/act_store.dart';
+import '../../services/streak_progress_widget_service.dart';
+import '../../services/connectivity_service.dart';
+import '../../services/queue_sync_service.dart';
 import '../../widgets/motion.dart';
 import '../home/home_screen.dart';
 import '../home/add_act_screen.dart';
 import '../journey/journey_screen.dart';
 import '../family/family_screen.dart';
 import '../profile/profile_screen.dart';
+import '../qibla/qibla_screen.dart';
 
 /// Page indices are stable so the PageView controller never has to be recreated
 /// when the visible tab set changes with the mode.
@@ -18,6 +23,7 @@ const int _kHome = 0;
 const int _kJourney = 1;
 const int _kFamily = 2;
 const int _kProfile = 3;
+const int _kQibla = 4;
 
 class _NavDef {
   const _NavDef(this.page, this.icon, this.selectedIcon, this.label, this.location);
@@ -44,12 +50,21 @@ class _AppShellState extends ConsumerState<AppShell> {
     JourneyScreen(),
     FamilyScreen(),
     ProfileScreen(),
+    QiblaScreen(),
   ];
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final store = ref.read(actStoreProvider);
+        StreakProgressWidgetService.instance.update(store);
+        ConnectivityService.instance.initialize(ref);
+        QueueSyncService.instance.attemptSync();
+      }
+    });
   }
 
   @override
@@ -59,15 +74,20 @@ class _AppShellState extends ConsumerState<AppShell> {
     if (_pageController.hasClients) {
       _pageController.jumpToPage(_index);
     }
+    final store = ref.read(actStoreProvider);
+    StreakProgressWidgetService.instance.update(store);
   }
 
   @override
   void dispose() {
+    ConnectivityService.instance.dispose();
+    QueueSyncService.instance.dispose();
     _pageController.dispose();
     super.dispose();
   }
 
   int _indexFromLocation(String location) {
+    if (location.startsWith('/qibla')) return _kQibla;
     if (location.startsWith('/journey')) return _kJourney;
     if (location.startsWith('/family')) return _kFamily;
     if (location.startsWith('/profile')) return _kProfile;
@@ -94,6 +114,7 @@ class _AppShellState extends ConsumerState<AppShell> {
           _NavDef(_kJourney, Icons.route_outlined, Icons.route, 'Journey', '/journey'),
           _NavDef(_kFamily, Icons.groups_outlined, Icons.groups, 'Family', '/family'),
           _NavDef(_kProfile, Icons.person_outline, Icons.person, 'Profile', '/profile'),
+          _NavDef(_kQibla, Icons.explore_outlined, Icons.explore, 'Qibla', '/qibla'),
         ];
     }
   }
@@ -107,46 +128,48 @@ class _AppShellState extends ConsumerState<AppShell> {
     context.go(tab.location);
   }
 
-  @override
+@override
   Widget build(BuildContext context) {
     final mode = ref.watch(modeProvider);
     final tabs = _visibleTabs(mode);
     final isScrolled = ref.watch(isScrolledProvider);
 
-return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (_index != _kHome) {
-          final home = tabs.firstWhere((tab) => tab.page == _kHome, orElse: () => tabs.first);
-          _goTo(home);
-          return;
-        }
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const Text('You are already on your home screen.')));
-      },
-      child: Scaffold(
-        body: PageView(
-          controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(),
-          onPageChanged: (i) => setState(() => _index = i),
-          children: _pages.map((p) => _KeepAlivePage(key: ValueKey(p.runtimeType), child: p)).toList(),
-        ),
-        bottomNavigationBar: BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 8,
-          height: 82,
-          elevation: 0,
-          color: isScrolled ? kClayLight : kSurface,
-          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-          child: _DockedNavBar(
-            tabs: tabs,
-            selectedPage: _index,
-            onTap: _goTo,
-            onAdd: () => AddActScreen.show(context),
-          ),
-        ),
-      ),
-    );
+  return PopScope(
+       canPop: false,
+       onPopInvokedWithResult: (didPop, _) {
+         if (didPop) return;
+         if (_index != _kHome) {
+           final home = tabs.firstWhere((tab) => tab.page == _kHome, orElse: () => tabs.first);
+           _goTo(home);
+           return;
+         }
+         ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const Text('You are already on your home screen.')));
+       },
+       child: Scaffold(
+         body: PageView(
+           controller: _pageController,
+           physics: const NeverScrollableScrollPhysics(),
+           onPageChanged: (i) => setState(() => _index = i),
+           children: _pages.map((p) => _KeepAlivePage(key: ValueKey(p.runtimeType), child: p)).toList(),
+         ),
+         bottomNavigationBar: BottomAppBar(
+           shape: const CircularNotchedRectangle(),
+           notchMargin: 8,
+           height: 82,
+           elevation: 0,
+           color: Theme.of(context).brightness == Brightness.dark
+               ? (isScrolled ? kElevatedDark : kSurfaceDark)
+               : (isScrolled ? kClayPale : kSurface),
+           padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+           child: _DockedNavBar(
+             tabs: tabs,
+             selectedPage: _index,
+             onTap: _goTo,
+             onAdd: () => AddActScreen.show(context),
+           ),
+         ),
+       ),
+     );
   }
 }
 
@@ -159,23 +182,18 @@ class _DockedNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tabs.length == 4) {
+    if (onAdd != null) {
       final left = tabs.take(2);
       final right = tabs.skip(2);
       return Row(children: [
         for (final tab in left) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
-        if (onAdd != null) _DockedAddButton(onAdd: onAdd!),
+        _DockedAddButton(onAdd: onAdd!),
         const SizedBox(width: 16),
         for (final tab in right) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
       ]);
     }
     return Row(children: [
       for (final tab in tabs) Expanded(child: _DockedNavItem(tab: tab, selected: tab.page == selectedPage, onTap: () => onTap(tab))),
-      if (onAdd != null) ...[
-        const SizedBox(width: 8),
-        _DockedAddButton(onAdd: onAdd!),
-        const SizedBox(width: 8),
-      ],
     ]);
   }
 }
@@ -189,11 +207,11 @@ class _DockedAddButton extends StatelessWidget {
     return PressableSpring(
       scale: .92,
       onTap: onAdd,
-      child: Container(
+        child: Container(
         width: 44,
         height: 44,
         decoration: const BoxDecoration(color: kBronze, shape: BoxShape.circle),
-        child: const Icon(Icons.add_rounded, color: Colors.white, size: 22),
+        child: Icon(Icons.add_rounded, color: Theme.of(context).colorScheme.onPrimary, size: 22),
       ),
     );
   }
@@ -207,7 +225,8 @@ class _DockedNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? kBronze : kMutedLight;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final color = selected ? (dark ? kBronzeDarkMode : kBronze) : (dark ? kMutedDark : kMutedLight);
     return Semantics(
       selected: selected,
       button: true,
@@ -218,10 +237,10 @@ class _DockedNavItem extends StatelessWidget {
         child: PressableSpring(
           onTap: onTap,
           scale: .96,
-          child: AnimatedContainer(
+            child: AnimatedContainer(
             duration: MizanMotion.fast,
             padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 4),
-            decoration: BoxDecoration(color: selected ? const Color(0x148B6842) : Colors.transparent, borderRadius: BorderRadius.circular(18)),
+            decoration: BoxDecoration(color: selected ? (dark ? color.withValues(alpha: 0.16) : color.withValues(alpha: 0.08)) : Colors.transparent, borderRadius: BorderRadius.circular(18)),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
               AnimatedScale(
                 duration: MizanMotion.normal,

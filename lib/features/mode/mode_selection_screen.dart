@@ -31,7 +31,7 @@ class _ModeSelectionScreenState extends ConsumerState<ModeSelectionScreen> {
   Widget build(BuildContext context) {
     final modes = [kModePersonal, kModeFamily, kModeBoth];
     return Scaffold(
-      backgroundColor: kPaper,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
@@ -89,10 +89,10 @@ class _Header extends StatelessWidget {
           style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: kInk, height: 1.25, letterSpacing: -0.4),
         ),
         const SizedBox(height: 12),
-        const Text(
-          'Choose what fits today. You can change it later.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, height: 1.55, color: Color(0xCC4E3629)),
+            Text(
+              'Choose what fits today. You can change it later.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, height: 1.55, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8)),
         ),
       ],
     );
@@ -113,12 +113,12 @@ class _ModeCard extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-        color: selected ? accent.withValues(alpha: 0.06) : Colors.white,
+            color: selected ? accent.withValues(alpha: 0.06) : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: selected ? accent : kClayLight, width: selected ? 1.8 : 1),
         boxShadow: [
           BoxShadow(
-            color: selected ? accent.withValues(alpha: 0.16) : const Color(0x11000000),
+                color: selected ? accent.withValues(alpha: 0.16) : kLine.withValues(alpha: 0.07),
             blurRadius: selected ? 22 : 10,
             offset: const Offset(0, 8),
           ),
@@ -137,7 +137,7 @@ class _ModeCard extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
+                        color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Icon(meta.icon, size: 28, color: accent),
@@ -163,7 +163,7 @@ class _ModeCard extends StatelessWidget {
                     color: selected ? accent : Colors.transparent,
                     border: Border.all(color: accent, width: 1.6),
                   ),
-                  child: selected ? const Icon(Icons.check, size: 15, color: Colors.white) : null,
+                  child: selected ? Icon(Icons.check, size: 15, color: Theme.of(context).colorScheme.onPrimary) : null,
                 ),
               ],
             ),

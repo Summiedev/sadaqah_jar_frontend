@@ -13,9 +13,18 @@ final sessionProvider = ChangeNotifierProvider<SessionController>((ref) {
 });
 
 class SessionController extends ChangeNotifier {
+  SessionController() {
+    // When any authenticated request exhausts its refresh/retry and the
+    // session can't be restored, BackendApi invokes this callback so the app
+    // can drop back to the anonymous state (which the router redirects to
+    // /auth). Registered once for the lifetime of the singleton API.
+    BackendApi.instance.onSessionExpired = handleSessionExpired;
+  }
+
   SessionStatus _status = SessionStatus.loading;
   bool _onboardingComplete = false;
   bool _goalSetupComplete = false;
+
 
   SessionStatus get status => _status;
   bool get onboardingComplete => _onboardingComplete;
@@ -58,9 +67,27 @@ class SessionController extends ChangeNotifier {
 
   void markAuthenticated() {
     _status = SessionStatus.authenticated;
+    // A fresh session was just established via login/register — re-arm the
+    // API's one-shot expiry guard so a later expiry can notify again.
+    BackendApi.instance.resetSessionExpiredFlag();
     SharedPreferences.getInstance().then((prefs) => prefs.setBool('mizan.local.session', true));
     notifyListeners();
   }
+
+  /// Invoked by [BackendApi] when the session can no longer be refreshed.
+  /// Clears the persisted local-session marker and drops to the anonymous
+  /// state; the app router then redirects the user to the auth screen. Safe to
+  /// call when already anonymous (no-op).
+  Future<void> handleSessionExpired() async {
+    if (_status == SessionStatus.anonymous) {
+      return;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('mizan.local.session');
+    _status = SessionStatus.anonymous;
+    notifyListeners();
+  }
+
 
   Future<void> signOut() async {
     try {

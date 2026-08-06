@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/backend_api.dart';
+import '../../core/theme/app_theme.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
@@ -324,7 +325,7 @@ class _Action extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = danger ? const Color(0xFFA8554E) : fStone;
+    final color = danger ? kDanger : fStone;
     return Semantics(
       button: true,
       label: label,

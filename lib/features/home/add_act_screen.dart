@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../core/animations.dart';
-import '../../services/backend_api.dart';
 import '../../core/act_store.dart';
+import '../../services/offline_action_queue.dart';
+import '../../services/queue_sync_service.dart';
 
 class AddActScreen extends ConsumerStatefulWidget {
   const AddActScreen({this.familyId, super.key});
@@ -15,14 +17,15 @@ class AddActScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<AddActScreen> createState() => _AddActScreenState();
 
-  static void show(BuildContext context, {int? familyId}) {
-    showModalBottomSheet<void>(
+  static Future<bool> show(BuildContext context, {int? familyId}) async {
+    final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (context) => AddActScreen(familyId: familyId),
     );
+    return result ?? false;
   }
 }
 
@@ -30,6 +33,8 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
   String? _selected;
   final _note = TextEditingController();
   bool _saved = false;
+  bool _saving = false;
+  String? _error;
 
   static const _acts = [
     ('Money', Icons.volunteer_activism_outlined),
@@ -85,33 +90,72 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
   }
 
   Future<void> _save() async {
-    if (_selected == null) return;
+    if (_selected == null || _saving) return;
     HapticFeedback.mediumImpact();
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    final type = _selected!;
+    final note = _note.text.trim();
+
+    final localId = 'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000).toString().padLeft(3, '0')}';
+    final payload = <String, dynamic>{
+      'type': type,
+      'note': note,
+    };
+    if (widget.familyId != null) {
+      payload['family_id'] = widget.familyId!;
+    }
+
+    final queueItem = OfflineQueueItem(
+      id: localId,
+      actionType: widget.familyId != null ? ActionType.addFamilyAct : ActionType.addJarStar,
+      payload: payload,
+      createdAt: DateTime.now(),
+    );
+
+    // Offline-first: the act counts locally the instant it's added, whether the
+    // device is online or not. We do NOT block the user on the network. The act
+    // is then handed to a durable queue that syncs to the server in the
+    // background and retries on its own. A network/server failure must never
+    // lose the act or surface a scary error — from the user's side, adding to
+    // their jar always succeeds.
     try {
-      if (widget.familyId != null) {
-        await BackendApi.instance.addFamilyAct(widget.familyId!);
+      if (widget.familyId == null) {
+        // Try the fast path: add remotely. If it fails (offline or server),
+        // fall back to offline-first behaviour by recording locally and
+        // enqueuing for background sync so the UI never blocks.
+        try {
+          await ref.read(actStoreProvider).addRemote(type: type, note: note, requestId: localId);
+        } catch (_) {
+          await ref.read(actStoreProvider).add(type: type, note: note);
+          await QueueSyncService.instance.enqueueAndSync(queueItem);
+        }
       } else {
-        await BackendApi.instance.addJarStar(type: _selected!, note: _note.text.trim());
+        await ref.read(actStoreProvider).add(type: type, note: note);
+        await QueueSyncService.instance.enqueueAndSync(queueItem);
       }
       if (!mounted) return;
-      ref.read(actStoreProvider).add(type: _selected!, note: _note.text.trim());
-      setState(() => _saved = true);
-    } on BackendApiException catch (e) {
+      setState(() {
+        _saved = true;
+        _saving = false;
+      });
+    } catch (_) {
       if (!mounted) return;
-      final msg = e.message.contains('too quickly')
-          ? 'Take a moment — you\'re all caught up for now.'
-          : e.message;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: kDanger));
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Something went wrong. Please try again.'), backgroundColor: kDanger));
+      setState(() {
+        _saving = false;
+        _error = 'Could not save to the server. Please try again.';
+      });
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
     return _saved
-        ? _Success(onDone: () => Navigator.pop(context))
+        ? const _Success()
         : FadeScaleTransition(
             beginScale: 0.95,
             child: DraggableScrollableSheet(
@@ -237,13 +281,19 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                   switchOutCurve: MizanMotion.gentle,
                                   child: _PreviewLine(selected: _selected),
                                 ),
+                                if (_error != null) ...[
+                                  const SizedBox(height: 10),
+                                  Text(_error!, style: const TextStyle(color: kDanger, fontSize: 13, fontWeight: FontWeight.w700)),
+                                ],
                                 const SizedBox(height: 20),
                                 SizedBox(
                                   width: double.infinity,
                                   child: FilledButton.icon(
-                                    onPressed: _selected == null ? null : _save,
-                                    icon: const Icon(Icons.add_circle_outline_rounded),
-                                    label: const Text('Add to my jar'),
+                                    onPressed: (_selected == null || _saving) ? null : _save,
+                                    icon: _saving
+                                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
+                                      : const Icon(Icons.add_circle_outline_rounded),
+                                    label: Text(_saving ? 'Saving...' : 'Add to my jar'),
                                   ),
                                 ),
                                 const SizedBox(height: 8),
@@ -508,8 +558,7 @@ class _SuggestionCard extends StatelessWidget {
 }
 
 class _Success extends StatelessWidget {
-  const _Success({required this.onDone});
-  final VoidCallback onDone;
+  const _Success();
 
   @override
   Widget build(BuildContext context) {
@@ -537,10 +586,25 @@ class _Success extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: kMuted, height: 1.45),
             ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.cloud_upload_rounded, size: 16, color: kBronze.withValues(alpha: 0.7)),
+                const SizedBox(width: 6),
+                Text(
+                  'Saved locally — will sync when online',
+                  style: TextStyle(color: kMuted.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
-              child: FilledButton(onPressed: onDone, child: const Text('Back to my jar')),
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Back to my jar'),
+              ),
             ),
           ],
         ),

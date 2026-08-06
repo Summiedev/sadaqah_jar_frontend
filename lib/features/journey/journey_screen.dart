@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -40,8 +41,9 @@ class _JourneyScreenState extends State<JourneyScreen>
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: kIvory,
+      backgroundColor: dark ? kScaffoldDark : kIvory,
       body: NestedScrollView(
         physics: const BouncingScrollPhysics(),
         headerSliverBuilder: (context, _) => [
@@ -50,8 +52,8 @@ class _JourneyScreenState extends State<JourneyScreen>
             floating: false,
             toolbarHeight: 64,
             elevation: 0,
-            backgroundColor: const Color(0xFFE8DCC8),
-            foregroundColor: kInk,
+            backgroundColor: dark ? kSurfaceDark : kClayLight,
+            foregroundColor: dark ? kInkDark : kInk,
             surfaceTintColor: Colors.transparent,
             expandedHeight: 64,
             collapsedHeight: 64,
@@ -82,9 +84,9 @@ class _JourneyScreenState extends State<JourneyScreen>
           ),
           SliverPersistentHeader(
             pinned: true,
-            delegate: _PinnedHeader(
+              delegate: _PinnedHeader(
               child: ColoredBox(
-                color: const Color(0xFFE8DCC8),
+                color: dark ? kSurfaceDark : kClayLight,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
                   child: _JourneySegments(controller: _tabsController, labels: _tabs),
@@ -116,9 +118,11 @@ class _JourneySegments extends StatelessWidget {
   final TabController controller;
   final List<String> labels;
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
         height: 46,
-        decoration: BoxDecoration(color: kSoftBronze, borderRadius: BorderRadius.circular(16), border: Border.all(color: kLine)),
+        decoration: BoxDecoration(color: dark ? kElevatedDark : kSoftBronze, borderRadius: BorderRadius.circular(16), border: Border.all(color: dark ? kLineDark : kLine)),
         child: TabBar(
           controller: controller,
           isScrollable: true,
@@ -126,13 +130,14 @@ class _JourneySegments extends StatelessWidget {
           padding: const EdgeInsets.all(4),
           dividerColor: Colors.transparent,
           indicatorSize: TabBarIndicatorSize.tab,
-          indicator: BoxDecoration(color: kPaper, borderRadius: BorderRadius.circular(12), boxShadow: const [BoxShadow(color: Color(0x12000000), blurRadius: 5, offset: Offset(0, 2))]),
-          labelColor: kInk,
-          unselectedLabelColor: kMuted,
+          indicator: BoxDecoration(color: dark ? kSurfaceDark : kPaper, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: dark ? Colors.black12 : Colors.black.withValues(alpha: 0.07), blurRadius: 5, offset: Offset(0, 2))]),
+          labelColor: dark ? kInkDark : kInk,
+          unselectedLabelColor: dark ? kMutedDark : kMuted,
           labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
           tabs: labels.map((label) => Tab(height: 38, text: label)).toList(),
         ),
       );
+  }
 }
 
 class _ReflectionsTab extends StatefulWidget {
@@ -174,11 +179,11 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842))));
+      return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze)));
     }
     if (_error != null && _items.isEmpty) {
       return Center(child: Column(children: [
-        const Icon(Icons.wifi_off_rounded, size: 36, color: Color(0xFF8B6842)),
+        const Icon(Icons.wifi_off_rounded, size: 36, color: kBronze),
         const SizedBox(height: 16),
         Text('Could not load reflections', style: TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
         const SizedBox(height: 8),
@@ -280,7 +285,7 @@ class _Pill extends StatelessWidget {
   final VoidCallback? onTap;
   final bool? selected;
   @override Widget build(BuildContext context) {
-    final effectiveColor = selected == true ? color.withOpacity(0.25) : color;
+    final effectiveColor = selected == true ? color.withValues(alpha: 0.25) : color;
     final child = Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: effectiveColor, borderRadius: BorderRadius.circular(99)), child: Text(text, style: TextStyle(color: textColor, fontSize: 11, fontWeight: FontWeight.w700)));
     if (onTap != null) {
       return Material(color: Colors.transparent, child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(99), child: child));
@@ -295,7 +300,7 @@ class _ComposeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => FloatingActionButton(
         backgroundColor: kBronze,
-        foregroundColor: Colors.white,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         tooltip: 'Write reflection',
         onPressed: onTap,
         child: const Icon(Icons.edit_outlined),
@@ -504,11 +509,11 @@ class _SavedTabState extends State<_SavedTab> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842))));
+          return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze)));
         }
         if (snapshot.hasError) {
           return Center(child: Column(children: [
-            const Icon(Icons.wifi_off_rounded, size: 36, color: Color(0xFF8B6842)),
+            const Icon(Icons.wifi_off_rounded, size: 36, color: kBronze),
             const SizedBox(height: 16),
             Text('Could not load saved items', style: TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
             const SizedBox(height: 8),
@@ -571,11 +576,11 @@ class _HistorialTabState extends State<_HistorialTab> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B6842))));
+          return const Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze)));
         }
         if (snapshot.hasError) {
           return Center(child: Column(children: [
-            const Icon(Icons.wifi_off_rounded, size: 36, color: Color(0xFF8B6842)),
+            const Icon(Icons.wifi_off_rounded, size: 36, color: kBronze),
             const SizedBox(height: 16),
             Text('Could not load history', style: TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
             const SizedBox(height: 8),
@@ -686,7 +691,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
           const SizedBox(height: 16),
           const Text('How are you feeling?', style: TextStyle(color: kInk, fontSize: 12, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
-          Row(children: [Expanded(child: _Pill('Grateful', color: kSoftSage, textColor: kSage, selected: _mood == 'Grateful', onTap: () => setState(() => _mood = 'Grateful'))), const SizedBox(width: 8), Expanded(child: _Pill('Peaceful', color: kSoftBronze, textColor: kBronze, selected: _mood == 'Peaceful', onTap: () => setState(() => _mood = 'Peaceful'))), const SizedBox(width: 8), Expanded(child: _Pill('Hopeful', color: const Color(0xFFE8D5C0), textColor: const Color(0xFF9E7B5A), selected: _mood == 'Hopeful', onTap: () => setState(() => _mood = 'Hopeful')))]),
+          Row(children: [Expanded(child: _Pill('Grateful', color: kSoftSage, textColor: kSage, selected: _mood == 'Grateful', onTap: () => setState(() => _mood = 'Grateful'))), const SizedBox(width: 8), Expanded(child: _Pill('Peaceful', color: kSoftBronze, textColor: kBronze, selected: _mood == 'Peaceful', onTap: () => setState(() => _mood = 'Peaceful'))), const SizedBox(width: 8), Expanded(child: _Pill('Hopeful', color: kClayLight, textColor: kBronzeLight, selected: _mood == 'Hopeful', onTap: () => setState(() => _mood = 'Hopeful')))]),
           const SizedBox(height: 16),
           Row(children: [Text('Share with family', style: TextStyle(color: kInk, fontSize: 13, fontWeight: FontWeight.w700)), const Spacer(), Switch(value: _shareWithFamily, onChanged: (v) => setState(() => _shareWithFamily = v))]),
           const SizedBox(height: 18),
@@ -695,7 +700,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
             child: FilledButton(
               onPressed: _saving ? null : _save,
               style: FilledButton.styleFrom(backgroundColor: kBronze),
-              child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)) : const Text('Save privately'),
+              child: _saving ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary)) : const Text('Save privately'),
             ),
           ),
         ],

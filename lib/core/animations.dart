@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'theme/app_theme.dart';
 
 /// Canonical motion tokens for Mizan.
 class MizanMotion {
@@ -39,10 +40,9 @@ class FadeScaleTransition extends StatelessWidget {
       duration: duration,
       curve: curve,
       builder: (context, scale, child) {
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0, end: 1).animate(
-            CurvedAnimation(parent: AlwaysStoppedAnimation(1.0), curve: curve),
-          ),
+        final opacity = ((scale - beginScale) / (1 - beginScale)).clamp(0.0, 1.0);
+        return Opacity(
+          opacity: opacity,
           child: Transform.scale(scale: scale, child: child),
         );
       },
@@ -51,6 +51,19 @@ class FadeScaleTransition extends StatelessWidget {
   }
 }
 
+/// Staggers a card's fade+rise entrance based on [index], without ever
+/// leaving it stuck below full opacity.
+///
+/// Implementation note: the delay must EXTEND the timeline, not eat into a
+/// fixed-length animation. A previous version computed
+/// `adjusted = (value - delayFactor).clamp(0, 1)` inside a single fixed
+/// `MizanMotion.slow` duration — since `value` only ever reaches 1.0 at the
+/// end of that same fixed window, higher-index cards could never actually
+/// reach full opacity (their ceiling was `1 - delayFactor`, which shrinks
+/// further for every subsequent index). This version runs the
+/// TweenAnimationBuilder over `delay + animation` and only starts easing in
+/// opacity once the delay portion has elapsed, so every card — regardless
+/// of index — reaches opacity 1.0, just later.
 class CardEntrance extends StatelessWidget {
   const CardEntrance({
     super.key,
@@ -66,13 +79,21 @@ class CardEntrance extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!MizanMotion.enabled(context)) return child;
+
+    final delayMs = index * delay.inMilliseconds;
+    final animMs = MizanMotion.slow.inMilliseconds;
+    final totalMs = delayMs + animMs;
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: MizanMotion.slow,
-      curve: MizanMotion.gentle,
-      builder: (context, value, child) {
-        final delayFactor = (index * delay.inMilliseconds) / MizanMotion.slow.inMilliseconds;
-        final adjusted = (value - delayFactor).clamp(0.0, 1.0);
+      // Timeline covers delay + animation, so later cards simply start
+      // later — they still reach full opacity, just after a pause.
+      duration: Duration(milliseconds: totalMs),
+      curve: Curves.linear,
+      builder: (context, timelineValue, child) {
+        final elapsedMs = timelineValue * totalMs;
+        final localProgress = ((elapsedMs - delayMs) / animMs).clamp(0.0, 1.0);
+        final adjusted = MizanMotion.gentle.transform(localProgress);
         return Opacity(
           opacity: adjusted,
           child: Transform.translate(
@@ -177,14 +198,10 @@ class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProvid
           height: widget.height,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(widget.radius),
-            gradient: LinearGradient(
+              gradient: LinearGradient(
               begin: Alignment(_shimmer.value - 1, 0),
               end: Alignment(_shimmer.value, 0),
-              colors: const [
-                Color(0xFFF3E9DE),
-                Color(0xFFFAF6F0),
-                Color(0xFFF3E9DE),
-              ],
+              colors: const [kClayPale, kPaper, kClayPale],
             ),
           ),
         );
@@ -230,7 +247,7 @@ class _SuccessCheckState extends State<SuccessCheck> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.color ?? const Color(0xFF58705C);
+    final color = widget.color ?? kSage;
     return AnimatedBuilder(
       animation: _scale,
       builder: (context, child) {
@@ -319,8 +336,9 @@ class DialogFadeScale extends StatelessWidget {
       duration: duration,
       curve: MizanMotion.gentle,
       builder: (context, scale, child) {
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: AlwaysStoppedAnimation(1), curve: MizanMotion.gentle)),
+        final opacity = ((scale - 0.92) / (1 - 0.92)).clamp(0.0, 1.0);
+        return Opacity(
+          opacity: opacity,
           child: Transform.scale(scale: scale, child: child),
         );
       },
@@ -349,8 +367,9 @@ class SlideUpFade extends StatelessWidget {
       duration: duration,
       curve: MizanMotion.gentle,
       builder: (context, value, child) {
-        return FadeTransition(
-          opacity: Tween<double>(begin: 0, end: 1).animate(CurvedAnimation(parent: AlwaysStoppedAnimation(1), curve: MizanMotion.gentle)),
+        final opacity = (1 - (value.dy / offset)).clamp(0.0, 1.0);
+        return Opacity(
+          opacity: opacity,
           child: Transform.translate(offset: value, child: child),
         );
       },

@@ -319,8 +319,8 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen> with 
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: _submitting
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : const Text('Save my review', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                      ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
+                      : const Text('Save my review', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ),

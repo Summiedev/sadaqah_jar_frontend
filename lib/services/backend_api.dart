@@ -25,6 +25,18 @@ class BackendApi {
   Completer<bool>? _refreshCompleter;
   Future<void> Function()? onSessionExpired;
 
+  /// Guards against firing [onSessionExpired] more than once when several
+  /// in-flight requests all fail their 401 retry at the same time. Reset via
+  /// [resetSessionExpiredFlag] whenever a fresh session is established.
+  bool _sessionExpiredNotified = false;
+
+  /// Clears the one-shot session-expiry guard so a future expiry can notify
+  /// again. Called after a successful login/refresh establishes a new session.
+  void resetSessionExpiredFlag() {
+    _sessionExpiredNotified = false;
+  }
+
+
   static String _resolveBaseUrl() {
     final configured = const String.fromEnvironment(
       'API_BASE_URL',
@@ -74,7 +86,10 @@ class BackendApi {
       saveToken(accessToken),
       saveRefreshToken(refreshToken),
     ]);
+    // A fresh session is now established — allow a future expiry to notify.
+    resetSessionExpiredFlag();
   }
+
 
   Future<void> saveAccountSnapshot({int? userId, String? username, String? email, String? avatarData}) async {
     final prefs = await _prefs;
@@ -247,6 +262,20 @@ class BackendApi {
     );
   }
 
+  Future<http.Response> _put(
+    String path, {
+    Map<String, dynamic>? query,
+    bool auth = false,
+    bool retryOnUnauthorized = true,
+    Object? body,
+  }) {
+    return _request(
+      (headers) => http.put(_uri(path, query), headers: headers, body: body).timeout(_requestTimeout),
+      auth: auth,
+      retryOnUnauthorized: retryOnUnauthorized,
+    );
+  }
+
   Future<http.Response> _delete(
     String path, {
     Map<String, dynamic>? query,
@@ -313,6 +342,12 @@ class BackendApi {
 
   Future<void> _expireSession() async {
     await clearSessionState();
+    // Only notify once per expiry so that several concurrent requests failing
+    // their 401 retry at the same time don't trigger multiple redirects.
+    if (_sessionExpiredNotified) {
+      return;
+    }
+    _sessionExpiredNotified = true;
     final handler = onSessionExpired;
     if (handler != null) {
       try {
@@ -320,6 +355,7 @@ class BackendApi {
       } catch (_) {}
     }
   }
+
 
   Future<void> revokeSessionOnServer() async {
     final refreshToken = await getRefreshToken();
@@ -481,13 +517,14 @@ class BackendApi {
     return UserProfile.fromJson(decoded);
   }
 
-  Future<UserPreferences> updatePreferences({bool? evidenceMode, bool? fridayReminder}) async {
+  Future<UserPreferences> updatePreferences({bool? evidenceMode, bool? fridayReminder, bool? generalNotifications}) async {
     final response = await _patch(
       '/auth/preferences',
       auth: true,
       body: jsonEncode({
         if (evidenceMode != null) 'evidence_mode': evidenceMode,
         if (fridayReminder != null) 'friday_reminder': fridayReminder,
+        if (generalNotifications != null) 'general_notifications': generalNotifications,
       }),
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
@@ -498,15 +535,20 @@ class BackendApi {
     required String deviceId,
     required String platform,
     required String pushToken,
+    String? timeZone,
+    Map<String, double>? coords,
   }) async {
+    final body = {
+      'device_id': deviceId,
+      'platform': platform,
+      'push_token': pushToken,
+      if (timeZone != null) 'time_zone': timeZone,
+      if (coords != null) 'coords': coords,
+    };
     await _post(
       '/users/me/push-token',
       auth: true,
-      body: jsonEncode({
-        'device_id': deviceId,
-        'platform': platform,
-        'push_token': pushToken,
-      }),
+      body: jsonEncode(body),
     );
   }
 
@@ -765,28 +807,25 @@ class BackendApi {
   Future<void> markNotificationRead(int notificationId) async {
     final response = await _patch('/notifications/$notificationId/read', auth: true, retryOnUnauthorized: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    final message = _getEnvelopeMessage(decoded);
-    if (message != null) {
-      throw BackendApiException(message, response.statusCode);
-    }
+    // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
+    // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
+    _getEnvelopeMessage(decoded);
   }
 
   Future<void> markAllNotificationsRead() async {
     final response = await _post('/notifications/read-all', auth: true, retryOnUnauthorized: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    final message = _getEnvelopeMessage(decoded);
-    if (message != null) {
-      throw BackendApiException(message, response.statusCode);
-    }
+    // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
+    // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
+    _getEnvelopeMessage(decoded);
   }
 
   Future<void> deleteNotification(int notificationId) async {
     final response = await _delete('/notifications/$notificationId', auth: true, retryOnUnauthorized: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    final message = _getEnvelopeMessage(decoded);
-    if (message != null) {
-      throw BackendApiException(message, response.statusCode);
-    }
+    // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
+    // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
+    _getEnvelopeMessage(decoded);
   }
 
   Future<void> registerDeviceToken({required String token, required String platform}) async {
@@ -795,6 +834,34 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'token': token, 'platform': platform}),
     );
+  }
+
+  Future<Map<String, dynamic>> getNotificationPreferences() async {
+    final response = await _get('/notifications/preferences', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> updateNotificationPreferences({
+    bool? allEnabled,
+    String? frequency,
+    Map<String, bool>? categories,
+    Map<String, dynamic>? quietHours,
+  }) async {
+    final response = await _put(
+      '/notifications/preferences',
+      auth: true,
+      body: jsonEncode({
+        if (allEnabled != null) 'all_enabled': allEnabled,
+        if (frequency != null) 'frequency': frequency,
+        if (categories != null) 'categories': categories,
+        if (quietHours != null) 'quiet_hours': quietHours,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
   }
 
   Future<List<CharityItem>> getFeaturedCharities() async {
@@ -1010,7 +1077,7 @@ class BackendApi {
     );
   }
 
-  Future<JourneyReflection> createReflection({required String title, required String body, required String mood, bool isPrivate = false, DateTime? date}) async {
+  Future<JourneyReflection> createReflection({required String title, required String body, required String mood, bool isPrivate = false, DateTime? date, String? requestId}) async {
     final response = await _post(
       '/journey/reflections',
       auth: true,
@@ -1020,6 +1087,7 @@ class BackendApi {
         'mood': mood,
         'is_private': isPrivate,
         if (date != null) 'date': date.toIso8601String(),
+        if (requestId != null && requestId.isNotEmpty) 'request_id': requestId,
       }),
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
@@ -1062,10 +1130,9 @@ class BackendApi {
   Future<void> unfavoriteAdhkar(int adhkarId) async {
     final response = await _delete('/journey/adhkar/$adhkarId/favorite', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    final message = _getEnvelopeMessage(decoded);
-    if (message != null) {
-      throw BackendApiException(message, response.statusCode);
-    }
+    // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
+    // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
+    _getEnvelopeMessage(decoded);
   }
 
   Future<List<JourneyAdhkarFavorite>> getAdhkarFavorites() async {
@@ -1147,6 +1214,26 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  Future<Map<String, dynamic>> updateGoal({
+    required int goalId,
+    String? title,
+    String? subtitle,
+    int? actsTarget,
+  }) async {
+    final response = await _patch(
+      '/goals/$goalId',
+      auth: true,
+      body: jsonEncode({
+        if (title != null) 'title': title,
+        if (subtitle != null) 'subtitle': subtitle,
+        if (actsTarget != null) 'acts_target': actsTarget,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<Map<String, dynamic>> updateGoalProgress(int goalId, int actsDone) async {
     final response = await _patch(
       '/goals/$goalId/progress',
@@ -1208,19 +1295,24 @@ class BackendApi {
   Future<void> leaveFamilyJar({required int jarId}) async {
     final response = await _post('/family/$jarId/leave', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    final message = _getEnvelopeMessage(decoded);
-    if (message != null) {
-      throw BackendApiException(message, response.statusCode);
-    }
+    // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
+    // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
+    _getEnvelopeMessage(decoded);
   }
 
   Future<void> removeFamilyMember({required int jarId, required int targetUserId}) async {
     final response = await _delete('/family/$jarId/members/$targetUserId', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    final message = _getEnvelopeMessage(decoded);
-    if (message != null) {
-      throw BackendApiException(message, response.statusCode);
-    }
+    // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
+    // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
+    _getEnvelopeMessage(decoded);
+  }
+
+  Future<List<Map<String, dynamic>>> getPendingInvitations() async {
+    final response = await _get('/family/invitations', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
   }
 
   Future<List<Map<String, dynamic>>> getFamilyGoals(int familyId) async {
@@ -1267,7 +1359,19 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
+  Future<Map<String, dynamic>> updateFamilyReflection(int familyId, int reflectionId, {required String text}) async {
+    final response = await _patch(
+      '/family/$familyId/reflections/$reflectionId',
+      auth: true,
+      body: jsonEncode({'text': text}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
   Future<Map<String, dynamic>> encourageFamilyReflection(int familyId, int reflectionId, String encouragementType) async {
+
     final response = await _post(
       '/family/$familyId/reflections/$reflectionId/encourage',
       auth: true,
@@ -1371,10 +1475,9 @@ class BackendApi {
   Future<void> archiveFamilyJar(int familyId) async {
     final response = await _post('/family/$familyId/archive', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
-    final message = _getEnvelopeMessage(decoded);
-    if (message != null) {
-      throw BackendApiException(message, response.statusCode);
-    }
+    // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
+    // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
+    _getEnvelopeMessage(decoded);
   }
 
   Future<void> deleteFamilyJar(int familyId) async {
@@ -1395,14 +1498,46 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> addFamilyAct(int familyId) async {
+  Future<Map<String, dynamic>> addFamilyAct(int familyId, {String? requestId}) async {
     final response = await _post(
       '/family/$familyId/add-act',
       auth: true,
+      query: {
+        if (requestId != null && requestId.isNotEmpty) 'request_id': requestId,
+      },
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
     return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<Map<String, dynamic>> bookmarkBook({required int bookId, int? chapterNumber}) async {
+    final response = await _post(
+      '/books/$bookId/bookmark',
+      auth: true,
+      body: jsonEncode({
+        if (chapterNumber != null) 'chapter_number': chapterNumber,
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return Map<String, dynamic>.from(data as Map);
+  }
+
+  Future<void> unbookmarkBook({required int bookId}) async {
+    await _delete('/books/$bookId/bookmark', auth: true);
+  }
+
+  Future<List<Map<String, dynamic>>> getBookmarks({int limit = 50, int offset = 0}) async {
+    final response = await _get(
+      '/books/bookmarks',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    final map = Map<String, dynamic>.from(data as Map);
+    return (map['data'] as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
   }
 
   Future<List<BookRead>> getBooks({int limit = 50, int offset = 0}) async {
@@ -1496,6 +1631,13 @@ class BackendApi {
       String message = 'Request failed (${response.statusCode})';
       String? code;
       if (decoded is Map<String, dynamic>) {
+        // A0.1/A0.2: backend error envelope is {"error": {code, message, details}}.
+        final error = decoded['error'];
+        if (error is Map) {
+          message = error['message']?.toString() ?? message;
+          code = error['code']?.toString();
+          throw BackendApiException(message, response.statusCode, code: code);
+        }
         final detail = decoded['detail'];
         if (detail is Map) {
           message = detail['message']?.toString() ?? detail['detail']?.toString() ?? message;
@@ -1914,6 +2056,7 @@ class UserProfile {
     required this.role,
     required this.evidenceMode,
     required this.fridayReminder,
+    required this.generalNotifications,
     this.avatarData,
   });
 
@@ -1925,6 +2068,7 @@ class UserProfile {
   final String? avatarData;
   final bool evidenceMode;
   final bool fridayReminder;
+  final bool generalNotifications;
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
     return UserProfile(
@@ -1936,6 +2080,7 @@ class UserProfile {
       avatarData: json['avatar_data']?.toString(),
       evidenceMode: json['evidence_mode'] as bool? ?? false,
       fridayReminder: json['friday_reminder'] as bool? ?? false,
+      generalNotifications: json['general_notifications'] as bool? ?? false,
     );
   }
 }

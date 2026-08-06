@@ -3,24 +3,31 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../services/location_service.dart';
+import '../../services/prayer_countdown_service.dart';
+import '../../services/local_reminder_service.dart';
+import '../../services/push_notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
-import '../services/backend_api.dart';
-import '../services/push_notification_service.dart';
+import '../../core/theme/theme_mode_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../services/backend_api.dart';
 import 'change_password_screen.dart';
 import 'help_screen.dart';
 import 'about_screen.dart';
+import 'notification_preferences_screen.dart';
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key, required this.onLogout});
 
   final Future<void> Function() onLogout;
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Future<UserProfile>? _profileFuture;
   bool _savingReminder = false;
 
@@ -28,20 +35,73 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _profileFuture = BackendApi.instance.getUserProfile();
+    _loadStoredPosition();
+  }
+
+  Map<String, double>? _storedPosition;
+  TimeOfDay? _fridayReminderTime;
+
+  Future<void> _loadStoredPosition() async {
+    final pos = await LocationService.instance.getStoredPosition();
+    if (mounted) setState(() => _storedPosition = pos);
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString('reminder_friday_time');
+    if (raw != null) {
+      final parts = raw.split(':');
+      if (parts.length == 2) {
+        final h = int.tryParse(parts[0]);
+        final m = int.tryParse(parts[1]);
+        if (h != null && m != null && mounted) setState(() => _fridayReminderTime = TimeOfDay(hour: h, minute: m));
+      }
+    }
   }
 
   Future<void> _toggleFridayReminder(UserProfile profile, bool value) async {
     setState(() => _savingReminder = true);
     try {
-      if (value && !await PushNotificationService.instance.enableForReminders()) {
-        throw StateError('Notification permission is required to enable reminders.');
+      if (value) {
+        if (!await PushNotificationService.instance.enableForReminders()) {
+          throw StateError('Notification permission is required to enable reminders.');
+        }
+        // Ask the user what time they'd like the Friday reminder.
+        final picked = await showTimePicker(context: context, initialTime: _fridayReminderTime ?? const TimeOfDay(hour: 9, minute: 0));
+        if (picked == null) {
+          // user cancelled - don't toggle
+          return;
+        }
+        await LocalReminderService.instance.enableFridayReminder(true, hour: picked.hour, minute: picked.minute);
+        await BackendApi.instance.updatePreferences(fridayReminder: true);
+      } else {
+        await LocalReminderService.instance.enableFridayReminder(false, hour: 0, minute: 0);
+        await BackendApi.instance.updatePreferences(fridayReminder: false);
       }
-      await BackendApi.instance.updatePreferences(fridayReminder: value);
+      if (!mounted) return;
+      // refresh profile + local cached time
+      setState(() {
+        _profileFuture = BackendApi.instance.getUserProfile();
+      });
+      await _loadStoredPosition();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _savingReminder = false);
+    }
+  }
+
+  Future<void> _toggleGeneralNotifications(UserProfile profile, bool value) async {
+    setState(() => _savingReminder = true);
+    try {
+      if (value && !await PushNotificationService.instance.enableForReminders()) {
+        throw StateError('Notification permission is required to enable notifications.');
+      }
+      await BackendApi.instance.updatePreferences(generalNotifications: value);
       if (!mounted) return;
       setState(() => _profileFuture = BackendApi.instance.getUserProfile());
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: SnackBar(content: Text(error.toString()))));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     } finally {
       if (mounted) setState(() => _savingReminder = false);
@@ -50,15 +110,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: dark ? kScaffoldDark : kSurface,
       appBar: AppBar(
         title: const Text('Settings'),
-        backgroundColor: kSurface,
+        backgroundColor: dark ? kScaffoldDark : kSurface,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kInk, size: 19),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: dark ? kInkDark : kInk, size: 19),
           tooltip: 'Back',
         ),
       ),
@@ -109,34 +170,85 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SettingsSection(
               title: 'Notifications',
               subtitle: 'Gentle nudges and preferences',
-              child: FutureBuilder<UserProfile>(
-                future: _profileFuture,
-                builder: (context, snapshot) {
-                  final profile = snapshot.data;
-                  final enabled = profile?.fridayReminder ?? false;
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: kPaper,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: kLine),
-                    ),
-                    child: SwitchListTile.adaptive(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Friday reminder', style: TextStyle(color: kInk, fontSize: 15, fontWeight: FontWeight.w700)),
-                      subtitle: Text(
-                        snapshot.connectionState == ConnectionState.waiting
-                            ? 'Loading your preference...'
-                            : 'Get a gentle Friday reminder when it is enabled.',
-                        style: const TextStyle(color: kMuted, fontSize: 12.5, height: 1.4),
-                      ),
-                      value: enabled,
-                      onChanged: _savingReminder || profile == null ? null : (value) => _toggleFridayReminder(profile, value),
-                      activeThumbColor: kBronze,
-                    ),
-                  );
-                },
-              ),
+              child: Column(children: [
+                _SettingsCard(
+                  icon: Icons.notifications_active_outlined,
+                  title: 'Notification preferences',
+                  subtitle: 'Manage categories, frequency, and quiet hours',
+                  onTap: () {
+                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationPreferencesScreen()));
+                  },
+                ),
+                const SizedBox(height: 10),
+                FutureBuilder<UserProfile>(
+                  future: _profileFuture,
+                  builder: (context, snapshot) {
+                    final profile = snapshot.data;
+                    final fridayEnabled = profile?.fridayReminder ?? false;
+                    final generalEnabled = profile?.generalNotifications ?? false;
+                    return Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: kLine),
+                          ),
+                          child: SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                          title: Text('General notifications', style: TextStyle(color: dark ? kInkDark : kInk, fontSize: 15, fontWeight: FontWeight.w700)),
+                            subtitle: Text(
+                              snapshot.connectionState == ConnectionState.waiting
+                                  ? 'Loading your preference...'
+                                  : 'Receive push notifications for updates and reminders.',
+                              style: TextStyle(color: dark ? kMutedDark : kMuted, fontSize: 12.5, height: 1.4),
+                            ),
+                            value: generalEnabled,
+                            onChanged: _savingReminder || profile == null ? null : (value) => _toggleGeneralNotifications(profile, value),
+                            activeThumbColor: kBronze,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(color: kLine),
+                          ),
+                          child: SwitchListTile.adaptive(
+                            contentPadding: EdgeInsets.zero,
+                          title: Text('Friday reminder', style: TextStyle(color: dark ? kInkDark : kInk, fontSize: 15, fontWeight: FontWeight.w700)),
+                            subtitle: Text(
+                              snapshot.connectionState == ConnectionState.waiting
+                                  ? 'Loading your preference...'
+                                  : 'Get a gentle Friday reminder when it is enabled.',
+                              style: TextStyle(color: dark ? kMutedDark : kMuted, fontSize: 12.5, height: 1.4),
+                            ),
+                            value: fridayEnabled,
+                            onChanged: _savingReminder || profile == null ? null : (value) => _toggleFridayReminder(profile, value),
+                            activeThumbColor: kBronze,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        _SettingsCard(
+                          icon: Icons.place_outlined,
+                          title: 'Prayer times & location',
+                          subtitle: 'Use device or set manually',
+                          onTap: () => _showLocationDialog(),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ]),
+            ),
+            const SizedBox(height: 14),
+            _SettingsSection(
+              title: 'Goals',
+              subtitle: 'View and edit your intentions',
+              child: _GoalsSection(),
             ),
             const SizedBox(height: 14),
             _SettingsSection(
@@ -155,7 +267,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _SettingsSection(
               title: 'Appearance',
               subtitle: 'How Mizan looks',
-              child: _SettingsCard(icon: Icons.palette_outlined, title: 'Appearance', subtitle: 'Use your device setting', onTap: null, enabled: false),
+              child: _SettingsCard(
+                icon: Icons.palette_outlined,
+                title: 'Appearance',
+                subtitle: ref.watch(themeModeProvider) == ThemeMode.system
+                    ? 'Use your device setting'
+                    : (ref.watch(themeModeProvider) == ThemeMode.light ? 'Light' : 'Dark'),
+                onTap: () => _showAppearanceSelector(context),
+                enabled: true,
+              ),
             ),
             const SizedBox(height: 14),
             _SettingsSection(
@@ -209,6 +329,143 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  void _showAppearanceSelector(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        final current = ref.watch(themeModeProvider);
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile<ThemeMode>(
+                title: const Text('System'),
+                value: ThemeMode.system,
+                groupValue: current,
+                onChanged: (v) {
+                  if (v != null) ref.read(themeModeProvider.notifier).setMode(v);
+                  Navigator.pop(ctx);
+                },
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Light'),
+                value: ThemeMode.light,
+                groupValue: current,
+                onChanged: (v) {
+                  if (v != null) ref.read(themeModeProvider.notifier).setMode(v);
+                  Navigator.pop(ctx);
+                },
+              ),
+              RadioListTile<ThemeMode>(
+                title: const Text('Dark'),
+                value: ThemeMode.dark,
+                groupValue: current,
+                onChanged: (v) {
+                  if (v != null) ref.read(themeModeProvider.notifier).setMode(v);
+                  Navigator.pop(ctx);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showLocationDialog() {
+    showModalBottomSheet(context: context, builder: (ctx) {
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text('Prayer times & location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              Text(_storedPosition == null ? 'No location set' : 'Lat: ${_storedPosition!['lat']}, Lon: ${_storedPosition!['lon']}', style: TextStyle(color: kMuted)),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                icon: const Icon(Icons.my_location_outlined),
+                label: const Text('Use device location'),
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  final snack = ScaffoldMessenger.of(context);
+                  try {
+                    final pos = await LocationService.instance.getCurrentPosition();
+                    if (pos == null) {
+                      snack.showSnackBar(const SnackBar(content: Text('Location permission denied or unavailable')));
+                      return;
+                    }
+                    await PrayerCountdownService.instance.refreshTimingsForDate(DateTime.now());
+                    await _loadStoredPosition();
+                    snack.showSnackBar(const SnackBar(content: Text('Prayer times refreshed using device location')));
+                  } catch (e) {
+                    snack.showSnackBar(SnackBar(content: Text('Could not get location: $e')));
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+              FilledButton.icon(
+                icon: const Icon(Icons.edit_location_alt_outlined),
+                label: const Text('Set manual location'),
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  _showManualLocationPrompt();
+                },
+              ),
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          ),
+        ),
+      );
+    });
+  }
+
+  void _showManualLocationPrompt() {
+    final latController = TextEditingController();
+    final lonController = TextEditingController();
+    showDialog(context: context, builder: (ctx) {
+      return AlertDialog(
+        title: const Text('Set manual location'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: latController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Latitude')),
+            TextField(controller: lonController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Longitude')),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () async {
+              final lat = double.tryParse(latController.text.trim());
+              final lon = double.tryParse(lonController.text.trim());
+              if (lat == null || lon == null) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid coordinates')));
+                return;
+              }
+              Navigator.of(ctx).pop();
+              try {
+                await LocationService.instance.setManualPosition(lat, lon);
+                await PrayerCountdownService.instance.refreshTimingsForDate(DateTime.now());
+                await _loadStoredPosition();
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Manual location saved and prayer times refreshed')));
+              } catch (e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save manual location: $e')));
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      );
+    });
+  }
 }
 
 class _SettingsSection extends StatelessWidget {
@@ -220,6 +477,7 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -227,19 +485,19 @@ class _SettingsSection extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             title.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               letterSpacing: 1.2,
               fontWeight: FontWeight.w700,
-              color: kBronze,
+              color: dark ? kBronzeDarkMode : kBronze,
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: kPaper,
+            color: dark ? kSurfaceDark : kPaper,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: kLine),
+            border: Border.all(color: dark ? kLineDark : kLine),
           ),
           child: child,
         ),
@@ -267,9 +525,10 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = emphasizeDanger ? kDanger : kBronze;
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final accent = emphasizeDanger ? kDanger : (dark ? kBronzeDarkMode : kBronze);
     return Material(
-      color: kPaper,
+      color: Colors.transparent,
       child: InkWell(
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(16),
@@ -281,7 +540,7 @@ class _SettingsCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: enabled ? accent.withOpacity(0.12) : kLine,
+                  color: enabled ? accent.withValues(alpha: (dark ? 0.18 : 0.12)) : (dark ? kElevatedDark : kLine),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: enabled ? accent : kMutedLight, size: 20),
@@ -291,13 +550,370 @@ class _SettingsCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: TextStyle(color: enabled ? kInk : kMutedLight, fontSize: 15, fontWeight: FontWeight.w600)),
+                    Text(title, style: TextStyle(color: enabled ? (dark ? kInkDark : kInk) : (dark ? kMutedDark : kMutedLight), fontSize: 15, fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: TextStyle(color: enabled ? kMuted : kMutedLight, fontSize: 12.5)),
+                    Text(subtitle, style: TextStyle(color: enabled ? (dark ? kMutedDark : kMuted) : (dark ? kMutedDark.withValues(alpha: 0.65) : kMutedLight), fontSize: 12.5)),
                   ],
                 ),
               ),
               if (enabled) Icon(Icons.chevron_right_rounded, color: kMutedLight, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GoalsSection extends StatefulWidget {
+  @override
+  State<_GoalsSection> createState() => _GoalsSectionState();
+}
+
+class _GoalsSectionState extends State<_GoalsSection> {
+  Future<Map<String, dynamic>>? _goalsFuture;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGoals();
+  }
+
+  Future<void> _loadGoals() async {
+    setState(() => _loading = true);
+    try {
+      _goalsFuture = BackendApi.instance.getGoals();
+      await _goalsFuture;
+    } catch (_) {
+      // Goals may not exist yet — that's fine
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator(color: kBronze)),
+      );
+    }
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _goalsFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(24),
+            child: Center(child: CircularProgressIndicator(color: kBronze)),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'Could not load goals. Pull to try again.',
+              style: TextStyle(color: kMuted, fontSize: 13),
+            ),
+          );
+        }
+
+        final data = snapshot.data;
+        final goals = data?['goals'] as List<dynamic>? ?? [];
+
+        if (goals.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(
+              'No goals yet. Set one from the home screen to get started.',
+              style: TextStyle(color: kMuted, fontSize: 13, height: 1.5),
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            for (int i = 0; i < goals.length; i++) ...[
+              if (i > 0) const SizedBox(height: 10),
+              _GoalTile(
+                goal: Map<String, dynamic>.from(goals[i] as Map),
+                onEdited: _loadGoals,
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _GoalTile extends StatelessWidget {
+  const _GoalTile({required this.goal, required this.onEdited});
+
+  final Map<String, dynamic> goal;
+  final VoidCallback onEdited;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = goal['title']?.toString() ?? 'Untitled goal';
+    final subtitle = goal['subtitle']?.toString();
+    final actsTarget = (goal['acts_target'] as num?)?.toInt() ?? 0;
+    final actsDone = (goal['acts_done'] as num?)?.toInt() ?? 0;
+    final status = goal['status']?.toString() ?? 'active';
+    final progress = ((goal['progress'] as num?)?.toDouble() ?? 0.0) * 100;
+
+    final isCompleted = status == 'completed';
+    final isArchived = status == 'archived';
+
+    return Material(
+      color: kPaper,
+      child: InkWell(
+        onTap: isArchived ? null : () async {
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(
+              builder: (_) => EditGoalScreen(goal: goal),
+            ),
+          );
+          if (result == true) {
+            onEdited();
+          }
+        },
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: isCompleted
+                      ? kSage.withValues(alpha: 0.12)
+                      : isArchived
+                          ? kLine
+                          : kBronze.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  isCompleted
+                      ? Icons.check_circle_outline
+                      : isArchived
+                          ? Icons.archive_outlined
+                          : Icons.flag_outlined,
+                  color: isCompleted ? kSage : isArchived ? kMutedLight : kBronze,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: isArchived ? kMutedLight : kInk,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle != null && subtitle.isNotEmpty
+                          ? '$actsDone / $actsTarget acts · $subtitle'
+                          : '$actsDone / $actsTarget acts',
+                      style: TextStyle(
+                        color: isArchived ? kMutedLight : kMuted,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                    if (!isArchived && actsTarget > 0) ...[
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: (progress / 100).clamp(0.0, 1.0),
+                          backgroundColor: kLine,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            isCompleted ? kSage : kBronze,
+                          ),
+                          minHeight: 4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              if (!isArchived)
+                const Icon(Icons.chevron_right_rounded, color: kMutedLight, size: 18),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class EditGoalScreen extends StatefulWidget {
+  const EditGoalScreen({super.key, required this.goal});
+
+  final Map<String, dynamic> goal;
+
+  @override
+  State<EditGoalScreen> createState() => _EditGoalScreenState();
+}
+
+class _EditGoalScreenState extends State<EditGoalScreen> {
+  late final TextEditingController _titleController;
+  late final TextEditingController _targetController;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.goal['title']?.toString() ?? '');
+    _targetController = TextEditingController(
+      text: (widget.goal['acts_target'] as num?)?.toInt().toString() ?? '10',
+    );
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _targetController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final title = _titleController.text.trim();
+    final target = int.tryParse(_targetController.text.trim()) ?? 10;
+
+    if (title.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Goal title cannot be empty.')),
+      );
+      return;
+    }
+
+    if (target <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Target must be greater than 0.')),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      final goalId = (widget.goal['id'] as num?)?.toInt() ?? 0;
+      await BackendApi.instance.updateGoal(
+        goalId: goalId,
+        title: title,
+        actsTarget: target,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not save goal: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: kSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text('Delete goal?', style: TextStyle(fontFamily: 'Georgia', fontSize: 19, fontWeight: FontWeight.w700, color: kInk)),
+        content: const Text('This will remove the goal. This action cannot be undone.', style: TextStyle(color: kMuted, fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: kMuted)),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: kDanger),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _saving = true);
+    try {
+      final goalId = (widget.goal['id'] as num?)?.toInt() ?? 0;
+      await BackendApi.instance.deleteGoal(goalId);
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not delete goal: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kSurface,
+      appBar: AppBar(
+        backgroundColor: kSurface,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Edit goal', style: TextStyle(color: kInk)),
+        iconTheme: const IconThemeData(color: kInk),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _FieldCard(
+                controller: _titleController,
+                label: 'Goal title',
+                icon: Icons.flag_outlined,
+              ),
+              const SizedBox(height: 12),
+              _FieldCard(
+                controller: _targetController,
+                label: 'Target count',
+                icon: Icons.track_changes_outlined,
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: kBronze,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  ),
+                  onPressed: _saving ? null : _save,
+                    child: _saving
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
+                      : Text('Save changes', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w700)),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: _saving ? null : _delete,
+                style: TextButton.styleFrom(foregroundColor: kDanger),
+                child: const Text('Delete goal', style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
             ],
           ),
         ),
@@ -461,9 +1077,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
                   ),
                   onPressed: _saving ? null : _save,
-                  child: _saving
-                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                      : const Text('Save changes', style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.w700)),
+                    child: _saving
+                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
+                      : Text('Save changes', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w700)),
                 ),
               ),
             ],

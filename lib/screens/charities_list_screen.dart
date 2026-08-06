@@ -149,8 +149,8 @@ class _CharityCard extends StatelessWidget {
           color: kPaper,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: kLine),
-          boxShadow: const [
-            BoxShadow(color: Color(0x08000000), blurRadius: 8, offset: Offset(0, 2)),
+          boxShadow: [
+            BoxShadow(color: kInk.withValues(alpha: 0.05), blurRadius: 8, offset: Offset(0, 2)),
           ],
         ),
         child: Row(

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'journey_search_data.dart';
 
@@ -77,14 +78,14 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
     final hasQuery = _controller.text.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5EDE1),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5EDE1),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: Color(0xFF30241E)),
+          icon: const Icon(Icons.arrow_back_rounded, color: kInk),
         ),
         titleSpacing: 0,
         title: _SearchField(
@@ -113,7 +114,7 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
               },
             )
           : hasQuery && _isSearching
-              ? const Center(child: Padding(padding: EdgeInsets.only(top: 40), child: CircularProgressIndicator(color: Color(0xFF8B6842))))
+              ? const Center(child: Padding(padding: EdgeInsets.only(top: 40), child: CircularProgressIndicator(color: kBronze)))
               : _buildEmptyState(),
     );
   }
@@ -124,12 +125,12 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(40, 40, 40, 20),
           child: Column(children: [
-            Icon(Icons.search_off_rounded, size: 64, color: const Color(0xFFE4D5C3)),
+            Icon(Icons.search_off_rounded, size: 64, color: kClay),
             const SizedBox(height: 20),
-            Text('No results found', style: TextStyle(color: const Color(0xFF30241E), fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
+            Text('No results found', style: TextStyle(color: kInk, fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
             const SizedBox(height: 12),
             Text('Try a different spelling, search by category, or use an English translation or Arabic text.',
-                textAlign: TextAlign.center, style: TextStyle(color: const Color(0xFF756457), fontSize: 14, height: 1.5)),
+              textAlign: TextAlign.center, style: TextStyle(color: kMuted, fontSize: 14, height: 1.5)),
           ]),
         ),
       );
@@ -141,13 +142,13 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
             child: Row(children: [
-              Text('Recent', style: TextStyle(color: const Color(0xFF92704B), fontSize: 13, fontWeight: FontWeight.w800)),
+              Text('Recent', style: TextStyle(color: kBronze, fontSize: 13, fontWeight: FontWeight.w800)),
               const Spacer(),
               TextButton(onPressed: () async {
                 final prefs = await SharedPreferences.getInstance();
                 await prefs.remove(_recentKey);
                 setState(() => _recent = const []);
-              }, child: Text('Clear', style: TextStyle(color: const Color(0xFF8B6842), fontSize: 12, fontWeight: FontWeight.w700))),
+              }, child: Text('Clear', style: TextStyle(color: kBronze, fontSize: 12, fontWeight: FontWeight.w700))),
             ]),
           ),
           Expanded(
@@ -159,12 +160,12 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
               itemBuilder: (context, index) {
                 final query = _recent[index];
                 return Material(
-                  color: const Color(0xFFFFFBF6),
+                  color: kPaper,
                   borderRadius: BorderRadius.circular(16),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: const Icon(Icons.history_rounded, color: Color(0xFF8B6842), size: 20),
-                    title: Text(query, style: const TextStyle(color: Color(0xFF30241E), fontSize: 15)),
+                    leading: const Icon(Icons.history_rounded, color: kBronze, size: 20),
+                    title: Text(query, style: const TextStyle(color: kInk, fontSize: 15)),
                     onTap: () {
                       _controller.text = query;
                       _onQueryChanged(query);
@@ -181,12 +182,12 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(40, 40, 40, 20),
                 child: Column(children: [
-                  Icon(Icons.search_rounded, size: 64, color: const Color(0xFFE4D5C3)),
+                  Icon(Icons.search_rounded, size: 64, color: kClay),
                   const SizedBox(height: 20),
-                  Text('Search Journey', style: TextStyle(color: const Color(0xFF30241E), fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
+                  Text('Search Journey', style: TextStyle(color: kInk, fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
                   const SizedBox(height: 12),
-                  Text('Search across adhkar, reflections, and readings by Arabic, translation, or transliteration.',
-                      textAlign: TextAlign.center, style: TextStyle(color: const Color(0xFF756457), fontSize: 14, height: 1.5)),
+                    Text('Search across adhkar, reflections, and readings by Arabic, translation, or transliteration.',
+                      textAlign: TextAlign.center, style: TextStyle(color: kMuted, fontSize: 14, height: 1.5)),
                   const SizedBox(height: 24),
                   Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
                     _SuggestionChip(label: 'Ayat al-Kursi', onTap: () { _controller.text = 'Ayat al-Kursi'; _onQueryChanged('Ayat al-Kursi'); _saveRecent('Ayat al-Kursi'); }),
@@ -217,12 +218,12 @@ class _SearchField extends StatelessWidget {
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: hasText ? const Color(0xFFFFFBF6) : const Color(0xFFF0E3D4),
+        color: hasText ? kPaper : kSoftBronze,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: hasText ? const Color(0xFF8B6842) : Colors.transparent, width: 1.5),
+        border: Border.all(color: hasText ? kBronze : Colors.transparent, width: 1.5),
       ),
       child: Row(children: [
-        const Padding(padding: EdgeInsets.only(left: 14), child: Icon(Icons.search_rounded, color: Color(0xFF8B6842), size: 20)),
+        const Padding(padding: EdgeInsets.only(left: 14), child: Icon(Icons.search_rounded, color: kBronze, size: 20)),
         Expanded(
           child: TextField(
             controller: controller,
@@ -231,15 +232,15 @@ class _SearchField extends StatelessWidget {
             textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: 'Search adhkar, reflections...',
-              hintStyle: const TextStyle(color: Color(0xFF8F7B6B), fontSize: 14),
+              hintStyle: const TextStyle(color: kMutedLight, fontSize: 14),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             ),
-            style: const TextStyle(color: Color(0xFF30241E), fontSize: 15),
+            style: const TextStyle(color: kInk, fontSize: 15),
           ),
         ),
         if (hasText)
-          IconButton(onPressed: onClear, icon: const Icon(Icons.close_rounded, color: Color(0xFF8B6842), size: 18), tooltip: 'Clear', splashRadius: 18),
+          IconButton(onPressed: onClear, icon: const Icon(Icons.close_rounded, color: kBronze, size: 18), tooltip: 'Clear', splashRadius: 18),
       ]),
     );
   }
@@ -257,7 +258,7 @@ class _SearchResultTile extends StatelessWidget {
     final highlightedSubtitle = _highlight(result.subtitle, query);
 
     return Material(
-      color: const Color(0xFFFFFBF6),
+      color: kPaper,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -268,27 +269,27 @@ class _SearchResultTile extends StatelessWidget {
             Row(children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(99)),
-                child: Text(result.category, style: const TextStyle(color: Color(0xFF8B6842), fontSize: 11, fontWeight: FontWeight.w800)),
+                decoration: BoxDecoration(color: kSoftBronze, borderRadius: BorderRadius.circular(99)),
+                child: Text(result.category, style: const TextStyle(color: kBronze, fontSize: 11, fontWeight: FontWeight.w800)),
               ),
               const SizedBox(width: 8),
               if (result.commonName != null && result.commonName!.isNotEmpty)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: const Color(0xFFDCE7D8), borderRadius: BorderRadius.circular(99)),
-                  child: Text(result.commonName!, style: const TextStyle(color: Color(0xFF58705C), fontSize: 11, fontWeight: FontWeight.w800)),
+                  decoration: BoxDecoration(color: kSoftSage, borderRadius: BorderRadius.circular(99)),
+                  child: Text(result.commonName!, style: const TextStyle(color: kSage, fontSize: 11, fontWeight: FontWeight.w800)),
                 ),
             ]),
             const SizedBox(height: 10),
             if (result.arabic != null && result.arabic!.isNotEmpty)
-              Text(result.arabic!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: Color(0xFF30241E), fontSize: 22, height: 1.6)),
+              Text(result.arabic!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: kInk, fontSize: 22, height: 1.6)),
             if (result.arabic != null && result.arabic!.isNotEmpty) const SizedBox(height: 8),
-            Text(highlightedTitle, style: const TextStyle(color: Color(0xFF30241E), fontFamily: 'Georgia', fontSize: 17, fontWeight: FontWeight.w700, height: 1.3)),
+            Text(highlightedTitle, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 17, fontWeight: FontWeight.w700, height: 1.3)),
             const SizedBox(height: 4),
-            Text(highlightedSubtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFF756457), height: 1.5)),
+            Text(highlightedSubtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kMuted, height: 1.5)),
             if (result.source != null && result.source!.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(result.source!, style: const TextStyle(color: Color(0xFF8F7B6B), fontSize: 11, fontStyle: FontStyle.italic)),
+              Text(result.source!, style: const TextStyle(color: kMutedLight, fontSize: 11, fontStyle: FontStyle.italic)),
             ],
           ]),
         ),
@@ -338,4 +339,4 @@ class _SearchResultTile extends StatelessWidget {
   }
 }
 
-class _SuggestionChip extends StatelessWidget { const _SuggestionChip({required this.label, required this.onTap}); final String label; final VoidCallback onTap; @override Widget build(BuildContext context) => InkWell(onTap: onTap, borderRadius: BorderRadius.circular(99), child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: const Color(0xFFF0E3D4), borderRadius: BorderRadius.circular(99)), child: Text(label, style: const TextStyle(color: Color(0xFF8B6842), fontSize: 13, fontWeight: FontWeight.w700)))); }
+class _SuggestionChip extends StatelessWidget { const _SuggestionChip({required this.label, required this.onTap}); final String label; final VoidCallback onTap; @override Widget build(BuildContext context) => InkWell(onTap: onTap, borderRadius: BorderRadius.circular(99), child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: kSoftBronze, borderRadius: BorderRadius.circular(99)), child: Text(label, style: const TextStyle(color: kBronze, fontSize: 13, fontWeight: FontWeight.w700)))); }

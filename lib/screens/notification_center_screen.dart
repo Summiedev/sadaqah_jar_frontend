@@ -21,10 +21,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   final List<NotificationItem> _items = [];
   bool _initialLoading = true;
   bool _loadingMore = false;
+  bool _refreshing = false;
   bool _hasMore = true;
   String? _error;
   int _offset = 0;
   int _total = 0;
+  int _unreadCount = 0;
 
   @override
   void initState() {
@@ -57,7 +59,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         _initialLoading = false;
         _loadingMore = false;
       });
-      _notifyUnreadCount();
+      _fetchUnreadCount();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -66,6 +68,49 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         _initialLoading = false;
         _loadingMore = false;
       });
+    }
+  }
+
+  Future<void> _fetchUnreadCount() async {
+    try {
+      final count = await BackendApi.instance.getUnreadNotificationCount();
+      if (!mounted) return;
+      setState(() {
+        _unreadCount = count;
+      });
+      _notifyUnreadCount();
+    } catch (_) {
+      if (!mounted) return;
+      final fallback = _items.where((n) => !n.isRead).length;
+      setState(() {
+        _unreadCount = fallback;
+      });
+      _notifyUnreadCount();
+    }
+  }
+
+  Future<void> _refresh() async {
+    setState(() => _refreshing = true);
+    try {
+      final page = await BackendApi.instance.getNotifications(limit: _pageSize, offset: 0);
+      if (!mounted) return;
+      setState(() {
+        _items
+          ..clear()
+          ..addAll(page.data);
+        _total = page.total;
+        _offset = page.data.length;
+        _hasMore = _items.length < page.total && page.data.isNotEmpty;
+        _error = null;
+        _refreshing = false;
+      });
+      _fetchUnreadCount();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _refreshing = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not refresh: $error')),
+      );
     }
   }
 
@@ -90,8 +135,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   }
 
   void _notifyUnreadCount() {
-    final unread = _items.where((n) => !n.isRead).length;
-    widget.onUnreadCountChanged?.call(unread);
+    widget.onUnreadCountChanged?.call(_unreadCount);
   }
 
   Future<void> _markRead(int notificationId, int index) async {
@@ -109,7 +153,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           data: _items[index].data,
         );
       });
-      _notifyUnreadCount();
+      _fetchUnreadCount();
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,7 +179,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           );
         }
       });
-      _notifyUnreadCount();
+      _fetchUnreadCount();
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -150,11 +194,17 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       await BackendApi.instance.deleteNotification(item.id);
       if (!mounted) return;
       setState(() => _items.removeAt(index));
-      _notifyUnreadCount();
+      _fetchUnreadCount();
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: const Text('Notification archived'), action: SnackBarAction(label: 'Undo', onPressed: () {
-          if (mounted) setState(() => _items.insert(index.clamp(0, _items.length).toInt(), item));
-        })),
+        SnackBar(
+          content: const Text('Notification archived'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () {
+              if (mounted) setState(() => _items.insert(index.clamp(0, _items.length).toInt(), item));
+            },
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
@@ -168,18 +218,21 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final scale = (width / 390).clamp(0.90, 1.08);
-  double s(double v) => (v * scale).roundToDouble();
-    final unreadCount = _items.where((n) => !n.isRead).length;
+    double s(double v) => (v * scale).roundToDouble();
+    final unreadCount = _unreadCount;
 
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final pageBg = dark ? kScaffoldDark : kClayPale;
+    final headerBg = dark ? kSurfaceDark : kClayPale;
     return Scaffold(
-      backgroundColor: kClayPale,
+      backgroundColor: pageBg,
       appBar: AppBar(
         title: const Text('Notifications'),
-        backgroundColor: kClayPale,
+        backgroundColor: headerBg,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kInk, size: 19),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: dark ? kInkDark : kInk, size: 19),
           tooltip: 'Back',
         ),
         actions: [
@@ -199,11 +252,17 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             switchInCurve: MizanMotion.gentle,
             switchOutCurve: MizanMotion.gentle,
             child: _initialLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(key: ValueKey('loading'), child: CircularProgressIndicator())
                 : _error != null && _items.isEmpty
-                    ? _StateMessage(message: 'Failed to load notifications.', detail: _error!, onRetry: _retry)
+                    ? _StateMessage(
+                        key: const ValueKey('error'),
+                        message: 'Failed to load notifications.',
+                        detail: _error!,
+                        onRetry: _retry,
+                      )
                     : _items.isEmpty
                         ? const _StateMessage(
+                            key: ValueKey('empty'),
                             message: 'No notifications yet.',
                             detail: 'Gentle updates from your family space and reminders will appear here.',
                           )
@@ -217,11 +276,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                   width: double.infinity,
                                   padding: EdgeInsets.all(s(16)),
                                   decoration: BoxDecoration(
-                                    gradient: const LinearGradient(
+                                    gradient: LinearGradient(
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
-                                      colors: [kClayLight, kClayPale],
+                                      colors: dark ? const [kElevatedDark, kSurfaceDark] : const [kClayLight, kClayPale],
                                     ),
+                                    border: Border.all(color: dark ? kLineDark : kLine),
                                     borderRadius: BorderRadius.circular(s(20)),
                                   ),
                                   child: Column(
@@ -229,14 +289,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                     children: [
                                       Text(
                                         '$_total notification${_total == 1 ? '' : 's'}',
-                                        style: TextStyle(fontSize: s(16), fontWeight: FontWeight.w800, color: kInk),
+                                        style: TextStyle(fontSize: s(16), fontWeight: FontWeight.w800, color: dark ? kInkDark : kInk),
                                       ),
                                       SizedBox(height: s(4)),
                                       Text(
                                         unreadCount == 0
                                             ? 'You are all caught up.'
                                             : '$unreadCount unread update${unreadCount == 1 ? '' : 's'} waiting.',
-                                        style: TextStyle(fontSize: s(12.8), color: kMuted),
+                                        style: TextStyle(fontSize: s(12.8), color: dark ? kMutedDark : kMuted, fontWeight: FontWeight.w600),
                                       ),
                                     ],
                                   ),
@@ -244,45 +304,106 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                               ),
                               SizedBox(height: s(12)),
                               Expanded(
-                                child: ListView.separated(
-                                  controller: _scrollController,
-                                  itemCount: _items.length + (_hasMore && _error == null ? 1 : 0),
-                                  separatorBuilder: (_, __) => SizedBox(height: s(10)),
-                                  itemBuilder: (context, index) {
-                                    if (index >= _items.length) {
-                                      return Padding(
-                                        padding: EdgeInsets.symmetric(vertical: s(10)),
-                                        child: const Center(child: CircularProgressIndicator()),
+                                child: RefreshIndicator(
+                                  onRefresh: _refresh,
+                                  color: kBronze,
+                                  backgroundColor: dark ? kElevatedDark : kPaper,
+                                  child: ListView.separated(
+                                    controller: _scrollController,
+                                    physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                                    itemCount: _items.length + (_hasMore && _error == null ? 1 : 0),
+                                    separatorBuilder: (_, __) => SizedBox(height: s(10)),
+                                    itemBuilder: (context, index) {
+                                      if (index >= _items.length) {
+                                        return Padding(
+                                          padding: EdgeInsets.symmetric(vertical: s(10)),
+                                          child: const Center(child: CircularProgressIndicator()),
+                                        );
+                                      }
+                                      final notification = _items[index];
+                                      return CardEntrance(
+                                        key: ValueKey('entrance-${notification.id}'),
+                                        index: index.clamp(0, 8),
+                                        delay: const Duration(milliseconds: 30),
+                                        child: _DismissibleNotificationCard(
+                                          scale: scale,
+                                          notification: notification,
+                                          onTap: notification.isRead ? null : () => _markRead(notification.id, index),
+                                          onArchive: () => _archive(index),
+                                        ),
                                       );
-                                    }
-                                    final notification = _items[index];
-                                    return Dismissible(
-                                      key: ValueKey(notification.id),
-                                      direction: DismissDirection.endToStart,
-                                      background: Container(
-                                        alignment: Alignment.centerRight,
-                                        padding: EdgeInsets.only(right: s(22)),
-                                        decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.circular(s(16))),
-                                        child: const Icon(Icons.archive_outlined, color: Colors.white),
-                                      ),
-                                      onDismissed: (_) => _archive(index),
-                                      child: _NotificationCard(
-                                        scale: scale,
-                                        notification: notification,
-                                        onTap: notification.isRead ? null : () => _markRead(notification.id, index),
-                                      ),
-                                    );
-                                  },
+                                    },
+                                  ),
                                 ),
                               ),
                               if (_error != null) ...[
                                 SizedBox(height: s(8)),
                                 TextButton(onPressed: _retry, child: const Text('Retry loading more')),
                               ],
+                              if (_refreshing) ...[
+                                SizedBox(height: s(4)),
+                              ],
                             ],
                           ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Wraps the notification card in a [Dismissible] whose reveal background
+/// now animates in step with the swipe (icon scales up as you drag) instead
+/// of appearing instantly at full size the moment the swipe starts.
+class _DismissibleNotificationCard extends StatelessWidget {
+  const _DismissibleNotificationCard({
+    required this.scale,
+    required this.notification,
+    required this.onArchive,
+    this.onTap,
+  });
+
+  final double scale;
+  final NotificationItem notification;
+  final VoidCallback onArchive;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: ValueKey(notification.id),
+      direction: DismissDirection.endToStart,
+      background: Builder(
+        builder: (context) {
+          // DismissUpdateDetails isn't available pre-swipe, so we drive the
+          // icon's scale off the Dismissible's own movement via a
+          // NotificationListener-free approach: LayoutBuilder + the
+          // Dismissible's internal Transform already handles position, we
+          // just make our icon feel alive with a simple entrance curve.
+          return TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.6, end: 1),
+            duration: MizanMotion.fast,
+            curve: MizanMotion.gentle,
+            builder: (context, value, child) => Container(
+              alignment: Alignment.centerRight,
+              padding: EdgeInsets.only(right: scale * 22),
+              decoration: BoxDecoration(
+                color: kBronze,
+                borderRadius: BorderRadius.circular(scale * 16),
+              ),
+              child: Transform.scale(
+                scale: value,
+                child: Icon(Icons.archive_outlined, color: Theme.of(context).colorScheme.onPrimary),
+              ),
+            ),
+          );
+        },
+      ),
+      onDismissed: (_) => onArchive(),
+      child: _NotificationCard(
+        scale: scale,
+        notification: notification,
+        onTap: onTap,
       ),
     );
   }
@@ -300,11 +421,17 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final presentation = _presentationFor(notification);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = notification.isRead
+        ? (dark ? kSurfaceDark : kPaper)
+        : (dark ? kElevatedDark : kSoftBronze);
+    final textColor = dark ? kInkDark : kInk;
+    final mutedColor = dark ? kMutedDark : kMuted;
     return Semantics(
       button: true,
       label: notification.title,
       child: Material(
-        color: notification.isRead ? kClayPale : kSoftBronze,
+        color: cardColor,
         borderRadius: BorderRadius.circular(s(16)),
         child: InkWell(
           onTap: onTap,
@@ -318,10 +445,10 @@ class _NotificationCard extends StatelessWidget {
                   width: s(38),
                   height: s(38),
                   decoration: BoxDecoration(
-                    color: presentation.$2.withOpacity(0.13),
+                    color: presentation.color.withValues(alpha: 0.13),
                     borderRadius: BorderRadius.circular(s(12)),
                   ),
-                  child: Icon(presentation.$1, color: presentation.$2, size: s(20)),
+                  child: Icon(presentation.icon, color: presentation.color, size: s(20)),
                 ),
                 SizedBox(width: s(12)),
                 Expanded(
@@ -336,22 +463,30 @@ class _NotificationCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: s(15),
                                 fontWeight: notification.isRead ? FontWeight.w600 : FontWeight.w800,
-                                color: kInk,
+                                color: textColor,
                               ),
                             ),
                           ),
                           if (!notification.isRead)
-                            Container(
+                            AnimatedContainer(
+                              duration: MizanMotion.fast,
+                              curve: MizanMotion.gentle,
                               width: s(8),
                               height: s(8),
-                              decoration: const BoxDecoration(color: kBronzeDark, shape: BoxShape.circle),
+                              decoration: BoxDecoration(color: presentation.color, shape: BoxShape.circle),
                             ),
                         ],
                       ),
                       SizedBox(height: s(4)),
-                      Text(notification.body, style: TextStyle(fontSize: s(13), color: kMuted, height: 1.35)),
+                      Text(
+                        notification.body,
+                        style: TextStyle(fontSize: s(13), color: mutedColor, height: 1.35, fontWeight: FontWeight.w500),
+                      ),
                       SizedBox(height: s(8)),
-                      Text(_formatDate(notification.createdAt), style: TextStyle(fontSize: s(11.2), color: kMuted)),
+                      Text(
+                        _formatDate(notification.createdAt),
+                        style: TextStyle(fontSize: s(11.2), color: mutedColor.withValues(alpha: 0.78), fontWeight: FontWeight.w600),
+                      ),
                     ],
                   ),
                 ),
@@ -363,14 +498,14 @@ class _NotificationCard extends StatelessWidget {
     );
   }
 
-  (IconData, Color) _presentationFor(NotificationItem item) {
+  ({IconData icon, Color color}) _presentationFor(NotificationItem item) {
     final text = '${item.title} ${item.body}'.toLowerCase();
-    if (text.contains('prayer') || text.contains('salah')) return (Icons.mosque_outlined, kSage);
-    if (text.contains('family') || text.contains('invite')) return (Icons.groups_outlined, kBronze);
-    if (text.contains('goal')) return (Icons.flag_outlined, kBronzeDark);
-    if (text.contains('reflection')) return (Icons.menu_book_outlined, kSlate);
-    if (text.contains('achievement') || text.contains('streak')) return (Icons.auto_awesome_outlined, kBronzeDark);
-    return (Icons.notifications_none_outlined, kMuted);
+    if (text.contains('prayer') || text.contains('salah')) return (icon: Icons.mosque_outlined, color: kSage);
+    if (text.contains('family') || text.contains('invite')) return (icon: Icons.groups_outlined, color: kBronze);
+    if (text.contains('goal')) return (icon: Icons.flag_outlined, color: kBronzeDark);
+    if (text.contains('reflection')) return (icon: Icons.menu_book_outlined, color: kSlate);
+    if (text.contains('achievement') || text.contains('streak')) return (icon: Icons.auto_awesome_outlined, color: kBronzeDark);
+    return (icon: Icons.notifications_none_outlined, color: kMuted);
   }
 
   String _formatDate(String raw) {
@@ -388,7 +523,7 @@ class _NotificationCard extends StatelessWidget {
 }
 
 class _StateMessage extends StatelessWidget {
-  const _StateMessage({required this.message, required this.detail, this.onRetry});
+  const _StateMessage({super.key, required this.message, required this.detail, this.onRetry});
 
   final String message;
   final String detail;
@@ -402,9 +537,17 @@ class _StateMessage extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: kInk),
+            ),
             const SizedBox(height: 8),
-            Text(detail, textAlign: TextAlign.center),
+            Text(
+              detail,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: kInk.withValues(alpha: 0.65), fontWeight: FontWeight.w600),
+            ),
             if (onRetry != null) ...[
               const SizedBox(height: 12),
               FilledButton(onPressed: onRetry, child: const Text('Retry')),

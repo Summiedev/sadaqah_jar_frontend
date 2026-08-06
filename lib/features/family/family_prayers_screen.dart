@@ -76,7 +76,11 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     setState(() { _loading = true; _error = null; });
     final familyId = int.tryParse(widget.id);
     if (familyId == null) {
-      _loadMock();
+      if (!mounted) return;
+      setState(() {
+        _error = 'This family could not be found.';
+        _loading = false;
+      });
       return;
     }
     try {
@@ -101,18 +105,15 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      _loadMock();
-      setState(() { _error = e.toString(); _loading = false; });
+      // Do NOT fall back to fabricated data. Surface the real error and keep
+      // whatever real data we already had loaded (if any).
+      setState(() {
+        _error = e is BackendApiException ? e.message : 'Could not load prayer requests.';
+        _loading = false;
+      });
     }
   }
 
-  void _loadMock() {
-    _requests.addAll([
-      _PRequest('A family member', fOlive, 'Please remember my exams in your du\'a.', '1h'),
-      _PRequest('A family member', fBronze, 'Please pray for my dad. He is not feeling well, and I would really appreciate your du\'a.', '4h'),
-      _PRequest('A family member', fBronzeDark, 'Please remember our family this Friday.', 'Yesterday'),
-    ]);
-  }
 
   Future<void> _add() async {
     final text = _c.text.trim();

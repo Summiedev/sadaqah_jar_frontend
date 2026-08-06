@@ -1,4 +1,6 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,7 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/backend_api.dart';
 import '../../core/mode_provider.dart';
 import '../../core/animations.dart';
-import 'family_models.dart';
+import '../../core/theme/app_theme.dart';
 import 'family_theme.dart';
 
 class FamilyScreen extends ConsumerStatefulWidget {
@@ -17,35 +19,56 @@ class FamilyScreen extends ConsumerStatefulWidget {
 }
 
 class _FamilyScreenState extends ConsumerState<FamilyScreen> {
-  late List<String> _pending;
   List<Map<String, dynamic>> _families = const [];
   bool _loading = true;
   String? _error;
+  int _pendingCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _pending = [...pendingRequests];
     _loadFamilies();
   }
 
-  Future<void> _loadFamilies() async {
+  /// Loads the family list from the backend.
+  ///
+  /// [showSpinner] shows the full-screen loader — only used for the first load.
+  /// Syncs triggered after a create/join or by pull-to-refresh run silently so
+  /// the list doesn't flicker or flash a loading indicator.
+  Future<void> _loadFamilies({bool showSpinner = true}) async {
     setState(() {
-      _loading = true;
+      if (showSpinner) _loading = true;
       _error = null;
     });
     try {
+
       final families = await BackendApi.instance.getFamilies();
       if (!mounted) return;
       setState(() {
         _families = families;
         _loading = false;
       });
+      _loadPendingInvitations();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;
+      });
+    }
+  }
+
+  Future<void> _loadPendingInvitations() async {
+    try {
+      final invitations = await BackendApi.instance.getPendingInvitations();
+      if (!mounted) return;
+      setState(() {
+        _pendingCount = invitations.length;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _pendingCount = 0;
       });
     }
   }
@@ -98,7 +121,13 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     try {
       final response = await BackendApi.instance.createFamilyJar(name: result);
       if (!mounted) return;
+      setState(() {
+        _families = [response, ..._families];
+        _loading = false;
+        _error = null;
+      });
       final inviteCode = response['invite_code'] as String? ?? '';
+
       await showDialog(
         context: context,
         builder: (ctx) => DialogFadeScale(
@@ -150,10 +179,13 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
           ),
         ),
       );
-      _loadFamilies();
+      // Silent reconciliation so the optimistic card is replaced with the
+      // authoritative server record (no spinner, no flicker).
+      _loadFamilies(showSpinner: false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: Text('Could not create jar: $e')));
+
     }
   }
 
@@ -206,6 +238,9 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       await BackendApi.instance.joinFamilyJar(inviteCode: result);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const Text('Joined family jar!')));
+      // Silent sync so the joined jar appears without a jarring reload spinner.
+      _loadFamilies(showSpinner: false);
+
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: Text('Could not join jar: $e')));
@@ -231,16 +266,20 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
             }
             return false;
           },
-          child: CustomScrollView(
-            physics: const BouncingScrollPhysics(),
+          child: RefreshIndicator(
+            color: fBronze,
+            onRefresh: () => _loadFamilies(showSpinner: false),
+            child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
             slivers: [
+
               SliverAppBar(
                 pinned: true,
                 floating: false,
                 toolbarHeight: 64,
                 collapsedHeight: 64,
                 expandedHeight: 64,
-                backgroundColor: const Color(0xFFE8DCC8),
+                backgroundColor: fClayLight,
                 foregroundColor: fWalnutLight,
                 surfaceTintColor: Colors.transparent,
                 elevation: 0,
@@ -255,26 +294,26 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF0E0),
+                          color: fPaper,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE8C99B)),
+                          border: Border.all(color: fClayLight),
                         ),
                         child: Stack(
                           children: [
-                            const Center(child: Icon(Icons.person_add_outlined, size: 18, color: Color(0xFF9E7B5A))),
-                            if (_pending.isNotEmpty)
+                            const Center(child: Icon(Icons.person_add_outlined, size: 18, color: fBronze)),
+                            if (_pendingCount > 0)
                               Positioned(
                                 right: 4,
                                 top: 4,
-                                child: Container(
+                                    child: Container(
                                   width: 14,
                                   height: 14,
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFB6544D),
+                                    color: kDanger,
                                     borderRadius: BorderRadius.circular(99),
                                   ),
                                   child: Center(
-                                    child: Text('${_pending.length}', style: const TextStyle(fontSize: 8, color: Colors.white, fontWeight: FontWeight.w800)),
+                                    child: Text('$_pendingCount', style: TextStyle(fontSize: 8, color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w800)),
                                   ),
                                 ),
                               ),
@@ -295,11 +334,13 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
     );
   }
+
 
   Widget _buildBody(BuildContext context) {
     if (_loading) {
@@ -356,19 +397,19 @@ class _ErrorState extends StatelessWidget {
             Container(
               width: 72,
               height: 72,
-              decoration: BoxDecoration(color: const Color(0xFFFFF0EE), shape: BoxShape.circle, border: Border.all(color: const Color(0xFFF0BCB5))),
-              child: const Icon(Icons.wifi_off_rounded, size: 32, color: Color(0xFFB85450)),
+              decoration: BoxDecoration(color: kDangerBg, shape: BoxShape.circle, border: Border.all(color: kDangerBorder)),
+              child: const Icon(Icons.wifi_off_rounded, size: 32, color: kDanger),
             ),
             const SizedBox(height: 20),
-            Text('Could not load families', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: const Color(0xFF2F241E), fontFamily: 'Georgia')),
+            Text('Could not load families', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kInk, fontFamily: 'Georgia')),
             const SizedBox(height: 8),
-            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF6D5B4D), fontSize: 13, height: 1.5)),
+            Text(message, textAlign: TextAlign.center, style: const TextStyle(color: fStone, fontSize: 13, height: 1.5)),
             const SizedBox(height: 18),
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Try again'),
-              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF8B6842), padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
+              style: FilledButton.styleFrom(backgroundColor: kBronze, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
             ),
           ],
         ),

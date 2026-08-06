@@ -25,7 +25,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9F4ED),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -58,13 +58,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               FadeScaleTransition(
                 beginScale: 0.98,
                 child: Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF1E7DB),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE3D3C3)),
-                      boxShadow: const [BoxShadow(color: Color(0x0D000000), blurRadius: 8, offset: Offset(0, 2))],
-                    ),
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: kPaper,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: kLine),
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: Offset(0, 2))],
+                      ),
                   child: Row(
                     children: [
                       Expanded(
@@ -114,9 +114,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kDangerBorder),
                   ),
-                  child: Text(
-                    _googleError!,
-                    style: const TextStyle(color: Color(0xFFB85450), fontSize: 13),
+                    child: Text(
+                      _googleError!,
+                      style: const TextStyle(color: kDanger, fontSize: 13),
                   ),
                 ),
               _GoogleButton(onTap: _continueWithGoogle, isLoading: _loading),
@@ -124,7 +124,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const Text(
                 'Data is stored locally and privately on this device.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: Color(0xFF8B7B6F), height: 1.4),
+                 style: TextStyle(fontSize: 11, color: kMuted, height: 1.4),
               ),
             ],
           ),
@@ -151,7 +151,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       );
       final account = await googleSignIn.signIn();
       if (account == null) {
-        setState(() => _loading = false);
+        // user cancelled
         return;
       }
       final idToken = await account.authentication.then((a) => a.idToken);
@@ -160,11 +160,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await BackendApi.instance.googleAuth(idToken: idToken);
       if (!mounted) return;
       await _onAuthSuccess();
-    } catch (error) {
+    } on BackendApiException catch (e) {
       if (!mounted) return;
-      setState(() {
-        _googleError = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
-      });
+      setState(() => _googleError = e.message);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _googleError = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -185,7 +186,7 @@ class _SegmentButton extends StatelessWidget {
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
-          backgroundColor: selected ? Colors.white : Colors.transparent,
+          backgroundColor: selected ? Theme.of(context).colorScheme.surface : Colors.transparent,
           foregroundColor: kInk,
           minimumSize: const Size.fromHeight(36),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -213,8 +214,8 @@ class _RegisterFormState extends State<_RegisterForm> {
   final _invitationController = TextEditingController();
   bool _loading = false;
   String? _errorMessage;
-  bool _biometricEnabled = false;
   bool _passwordVisible = false;
+
 
   @override
   void dispose() {
@@ -230,13 +231,18 @@ class _RegisterFormState extends State<_RegisterForm> {
   }
 
   Future<void> _submit() async {
+    // Guard against double-submit: a rapid second tap during the button's
+    // AnimatedSwitcher swap frame must not fire a second register call.
+    if (_loading) return;
     FocusManager.instance.primaryFocus?.unfocus();
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final invitationCode = _invitationController.text.trim();
 
     if (name.isEmpty) {
       setState(() => _errorMessage = 'Please enter your name.');
+
       return;
     }
     if (!_isValidEmail(email)) {
@@ -260,8 +266,16 @@ class _RegisterFormState extends State<_RegisterForm> {
         password: password,
       );
 
+      // If an invitation code was supplied, join that household now that the
+      // account exists and the session is authenticated. A bad/expired code
+      // must surface as an error rather than silently doing nothing.
+      if (invitationCode.isNotEmpty) {
+        await BackendApi.instance.joinFamilyJar(inviteCode: invitationCode);
+      }
+
       final profile = await BackendApi.instance.getUserProfile();
       if (!mounted) return;
+
 
       if (profile.emailVerified) {
         widget.onDone();
@@ -318,37 +332,8 @@ class _RegisterFormState extends State<_RegisterForm> {
           onToggleVisibility: () => setState(() => _passwordVisible = !_passwordVisible),
           textInputAction: TextInputAction.next,
         ),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: kClayPale,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE3D3C3)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(color: const Color(0xFFF9F4ED), borderRadius: BorderRadius.circular(12), border: Border.all(color: kClay)),
-                child: const Icon(Icons.fingerprint, size: 18, color: kBronze),
-              ),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Biometric setup', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kInk)),
-                    SizedBox(height: 3),
-                    Text('Enable Face ID or Touch ID unlock', style: TextStyle(fontSize: 11, color: kMuted)),
-                  ],
-                ),
-              ),
-              Switch.adaptive(value: _biometricEnabled, onChanged: (_) => setState(() => _biometricEnabled = !_biometricEnabled), activeThumbColor: kBronze),
-            ],
-          ),
-        ),
+    
+
         const SizedBox(height: 12),
         _Field(
           label: 'Family invitation',
@@ -372,7 +357,7 @@ class _RegisterFormState extends State<_RegisterForm> {
               ),
               child: Text(
                 _errorMessage!,
-                style: const TextStyle(color: Color(0xFFB85450), fontSize: 13),
+                style: const TextStyle(color: kDanger, fontSize: 13),
               ),
             ),
           ),
@@ -388,12 +373,15 @@ class _RegisterFormState extends State<_RegisterForm> {
             width: double.infinity,
             height: 52,
             child: _loading
-                ? const DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))))
+                ? DecoratedBox(
+                    decoration: const BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))),
+                    child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Theme.of(context).colorScheme.onPrimary))),
+                  )
                 : ElevatedButton(
                     onPressed: _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kBronze,
-                      foregroundColor: Colors.white,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
@@ -526,7 +514,7 @@ class _SigninFormState extends State<_SigninForm> {
               ),
               child: Text(
                 _errorMessage!,
-                style: const TextStyle(color: Color(0xFFB85450), fontSize: 13),
+                style: const TextStyle(color: kDanger, fontSize: 13),
               ),
             ),
           ),
@@ -542,12 +530,15 @@ class _SigninFormState extends State<_SigninForm> {
             width: double.infinity,
             height: 48,
             child: _loading
-                ? const DecoratedBox(decoration: BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))), child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white))))
+                ? DecoratedBox(
+                    decoration: const BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))),
+                    child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Theme.of(context).colorScheme.onPrimary))),
+                  )
                 : ElevatedButton(
                     onPressed: _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kBronze,
-                      foregroundColor: Colors.white,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       elevation: 0,
@@ -595,7 +586,7 @@ class _Field extends StatelessWidget {
           textInputAction: textInputAction,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(fontSize: 12, color: Color(0xFFA69480)),
+            hintStyle: const TextStyle(fontSize: 12, color: kClay),
             filled: true,
             fillColor: kClayPale,
             contentPadding: EdgeInsets.symmetric(horizontal: showToggle ? 14 : 14, vertical: 14),
@@ -628,10 +619,10 @@ class _GoogleButton extends StatelessWidget {
       onPressed: isLoading ? null : onTap,
       style: OutlinedButton.styleFrom(
         foregroundColor: kInk,
-        side: const BorderSide(color: Color(0xFFE3D3C3)),
+        side: const BorderSide(color: kLine),
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: const Color(0xFFFDFAF6),
+        backgroundColor: kPaper,
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
       ),
       child: Row(

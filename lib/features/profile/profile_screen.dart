@@ -19,9 +19,27 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _scrolled = false;
+  Future<UserProfile>? _profileFuture;
+  String? _profileError;
 
   Color get _appBarColor => _scrolled ? kPaper : kClayLight;
   double get _appBarElevation => _scrolled ? 2 : 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  void _loadProfile() {
+    setState(() {
+      _profileError = null;
+      _profileFuture = BackendApi.instance.getUserProfile().catchError((e) {
+        _profileError = e.toString();
+        throw e;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +87,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     FutureBuilder<UserProfile>(
-                      future: BackendApi.instance.getUserProfile(),
+                      future: _profileFuture,
                       builder: (context, snapshot) {
                         final profile = snapshot.data;
                         final loading = snapshot.connectionState == ConnectionState.waiting;
@@ -87,13 +105,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   margin: const EdgeInsets.only(bottom: 14),
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFFF3E0),
+                                    color: kSuccessBg,
                                     borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: const Color(0xFFFFCC80)),
+                                    border: Border.all(color: kSuccessBorder),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.email_outlined, color: Color(0xFFE65100), size: 20),
+                                      const Icon(Icons.email_outlined, color: kDanger, size: 20),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
@@ -104,13 +122,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w700,
-                                                color: Color(0xFFE65100),
+                                                color: kDanger,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               'Please verify your email to access all features.',
-                                              style: TextStyle(fontSize: 12, color: const Color(0xFF8D6E63), height: 1.4),
+                                              style: TextStyle(fontSize: 12, color: kMuted, height: 1.4),
                                             ),
                                           ],
                                         ),
@@ -143,7 +161,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         },
                                         child: const Text(
                                           'Resend',
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFE65100)),
+                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kDanger),
                                         ),
                                       ),
                                     ],
@@ -151,7 +169,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                               ],
                               const SizedBox(height: 15),
-                              CardEntrance(index: 0, child: _AccountCard(profile: profile)),
+                              CardEntrance(index: 0, child: _AccountCard(profile: profile, error: _profileError, onRetry: _loadProfile)),
                               const SizedBox(height: 18),
                               CardEntrance(
                                 index: 1,
@@ -287,13 +305,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 }
 
 class _AccountCard extends StatelessWidget {
-  const _AccountCard({this.profile});
+  const _AccountCard({this.profile, this.error, this.onRetry});
 
   final UserProfile? profile;
+  final String? error;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
     final p = profile;
+    if (p == null && error != null && onRetry != null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: kPaper,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: kLine),
+        ),
+        child: Row(children: [
+          const Icon(Icons.wifi_off_rounded, size: 28, color: kBronze),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Could not load profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kInk)),
+                const SizedBox(height: 3),
+                Text('Tap retry to try again.', style: TextStyle(fontSize: 13, color: kMuted)),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded, size: 16, color: kBronze),
+            label: const Text('Retry', style: TextStyle(color: kBronze, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+      );
+    }
     if (p == null) {
       return Container(
         padding: const EdgeInsets.all(16),

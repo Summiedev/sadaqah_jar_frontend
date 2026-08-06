@@ -38,7 +38,7 @@ class _SkeletonLineState extends State<SkeletonLine> with SingleTickerProviderSt
       height: widget.height,
       decoration: BoxDecoration(
         color: reduceMotion ? kClayLight : null,
-        gradient: reduceMotion ? null : LinearGradient(begin: Alignment(-1 + _controller.value * 2, 0), end: Alignment(_controller.value * 2, 0), colors: const [kClayLight, Color(0xFFFFF9F1), kClayLight]),
+        gradient: reduceMotion ? null : LinearGradient(begin: Alignment(-1 + _controller.value * 2, 0), end: Alignment(_controller.value * 2, 0), colors: const [kClayLight, kPaper, kClayLight]),
         borderRadius: BorderRadius.circular(widget.radius),
       ),
     ));

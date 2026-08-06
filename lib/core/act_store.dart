@@ -20,31 +20,52 @@ class ActStore extends ChangeNotifier {
     return stamp != null && stamp.year == now.year && stamp.month == now.month && stamp.day == now.day;
   }).length;
 
-  int get totalStars => _goalActsDone ?? _jarCurrentStars ?? _acts.length;
+  // Acts added locally that the backend has not yet confirmed. This makes the
+  // jar fill move the instant a user adds an act — online or offline — instead
+  // of waiting for a round-trip that may still be queued. It is reconciled back
+  // toward zero in [_refreshJarProgress] as the server count catches up.
+  int _optimisticDelta = 0;
+  int? _lastKnownDone;
+
+  int get totalStars {
+    final base = _goalActsDone ?? _jarCurrentStars;
+    // When we have no backend baseline yet, the local list already counts the
+    // new act, so we must NOT also add the optimistic delta (double counting).
+    if (base == null) return _acts.length;
+    return base + _optimisticDelta;
+  }
 
   int get remainingActs {
     final capacity = _goalTarget ?? _jarCapacity;
     final done = _goalActsDone ?? _jarCurrentStars;
     if (capacity == null || done == null) return 0;
-    return (capacity - done).clamp(0, capacity);
+    return (capacity - (done + _optimisticDelta)).clamp(0, capacity);
   }
 
   double get progress {
     final capacity = _goalTarget ?? _jarCapacity;
     final done = _goalActsDone ?? _jarCurrentStars;
     if (done == null || capacity == null || capacity == 0) return 0.0;
-    return (done / capacity).clamp(0.0, 1.0);
+    return ((done + _optimisticDelta) / capacity).clamp(0.0, 1.0);
   }
+
 
   int? _jarCurrentStars;
   int? _jarCapacity;
   int? _goalActsDone;
   int? _goalTarget;
   String? _goalTitle;
+  String? _goalSubtitle;
+  int? _goalId;
   int? _currentStreak;
+  bool _streakError = false;
 
   int? get currentStreak => _currentStreak;
+  bool get streakError => _streakError;
   String? get goalTitle => _goalTitle;
+  String? get goalSubtitle => _goalSubtitle;
+  int? get goalId => _goalId;
+  int? get goalTarget => _goalTarget ?? _jarCapacity;
 
   Future<void> _refreshJarProgress() async {
     try {
@@ -62,27 +83,63 @@ class ActStore extends ChangeNotifier {
       final goalList = goals['goals'] as List? ?? [];
       if (goalList.isNotEmpty) {
         final firstGoal = goalList.first as Map<String, dynamic>;
+        _goalId = (firstGoal['id'] as num?)?.toInt();
         _goalActsDone = (firstGoal['acts_done'] as num?)?.toInt() ?? _jarCurrentStars;
         _goalTarget = (firstGoal['acts_target'] as num?)?.toInt() ?? _jarCapacity;
         _goalTitle = firstGoal['title']?.toString();
+        _goalSubtitle = firstGoal['subtitle']?.toString();
       } else {
+        _goalId = null;
         _goalActsDone = null;
         _goalTarget = null;
         _goalTitle = null;
+        _goalSubtitle = null;
       }
     } catch (_) {
+      _goalId = null;
       _goalActsDone = null;
       _goalTarget = null;
       _goalTitle = null;
+      _goalSubtitle = null;
     }
+    _reconcileOptimisticDelta();
+
     try {
       final streak = await BackendApi.instance.getStreak();
       _currentStreak = streak.currentStreak;
+      _streakError = false;
     } catch (_) {
       _currentStreak = null;
+      _streakError = true;
     }
     notifyListeners();
   }
+
+  Future<void> retryStreak() async {
+    _streakError = false;
+    notifyListeners();
+    await _refreshJarProgress();
+  }
+
+  /// Shrinks the optimistic delta once the server count catches up with what we
+  /// already showed. The jar fill therefore never jumps backward: it only ever
+  /// moves forward, and the delta is gradually paid down as sync confirms acts.
+  void _reconcileOptimisticDelta() {
+    if (_optimisticDelta <= 0) return;
+    final confirmed = _goalActsDone ?? _jarCurrentStars;
+    if (confirmed == null) return;
+    if (_lastKnownDone != null && confirmed <= _lastKnownDone!) {
+      // Server hasn't moved yet (queued act not synced) — keep the delta.
+      _lastKnownDone = confirmed;
+      return;
+    }
+    final consumed = confirmed - (_lastKnownDone ?? confirmed);
+    if (consumed > 0) {
+      _optimisticDelta = (_optimisticDelta - consumed).clamp(0, 1 << 30);
+    }
+    _lastKnownDone = confirmed;
+  }
+
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -102,12 +159,51 @@ class ActStore extends ChangeNotifier {
   Future<void> add({required String type, String? note}) async {
     _acts.insert(0, {'type': type, 'note': note ?? '', 'created_at': DateTime.now().toIso8601String()});
     if (_acts.length > 250) _acts.removeRange(250, _acts.length);
+
+    // Optimistically move the jar fill forward immediately. We only do this once
+    // we already have a backend baseline (otherwise totalStars falls back to the
+    // local list length and would double count). Seed _lastKnownDone so the next
+    // refresh can tell whether the server has caught up with this act yet.
+    if ((_goalActsDone ?? _jarCurrentStars) != null) {
+      _lastKnownDone ??= _goalActsDone ?? _jarCurrentStars;
+      _optimisticDelta += 1;
+    }
     notifyListeners();
+
     _writeQueue = _writeQueue.then((_) async {
+
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_key, jsonEncode(_acts));
     }).catchError((_) {});
     await _writeQueue;
+    await _refreshJarProgress();
+  }
+
+  Future<void> addRemote({required String type, String? note, String? requestId}) async {
+    _lastKnownDone ??= _goalActsDone ?? _jarCurrentStars;
+    _optimisticDelta += 1;
+    notifyListeners();
+    try {
+      await BackendApi.instance.addJarStar(type: type, note: note, requestId: requestId);
+      await _refreshJarProgress();
+    } catch (_) {
+      _optimisticDelta = (_optimisticDelta - 1).clamp(0, 1 << 30);
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  Future<void> updateGoal({required String title, String? subtitle, required int actsTarget}) async {
+    final id = _goalId;
+    if (id == null) {
+      throw StateError('No active goal to update.');
+    }
+    await BackendApi.instance.updateGoal(
+      goalId: id,
+      title: title,
+      subtitle: subtitle,
+      actsTarget: actsTarget,
+    );
     await _refreshJarProgress();
   }
 }

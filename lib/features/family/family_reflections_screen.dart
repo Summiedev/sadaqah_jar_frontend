@@ -42,37 +42,39 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
   final TextEditingController _c = TextEditingController();
   bool _loading = true;
   String? _error;
-  Timer? _refreshTimer;
 
   @override
   void initState() {
     super.initState();
     _jar = getFamilyById(widget.id);
     _loadReflections();
-    _startAutoRefresh();
   }
 
   @override
   void dispose() {
     _c.dispose();
-    _refreshTimer?.cancel();
     super.dispose();
   }
 
-  void _startAutoRefresh() {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      if (mounted) {
-        _loadReflections();
-      }
-    });
-  }
+  /// Loads reflections from the backend.
+  ///
+  /// [showSpinner] controls whether the full-screen loading state is shown.
+  /// It is only used for the very first load; subsequent syncs (after a
+  /// create/update or a pull-to-refresh) update silently to avoid flicker.
+  Future<void> _loadReflections({bool showSpinner = true}) async {
+    if (showSpinner) {
+      setState(() { _loading = true; _error = null; });
+    } else {
+      setState(() { _error = null; });
+    }
 
-  Future<void> _loadReflections() async {
-    setState(() { _loading = true; _error = null; });
     final familyId = int.tryParse(widget.id);
     if (familyId == null) {
-      _loadMock();
+      if (!mounted) return;
+      setState(() {
+        _error = 'This family could not be found.';
+        _loading = false;
+      });
       return;
     }
     try {
@@ -92,19 +94,15 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
-      _loadMock();
-      setState(() { _error = e.toString(); _loading = false; });
+      // Do NOT fall back to fabricated data. Surface the real error and keep
+      // whatever real data we already had loaded (if any).
+      setState(() {
+        _error = e is BackendApiException ? e.message : 'Could not load reflections.';
+        _loading = false;
+      });
     }
   }
 
-  void _loadMock() {
-    _reflections.addAll([
-      _FReflection('A family member', fOlive, 'Alhamdulillah for another week together.', '2h'),
-      _FReflection('A family member', fBronze, 'May Allah accept our efforts this month.', '5h'),
-      _FReflection('A family member', fBronzeDark, 'Grateful we could help someone today.', 'Yesterday'),
-      _FReflection('A family member', fOlive, 'Small things, done with love, are never small.', 'Yesterday'),
-    ]);
-  }
 
   Future<void> _add() async {
     final text = _c.text.trim();
@@ -130,7 +128,56 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     }
   }
 
+  Future<void> _edit(int index) async {
+    final reflection = _reflections[index];
+    final controller = TextEditingController(text: reflection.text);
+    final newText = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: fIvory,
+        title: const Text('Edit reflection', style: TextStyle(color: fWalnut, fontFamily: 'Georgia')),
+        content: TextField(
+          controller: controller,
+          maxLines: 5,
+          minLines: 1,
+          autofocus: true,
+          style: const TextStyle(fontSize: 14, height: 1.45, color: fWalnut),
+          decoration: const InputDecoration(hintText: 'Update your reflection…'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, controller.text.trim()),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (newText == null || newText.isEmpty || newText == reflection.text) return;
+
+    final familyId = int.tryParse(widget.id);
+    final reflectionId = int.tryParse(reflection.id ?? '');
+    if (familyId == null || reflectionId == null) {
+      setState(() {
+        _reflections[index] = reflection.copyWith(text: newText);
+      });
+      return;
+    }
+    try {
+      final result = await BackendApi.instance.updateFamilyReflection(familyId, reflectionId, text: newText);
+      if (!mounted) return;
+      setState(() {
+        _reflections[index] = reflection.copyWith(text: result['text']?.toString() ?? newText);
+      });
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.brown));
+    }
+  }
+
   Future<void> _encourage(int index, String type) async {
+
     final reflection = _reflections[index];
     final familyId = int.tryParse(widget.id);
     final reflectionId = int.tryParse(reflection.id ?? '');
@@ -203,27 +250,40 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
       );
     }
     if (_reflections.isEmpty) {
-      return const _EmptyReflections();
+      return RefreshIndicator(
+        onRefresh: () => _loadReflections(showSpinner: false),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: const [SizedBox(height: 120), _EmptyReflections()],
+        ),
+      );
     }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-      itemCount: _reflections.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _ReflectionCard(
-        r: _reflections[index],
-        onPick: (k) => _encourage(index, k),
+    return RefreshIndicator(
+      onRefresh: () => _loadReflections(showSpinner: false),
+      child: ListView.separated(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+        itemCount: _reflections.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) => _ReflectionCard(
+          r: _reflections[index],
+          onPick: (k) => _encourage(index, k),
+          onEdit: () => _edit(index),
+        ),
       ),
     );
+
   }
 }
 
 const List<String> _encourageOptions = <String>['May Allah accept', 'Ameen', 'Barakallahu feek', 'May Allah increase you'];
 
 class _ReflectionCard extends StatelessWidget {
-  const _ReflectionCard({required this.r, required this.onPick});
+  const _ReflectionCard({required this.r, required this.onPick, this.onEdit});
 
   final _FReflection r;
   final ValueChanged<String> onPick;
+  final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -245,8 +305,16 @@ class _ReflectionCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (onEdit != null)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined, size: 17, color: fStoneLight),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Edit reflection',
+                  onPressed: onEdit,
+                ),
             ],
           ),
+
           const SizedBox(height: 12),
           Text('"${r.text}"', style: const TextStyle(fontSize: 14.5, height: 1.5, fontStyle: FontStyle.italic, color: fWalnut)),
           const SizedBox(height: 14),

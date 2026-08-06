@@ -53,7 +53,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kPaper,
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     body: SafeArea(child: Center(child: SingleChildScrollView(padding: const EdgeInsets.all(24), child: ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 440),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -68,7 +68,18 @@ class _VerificationScreenState extends State<VerificationScreen> {
         TextField(controller: _code, autofocus: true, keyboardType: TextInputType.number, textAlign: TextAlign.center, maxLength: 6, onSubmitted: (_) => _verify(), style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: 10, color: kInk), decoration: InputDecoration(counterText: '', hintText: '000000', filled: true, fillColor: kClayPale, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: kClay)))),
         if (_message != null) Padding(padding: const EdgeInsets.only(top: 14), child: Text(_message!, textAlign: TextAlign.center, style: const TextStyle(color: kMuted, height: 1.4))),
         const SizedBox(height: 18),
-        ElevatedButton(onPressed: _submitting ? null : _verify, style: ElevatedButton.styleFrom(backgroundColor: kBronze, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))), child: _submitting ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Verify and continue')),
+        ElevatedButton(
+          onPressed: _submitting ? null : _verify,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: kBronze,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          child: _submitting
+              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Theme.of(context).colorScheme.onPrimary, strokeWidth: 2))
+              : const Text('Verify and continue'),
+        ),
         TextButton(onPressed: _submitting ? null : _resend, child: const Text('Didn’t get a code? Send a new one')),
         TextButton(onPressed: widget.onLogin, child: const Text('Use a different account')),
       ]),

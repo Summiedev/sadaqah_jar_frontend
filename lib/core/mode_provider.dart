@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,18 +57,18 @@ const Map<int, ModeMeta> kModeMeta = {
     label: 'Personal',
     tagline: 'My personal journey.',
     icon: Icons.person_outline_rounded,
-    accent: Color(0xFF9A6A3A),
+    accent: kBronze,
   ),
   kModeFamily: ModeMeta(
     label: 'Family',
     tagline: 'Grow together with family.',
     icon: Icons.groups_outlined,
-    accent: Color(0xFF1FA36B),
+    accent: kOlive,
   ),
   kModeBoth: ModeMeta(
     label: 'Both',
     tagline: 'Solitude and togetherness, in one.',
     icon: Icons.auto_awesome_outlined,
-    accent: Color(0xFF4A8DF7),
+    accent: kSlate,
   ),
 };

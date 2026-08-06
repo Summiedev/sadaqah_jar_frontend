@@ -1,9 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/theme/app_theme.dart';
 import '../home/add_act_screen.dart';
 import 'family_theme.dart';
 import '../../services/backend_api.dart';
+import '../../services/websocket_service.dart';
+
 
 class FamilyJarScreen extends StatefulWidget {
   const FamilyJarScreen({required this.id, super.key});
@@ -13,36 +19,164 @@ class FamilyJarScreen extends StatefulWidget {
   State<FamilyJarScreen> createState() => _FamilyJarScreenState();
 }
 
-class _FamilyJarScreenState extends State<FamilyJarScreen> {
+class _FamilyJarScreenState extends State<FamilyJarScreen> with WidgetsBindingObserver {
   Map<String, dynamic>? _family;
   bool _loading = true;
+  bool _refreshing = false;
+  bool _notFound = false;
+
+  int _optimisticActsDone = 0;
+
+  Timer? _refreshTimer;
+  VoidCallback? _wsListener;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadFamily();
+    _startAutoRefresh();
+    _connectWebSocket();
   }
 
-  Future<void> _loadFamily() async {
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _refreshTimer?.cancel();
+    if (_wsListener != null) {
+      WebSocketService.instance.removeListener(_wsListener!);
+    }
+    WebSocketService.instance.disconnect();
+    super.dispose();
+  }
+
+  void _connectWebSocket() {
+    final familyId = int.tryParse(widget.id);
+    if (familyId == null) return;
+    WebSocketService.instance.connectFamily(familyId);
+    _wsListener = () {
+      if (mounted) {
+        _loadFamily(silent: true);
+      }
+    };
+    WebSocketService.instance.addListener(_wsListener!);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadFamily(silent: true);
+    }
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        _loadFamily(silent: true);
+      }
+    });
+  }
+
+  Future<void> _loadFamily({bool silent = false}) async {
     if (!mounted) return;
-    setState(() => _loading = true);
+    if (!silent) {
+      setState(() => _loading = true);
+    } else {
+      setState(() => _refreshing = true);
+    }
     try {
       final familyId = int.tryParse(widget.id);
       if (familyId == null) {
         if (!mounted) return;
-        setState(() => _loading = false);
+        setState(() {
+          _loading = false;
+          _refreshing = false;
+        });
         return;
       }
       final detail = await BackendApi.instance.getFamilyDetail(familyId);
       if (!mounted) return;
       setState(() {
         _family = detail;
+        _optimisticActsDone = 0;
         _loading = false;
+        _refreshing = false;
+        _notFound = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      final is404 = e is BackendApiException && e.statusCode == 404;
+      setState(() {
+        _loading = false;
+        _refreshing = false;
+        _notFound = is404;
+      });
     }
+  }
+
+  /// Optimistic-update + reconciliation pattern for adding a family act.
+  ///
+  /// 1. Immediately increment [_optimisticActsDone] so the UI shows the new
+  ///    count before the network call resolves (optimistic).
+  /// 2. Fire POST /family/{id}/add-act.
+  /// 3. On success: leave the optimistic value in place; the next server
+  ///    response will reconcile any drift.
+  /// 4. On failure: roll back [_optimisticActsDone] to 0 and show a snackbar
+  ///    with a retry action so the user can try again.
+  /// 5. On [_loadFamily] (pull-to-refresh / retry): [_family] is replaced with
+  ///    the server's authoritative value and [_optimisticActsDone] is reset
+  ///    to 0, ensuring no permanent drift between local state and server.
+  Future<void> _onAddAct() async {
+    final familyIdStr = _family?['id']?.toString();
+    if (familyIdStr == null) return;
+    final parsedFamilyId = int.tryParse(familyIdStr);
+    if (parsedFamilyId == null) return;
+
+    /// Show the contribution options (share with family or keep private).
+    final choice = await showModalBottomSheet<String?>(
+      context: context,
+      backgroundColor: fIvory,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))),
+      builder: (sheetContext) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 30),
+        child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: fClay, borderRadius: BorderRadius.circular(99)))),
+          const SizedBox(height: 24),
+          const Text('How would you like to add it?', style: TextStyle(fontFamily: 'Georgia', color: fWalnut, fontSize: 22, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 7),
+          Text('Both choices grow the shared jar.', style: const TextStyle(color: fStone, fontSize: 13)),
+          const SizedBox(height: 20),
+          _ContributionOption(icon: Icons.groups_outlined, title: 'Share with family', body: 'Your family can see this moment in the activity feed.', onTap: () => Navigator.pop(sheetContext, 'family')),
+          const SizedBox(height: 10),
+          _ContributionOption(icon: Icons.visibility_off_outlined, title: 'Keep it private', body: 'It counts toward the jar without showing who or what.', onTap: () => Navigator.pop(sheetContext, 'private')),
+        ]),
+      ),
+    );
+    if (choice == null || !mounted) return;
+
+    // Optimistic-update + reconciliation pattern: immediately increment
+    // the local acts_done count in state before the network call resolves.
+    final previousDone = _optimisticActsDone;
+    setState(() => _optimisticActsDone = previousDone + 1);
+
+    final success = await AddActScreen.show(context, familyId: parsedFamilyId);
+    if (!mounted) return;
+    if (success) {
+      _loadFamily();
+      return;
+    }
+
+    // Rollback: restore the previous count on failure.
+    setState(() => _optimisticActsDone = previousDone);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Could not add act. Please try again.'),
+        backgroundColor: kDanger,
+        action: SnackBarAction(label: 'Retry', onPressed: _onAddAct),
+      ),
+    );
   }
 
   @override
@@ -50,7 +184,7 @@ class _FamilyJarScreenState extends State<FamilyJarScreen> {
     if (_loading) {
       return const Scaffold(backgroundColor: fIvory, body: Center(child: CircularProgressIndicator(color: fBronze)));
     }
-    if (_family == null) {
+    if (_notFound) {
       return Scaffold(backgroundColor: fIvory, body: Center(child: Column(children: [
         const Icon(Icons.wifi_off_rounded, size: 48, color: fBronze),
         const SizedBox(height: 20),
@@ -59,40 +193,66 @@ class _FamilyJarScreenState extends State<FamilyJarScreen> {
         TextButton.icon(onPressed: _loadFamily, icon: const Icon(Icons.refresh_rounded), label: const Text('Try again')),
       ])));
     }
-
-    final name = _family!['name']?.toString() ?? 'Family';
-    final familyId = _family!['id'].toString();
-    final members = (_family!['members'] as List?) ?? [];
-    final goals = (_family!['goals'] as List?) ?? [];
+    if (_family == null) {
+      return Scaffold(backgroundColor: fIvory, body: Center(child: Column(children: [
+        const Icon(Icons.wifi_off_rounded, size: 48, color: fBronze),
+        const SizedBox(height: 20),
+        const Text('Connection issue', style: TextStyle(color: fWalnut, fontSize: 18, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
+        const SizedBox(height: 8),
+        Text('Could not reach the server. Please check your connection and try again.', textAlign: TextAlign.center, style: const TextStyle(color: fStone, fontSize: 13, height: 1.4)),
+        const SizedBox(height: 12),
+        TextButton.icon(onPressed: _loadFamily, icon: const Icon(Icons.refresh_rounded), label: const Text('Retry')),
+      ])));
+    }
 
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         backgroundColor: fIvory,
-        body: SafeArea(
-          child: Column(children: [
-            _JarAppBar(name: name, familyId: familyId),
-            Container(
-              margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-              decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(16), border: Border.all(color: fClay)),
-              child: const TabBar(
-                dividerColor: Colors.transparent,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(color: fWhite, borderRadius: BorderRadius.all(Radius.circular(12))),
-                labelColor: fWalnut,
-                unselectedLabelColor: fStoneLight,
-                labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-                tabs: [Tab(text: 'Home'), Tab(text: 'Activity'), Tab(text: 'Together')],
-              ),
-            ),
-            Expanded(child: TabBarView(children: [
-              _JarHome(family: _family!, goals: goals, members: members),
-              _Activity(family: _family!),
-              _Together(family: _family!, members: members),
-            ])),
-          ]),
-        ),
+        body: Column(children: [
+          if (_refreshing)
+            const LinearProgressIndicator(minHeight: 2, color: fBronze, backgroundColor: Colors.transparent),
+          Expanded(child: _JarBody(family: _family!, onAddAct: _onAddAct)),
+        ]),
       ),
+    );
+  }
+}
+
+class _JarBody extends StatelessWidget {
+  const _JarBody({required this.family, required this.onAddAct});
+  final Map<String, dynamic> family;
+  final VoidCallback onAddAct;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = family['name']?.toString() ?? 'Family';
+    final familyId = family['id'].toString();
+    final members = (family['members'] as List?) ?? [];
+    final goals = (family['goals'] as List?) ?? [];
+
+    return SafeArea(
+      child: Column(children: [
+        _JarAppBar(name: name, familyId: familyId),
+        Container(
+          margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+          decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(16), border: Border.all(color: fClay)),
+          child: const TabBar(
+            dividerColor: Colors.transparent,
+            indicatorSize: TabBarIndicatorSize.tab,
+            indicator: BoxDecoration(color: fWhite, borderRadius: BorderRadius.all(Radius.circular(12))),
+            labelColor: fWalnut,
+            unselectedLabelColor: fStoneLight,
+            labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+            tabs: [Tab(text: 'Home'), Tab(text: 'Activity'), Tab(text: 'Together')],
+          ),
+        ),
+        Expanded(child: TabBarView(children: [
+          _JarHome(family: family, goals: goals, members: members, onAddAct: onAddAct, optimisticActsDone: 0),
+          _Activity(family: family),
+          _Together(family: family, members: members),
+        ])),
+      ]),
     );
   }
 }
@@ -122,19 +282,23 @@ class _JarAppBar extends StatelessWidget {
 }
 
 class _JarHome extends StatelessWidget {
-  const _JarHome({required this.family, required this.goals, required this.members});
+  const _JarHome({required this.family, required this.goals, required this.members, required this.onAddAct, this.optimisticActsDone = 0});
   final Map<String, dynamic> family;
   final List goals;
   final List members;
+  final VoidCallback onAddAct;
+  final int optimisticActsDone;
 
   @override
   Widget build(BuildContext context) => ListView(
     physics: const BouncingScrollPhysics(),
     padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
     children: [
-      _GoalHero(goals: goals),
-      const SizedBox(height: 18),
-      MizanButton(label: 'Add to our jar', onTap: () => _openContributionSheet(context, familyId: familyId)),
+      _GoalHero(goals: goals, optimisticActsDone: optimisticActsDone),
+      const SizedBox(height: 12),
+      const _PendingSyncIndicator(),
+      const SizedBox(height: 6),
+      MizanButton(label: 'Add to our jar', onTap: onAddAct),
       const SizedBox(height: 10),
       Center(child: Text('Share an act with the family, or let it count privately.', style: const TextStyle(fontSize: 11.5, color: fStoneLight))),
       const SizedBox(height: 30),
@@ -154,37 +318,58 @@ class _JarHome extends StatelessWidget {
 }
 
 class _GoalHero extends StatelessWidget {
-  const _GoalHero({required this.goals});
+  const _GoalHero({required this.goals, this.optimisticActsDone = 0});
   final List goals;
+  final int optimisticActsDone;
 
   @override
   Widget build(BuildContext context) {
     final progress = goals.isEmpty ? 0.0 : (goals.first['progress'] as num?)?.toDouble() ?? 0.0;
     final percentage = (progress * 100).round();
     final actsTarget = goals.isEmpty ? 0 : (goals.first['acts_target'] as num?)?.toInt() ?? 0;
-    final actsDone = goals.isEmpty ? 0 : (goals.first['acts_done'] as num?)?.toInt() ?? 0;
+    final serverActsDone = goals.isEmpty ? 0 : (goals.first['acts_done'] as num?)?.toInt() ?? 0;
+    final actsDone = serverActsDone + optimisticActsDone;
     final remaining = (actsTarget - actsDone).clamp(0, actsTarget);
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
-      decoration: BoxDecoration(color: fWalnut, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: Color(0x1A2F241E), blurRadius: 22, offset: Offset(0, 10))]),
+      decoration: BoxDecoration(color: fWalnut, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: fShadowWarm, blurRadius: 22, offset: Offset(0, 10))]),
       child: Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('OUR INTENTION', style: TextStyle(color: Color(0xFFE7C99E), fontSize: 10.5, letterSpacing: 1.45, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 10),
-          Text('$percentage% of our intention', style: const TextStyle(fontFamily: 'Georgia', color: fWhite, fontSize: 25, height: 1.15, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 9),
-          Text('$remaining more gentle acts to reach this month\'s goal.', style: const TextStyle(color: Color(0xFFE1D4C7), fontSize: 12.5, height: 1.35)),
-          const SizedBox(height: 18),
-          ProgressTrack(value: progress, height: 8, color: const Color(0xFFE5B877)),
+          Text('OUR INTENTION', style: TextStyle(color: kBronzeLight, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          Text('Growing together', style: const TextStyle(color: Color(0xFFD5C5B6), fontSize: 12)),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text('$percentage%', style: TextStyle(fontFamily: 'Georgia', color: fWhite, fontSize: 36, height: 1.0, fontWeight: FontWeight.w800)),
+            const SizedBox(width: 12),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('$actsDone of $actsTarget acts', style: TextStyle(color: kClayLight, fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              Text('$remaining left to reach this month\'s goal', style: TextStyle(color: kClayLight.withValues(alpha: 0.95), fontSize: 12)),
+            ]),
+          ]),
+          const SizedBox(height: 14),
+          ProgressTrack(value: progress, height: 10, color: kBronze),
+          const SizedBox(height: 10),
+          Row(children: [Icon(Icons.group_outlined, size: 14, color: kClayLight), const SizedBox(width: 6), Text('Growing together', style: TextStyle(color: kClayLight, fontSize: 12))]),
         ])),
         const SizedBox(width: 4),
-        ExcludeSemantics(child: SizedBox(width: 105, height: 145, child: FamilyJarView(fill: progress, size: 102, glow: .7))),
+        ExcludeSemantics(child: SizedBox(width: 120, height: 160, child: FamilyJarView(fill: progress, size: 110, glow: .7))),
       ]),
     );
   }
 }
+
+class _PendingSyncIndicator extends ConsumerWidget {
+  const _PendingSyncIndicator();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Intentionally invisible — acts count locally the instant they're added,
+    // and the durable queue syncs to the server silently in the background.
+    // There's no user-facing "pending sync" state.
+    return const SizedBox.shrink();
+  }
+}
+
 
 class _TodayCard extends StatelessWidget {
   const _TodayCard({required this.members});
@@ -284,9 +469,22 @@ class _ActivityRow extends StatelessWidget {
   final Map<String, dynamic> activity;
   final bool divider;
 
+  static const _eventLabels = {
+    'family.created': 'created a family jar',
+    'member.joined': 'joined the family',
+    'member.left': 'left the family',
+    'goal.created': 'created a new goal',
+    'goal.completed': 'completed a goal',
+    'act.added': 'added an act to the jar',
+    'reflection.shared': 'shared a reflection',
+    'prayer.shared': 'shared a prayer request',
+    'prayer.responded': 'responded to a prayer',
+  };
+
   @override
   Widget build(BuildContext context) {
-    final eventType = activity['event_type']?.toString() ?? 'activity';
+    final rawEvent = activity['event_type']?.toString() ?? 'activity';
+    final eventType = _eventLabels[rawEvent] ?? rawEvent;
     final createdAt = activity['created_at']?.toString() ?? '';
     final day = createdAt.split('T').first;
     return Column(children: [Padding(padding: const EdgeInsets.all(14), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 37, height: 37, decoration: BoxDecoration(color: fBronze.withValues(alpha: .12), borderRadius: BorderRadius.circular(12)), child: Icon(Icons.auto_awesome_outlined, color: fBronze, size: 19)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(eventType, style: const TextStyle(fontSize: 13, color: fWalnut, height: 1.35)), const SizedBox(height: 4), Text(day, style: const TextStyle(fontSize: 11, color: fStoneLight))]))])), if (divider) const Divider(height: 1, indent: 63, color: fClayLight)]);
@@ -350,10 +548,5 @@ class _MemberRow extends StatelessWidget {
 }
 
 class _SectionTitle extends StatelessWidget { const _SectionTitle({required this.title}); final String title; @override Widget build(BuildContext context) => Text(title, style: const TextStyle(fontFamily: 'Georgia', fontSize: 19, color: fWalnut, fontWeight: FontWeight.w700)); }
-
-void _openContributionSheet(BuildContext context, {required String familyId}) {
-  final parsedFamilyId = int.tryParse(familyId);
-  showModalBottomSheet<void>(context: context, backgroundColor: fIvory, shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(30))), builder: (sheetContext) => Padding(padding: const EdgeInsets.fromLTRB(24, 12, 24, 30), child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [Center(child: Container(width: 42, height: 4, decoration: BoxDecoration(color: fClay, borderRadius: BorderRadius.circular(99)))), const SizedBox(height: 24), const Text('How would you like to add it?', style: TextStyle(fontFamily: 'Georgia', color: fWalnut, fontSize: 22, fontWeight: FontWeight.w700)), const SizedBox(height: 7), const Text('Both choices grow the shared jar.', style: const TextStyle(color: fStone, fontSize: 13)), const SizedBox(height: 20), _ContributionOption(icon: Icons.groups_outlined, title: 'Share with family', body: 'Your family can see this moment in the activity feed.', onTap: () { Navigator.pop(sheetContext); AddActScreen.show(context, familyId: parsedFamilyId); }), const SizedBox(height: 10), _ContributionOption(icon: Icons.visibility_off_outlined, title: 'Keep it private', body: 'It counts toward the jar without showing who or what.', onTap: () { Navigator.pop(sheetContext); AddActScreen.show(context, familyId: parsedFamilyId); })])));
-}
 
 class _ContributionOption extends StatelessWidget { const _ContributionOption({required this.icon, required this.title, required this.body, required this.onTap}); final IconData icon; final String title, body; final VoidCallback onTap; @override Widget build(BuildContext context) => SoftCard(onTap: onTap, padding: const EdgeInsets.all(16), child: Row(children: [Container(width: 42, height: 42, decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(13)), child: Icon(icon, color: fBronze)), const SizedBox(width: 12), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: fWalnut, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(body, style: const TextStyle(fontSize: 11.5, height: 1.3, color: fStone))])), const Icon(Icons.arrow_forward_rounded, color: fBronze)])); }

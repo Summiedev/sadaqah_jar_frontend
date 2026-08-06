@@ -162,7 +162,7 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                     }
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: kBronze, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                  child: Text(book == null ? 'Create' : 'Save', style: const TextStyle(color: Colors.white)),
+                  child: Text(book == null ? 'Create' : 'Save', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
                 ),
               ],
             );
@@ -225,9 +225,9 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manage Books', style: TextStyle(color: kInk, fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
-        backgroundColor: kIvory,
-        foregroundColor: kInk,
+        title: Text('Manage Books', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
@@ -237,7 +237,7 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
           ),
         ],
       ),
-      backgroundColor: kIvory,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: FutureBuilder<AdminBookPage>(
         future: _future,
         builder: (context, snapshot) {
@@ -337,7 +337,7 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         backgroundColor: kBronze,
-        foregroundColor: Colors.white,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add_rounded),
         label: const Text('Add Book'),
