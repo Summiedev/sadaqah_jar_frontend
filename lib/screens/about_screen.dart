@@ -77,7 +77,7 @@ class AboutScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Mizan helps you keep the small acts of goodness that matter — gently, privately, and with intention. '
+                    'Mizan helps you keep the small acts of goodness that matter - gently, privately, and with intention. '
                     'It is a space for quiet reflection, away from comparison and public feeds.',
                     style: TextStyle(fontSize: 14, color: kMuted, height: 1.65),
                     textAlign: TextAlign.center,

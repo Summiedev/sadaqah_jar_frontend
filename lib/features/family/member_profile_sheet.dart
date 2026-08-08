@@ -76,7 +76,7 @@ class _MemberSheet extends StatelessWidget {
         if (member.milestones.isEmpty)
           const Padding(
             padding: EdgeInsets.only(bottom: 8),
-            child: Text('No milestones yet — every gentle step counts.', style: TextStyle(fontSize: 12.5, height: 1.5, color: fStoneLight, fontStyle: FontStyle.italic)),
+            child: Text('No milestones yet - every gentle step counts.', style: TextStyle(fontSize: 12.5, height: 1.5, color: fStoneLight, fontStyle: FontStyle.italic)),
           )
         else
           ...member.milestones.map(

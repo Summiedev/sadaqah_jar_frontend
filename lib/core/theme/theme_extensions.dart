@@ -2,14 +2,24 @@ import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
 extension AppPalette on BuildContext {
-  Brightness get _brightness => Theme.of(this).brightness;
+  MizanColors get colors =>
+      Theme.of(this).extension<MizanColors>() ??
+      (Theme.of(this).brightness == Brightness.dark
+          ? MizanColors.dark
+          : MizanColors.light);
 
-  Color get scaffold => _brightness == Brightness.dark ? kScaffoldDark : kScaffold;
-  Color get surface => _brightness == Brightness.dark ? kSurfaceDark : kSurface;
-  Color get paper => _brightness == Brightness.dark ? kPaperDark : kPaper;
-  Color get ink => _brightness == Brightness.dark ? kInkDark : kInk;
-  Color get muted => _brightness == Brightness.dark ? kMutedDark : kMuted;
-  Color get line => _brightness == Brightness.dark ? kLineDark : kLine;
-  Color get bronze => kBronze;
-  Color get bronzeLight => kBronzeLight;
+  Color get scaffold => colors.background;
+  Color get surface => colors.surfaceContainer;
+  Color get paper => colors.surfaceElevated;
+  Color get ink => colors.textPrimary;
+  Color get muted => colors.textSecondary;
+  Color get mutedLight => colors.textMuted;
+  Color get line => colors.border;
+  Color get lineSubtle => colors.borderSubtle;
+  Color get bronze => colors.primary;
+  Color get bronzeLight => colors.accent;
+  Color get softBronze => colors.primaryContainer;
+  Color get success => colors.success;
+  Color get warning => colors.warning;
+  Color get danger => colors.error;
 }

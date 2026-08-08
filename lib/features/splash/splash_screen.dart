@@ -1,4 +1,4 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
@@ -10,14 +10,14 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
-  // Main entrance — plays once, then explicitly stops so its ticker goes
+  // Main entrance - plays once, then explicitly stops so its ticker goes
   // fully idle instead of lingering at value == 1.0.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1800),
   );
 
-  // Ambient loop — shimmer + pulse. Cheap, isolated, runs forever.
+  // Ambient loop - shimmer + pulse. Cheap, isolated, runs forever.
   late final AnimationController _ambient = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2600),
@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   void _onEntranceStatus(AnimationStatus status) {
     if (status == AnimationStatus.completed) {
-      // Entrance is done — stop the controller so it fully idles (no ticker
+      // Entrance is done - stop the controller so it fully idles (no ticker
       // registered, no per-frame callbacks) rather than just sitting at 1.0.
       _controller.stop();
       _controller.removeStatusListener(_onEntranceStatus);
@@ -93,7 +93,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
       backgroundColor: kScaffoldDark,
       body: Stack(
         children: [
-          // Elegant top accent line — grows from the center outward.
+          // Elegant top accent line - grows from the center outward.
           Align(
             alignment: Alignment.topCenter,
             child: Padding(
@@ -133,7 +133,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo box — rings draw themselves in, dot pops, ambient glow loops.
+                  // Logo box - rings draw themselves in, dot pops, ambient glow loops.
                   SizedBox(
                     width: 180,
                     height: 180,
@@ -161,7 +161,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                     ),
                                   ),
                                 ),
-                                // Ambient rotating sheen behind the diamond — isolated repaint.
+                                // Ambient rotating sheen behind the diamond - isolated repaint.
                                 RepaintBoundary(
                                   child: AnimatedBuilder(
                                     animation: _ambient,
@@ -186,7 +186,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             ),
                           ),
                         ),
-                        // Diamond rings — drawn in with a sweep, not just faded.
+                        // Diamond rings - drawn in with a sweep, not just faded.
                         AnimatedBuilder(
                           animation: _ringSweep,
                           builder: (context, _) => CustomPaint(
@@ -194,7 +194,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                             painter: _DiamondRingsPainter(progress: _ringSweep.value),
                           ),
                         ),
-                        // Center gold dot — elastic pop, then a gentle ambient pulse.
+                        // Center gold dot - elastic pop, then a gentle ambient pulse.
                         AnimatedBuilder(
                           animation: Listenable.merge([_dotPop, _ambient]),
                           builder: (context, _) {
@@ -225,7 +225,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   ),
                   const SizedBox(height: 38),
 
-                  // Brand name — letters stagger in individually, with a shimmer sweep once settled.
+                  // Brand name - letters stagger in individually, with a shimmer sweep once settled.
                   _ShimmerWordmark(controller: _controller, ambient: _ambient, letters: _letters),
                   const SizedBox(height: 12),
 
@@ -247,7 +247,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
             ),
           ),
 
-          // Bottom tagline — arrives last, gentle rise-fade.
+          // Bottom tagline - arrives last, gentle rise-fade.
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
@@ -319,7 +319,7 @@ class _DiamondRingsPainter extends CustomPainter {
 }
 
 /// "M I Z A N" with each letter staggering in on its own delay, plus a soft
-/// diagonal shimmer sweep across the settled text — driven by the ambient
+/// diagonal shimmer sweep across the settled text - driven by the ambient
 /// loop so it repeats gently without restarting the whole entrance.
 class _ShimmerWordmark extends StatelessWidget {
   const _ShimmerWordmark({required this.controller, required this.ambient, required this.letters});

@@ -227,7 +227,7 @@ class _EmptyGoals extends StatelessWidget {
           const SizedBox(height: 18),
           const Text('No goals yet', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
           const SizedBox(height: 8),
-          const Text('Create a gentle intention your family can grow toward — together, one act at a time.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+          const Text('Create a gentle intention your family can grow toward - together, one act at a time.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
         ],
       ),
     );

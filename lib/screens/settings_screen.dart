@@ -1,4 +1,6 @@
-﻿import 'dart:convert';
+import 'dart:convert';
+
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +12,7 @@ import '../../services/push_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../core/theme/theme_mode_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/backend_api.dart';
@@ -51,7 +54,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (parts.length == 2) {
         final h = int.tryParse(parts[0]);
         final m = int.tryParse(parts[1]);
-        if (h != null && m != null && mounted) setState(() => _fridayReminderTime = TimeOfDay(hour: h, minute: m));
+        if (h != null && m != null && mounted) {
+          setState(() => _fridayReminderTime = TimeOfDay(hour: h, minute: m));
+        }
       }
     }
   }
@@ -61,18 +66,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       if (value) {
         if (!await PushNotificationService.instance.enableForReminders()) {
-          throw StateError('Notification permission is required to enable reminders.');
+          throw StateError(
+            'Notification permission is required to enable reminders.',
+          );
         }
+        if (!mounted) return;
         // Ask the user what time they'd like the Friday reminder.
-        final picked = await showTimePicker(context: context, initialTime: _fridayReminderTime ?? const TimeOfDay(hour: 9, minute: 0));
+        final picked = await showTimePicker(
+          context: context,
+          initialTime:
+              _fridayReminderTime ?? const TimeOfDay(hour: 9, minute: 0),
+        );
         if (picked == null) {
           // user cancelled - don't toggle
           return;
         }
-        await LocalReminderService.instance.enableFridayReminder(true, hour: picked.hour, minute: picked.minute);
+        await LocalReminderService.instance.enableFridayReminder(
+          true,
+          hour: picked.hour,
+          minute: picked.minute,
+        );
         await BackendApi.instance.updatePreferences(fridayReminder: true);
       } else {
-        await LocalReminderService.instance.enableFridayReminder(false, hour: 0, minute: 0);
+        await LocalReminderService.instance.enableFridayReminder(
+          false,
+          hour: 0,
+          minute: 0,
+        );
         await BackendApi.instance.updatePreferences(fridayReminder: false);
       }
       if (!mounted) return;
@@ -83,25 +103,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _loadStoredPosition();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     } finally {
-      if (mounted) setState(() => _savingReminder = false);
+      if (mounted) {
+        setState(() => _savingReminder = false);
+      }
     }
   }
 
-  Future<void> _toggleGeneralNotifications(UserProfile profile, bool value) async {
+  Future<void> _toggleGeneralNotifications(
+    UserProfile profile,
+    bool value,
+  ) async {
     setState(() => _savingReminder = true);
     try {
-      if (value && !await PushNotificationService.instance.enableForReminders()) {
-        throw StateError('Notification permission is required to enable notifications.');
+      if (value &&
+          !await PushNotificationService.instance.enableForReminders()) {
+        throw StateError(
+          'Notification permission is required to enable notifications.',
+        );
       }
       await BackendApi.instance.updatePreferences(generalNotifications: value);
       if (!mounted) return;
       setState(() => _profileFuture = BackendApi.instance.getUserProfile());
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     } finally {
       if (mounted) setState(() => _savingReminder = false);
@@ -110,16 +142,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = context.colors;
     return Scaffold(
-      backgroundColor: dark ? kScaffoldDark : kSurface,
+      backgroundColor: tokens.background,
       appBar: AppBar(
         title: const Text('Settings'),
-        backgroundColor: dark ? kScaffoldDark : kSurface,
+        backgroundColor: tokens.background,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: dark ? kInkDark : kInk, size: 19),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: tokens.iconPrimary,
+            size: 19,
+          ),
           tooltip: 'Back',
         ),
       ),
@@ -133,12 +169,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Settings',
                         style: TextStyle(
                           fontFamily: 'Georgia',
                           fontSize: 28,
-                          color: kInk,
+                          color: tokens.textPrimary,
                           fontWeight: FontWeight.w800,
                           height: 1.1,
                         ),
@@ -146,7 +182,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Update your profile and preferences.',
-                        style: TextStyle(color: kMuted, fontSize: 13, height: 1.4),
+                        style: TextStyle(
+                          color: tokens.textSecondary,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
                     ],
                   ),
@@ -161,8 +201,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 icon: Icons.person_outline,
                 title: 'Edit profile',
                 subtitle: 'Update your name, email, and avatar',
-                onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+                onTap: () async {
+                  await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => const EditProfileScreen(),
+                    ),
+                  );
+                  if (mounted) {
+                    setState(
+                      () =>
+                          _profileFuture = BackendApi.instance.getUserProfile(),
+                    );
+                  }
                 },
               ),
             ),
@@ -170,79 +220,126 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _SettingsSection(
               title: 'Notifications',
               subtitle: 'Gentle nudges and preferences',
-              child: Column(children: [
-                _SettingsCard(
-                  icon: Icons.notifications_active_outlined,
-                  title: 'Notification preferences',
-                  subtitle: 'Manage categories, frequency, and quiet hours',
-                  onTap: () {
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const NotificationPreferencesScreen()));
-                  },
-                ),
-                const SizedBox(height: 10),
-                FutureBuilder<UserProfile>(
-                  future: _profileFuture,
-                  builder: (context, snapshot) {
-                    final profile = snapshot.data;
-                    final fridayEnabled = profile?.fridayReminder ?? false;
-                    final generalEnabled = profile?.generalNotifications ?? false;
-                    return Column(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: kLine),
-                          ),
-                          child: SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                          title: Text('General notifications', style: TextStyle(color: dark ? kInkDark : kInk, fontSize: 15, fontWeight: FontWeight.w700)),
-                            subtitle: Text(
-                              snapshot.connectionState == ConnectionState.waiting
-                                  ? 'Loading your preference...'
-                                  : 'Receive push notifications for updates and reminders.',
-                              style: TextStyle(color: dark ? kMutedDark : kMuted, fontSize: 12.5, height: 1.4),
+              child: Column(
+                children: [
+                  _SettingsCard(
+                    icon: Icons.notifications_active_outlined,
+                    title: 'Notification preferences',
+                    subtitle: 'Manage categories, frequency, and quiet hours',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationPreferencesScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  FutureBuilder<UserProfile>(
+                    future: _profileFuture,
+                    builder: (context, snapshot) {
+                      final profile = snapshot.data;
+                      final fridayEnabled = profile?.fridayReminder ?? false;
+                      final generalEnabled =
+                          profile?.generalNotifications ?? false;
+                      return Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
                             ),
-                            value: generalEnabled,
-                            onChanged: _savingReminder || profile == null ? null : (value) => _toggleGeneralNotifications(profile, value),
-                            activeThumbColor: kBronze,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.surface,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: kLine),
-                          ),
-                          child: SwitchListTile.adaptive(
-                            contentPadding: EdgeInsets.zero,
-                          title: Text('Friday reminder', style: TextStyle(color: dark ? kInkDark : kInk, fontSize: 15, fontWeight: FontWeight.w700)),
-                            subtitle: Text(
-                              snapshot.connectionState == ConnectionState.waiting
-                                  ? 'Loading your preference...'
-                                  : 'Get a gentle Friday reminder when it is enabled.',
-                              style: TextStyle(color: dark ? kMutedDark : kMuted, fontSize: 12.5, height: 1.4),
+                            decoration: BoxDecoration(
+                              color: tokens.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: tokens.borderSubtle),
                             ),
-                            value: fridayEnabled,
-                            onChanged: _savingReminder || profile == null ? null : (value) => _toggleFridayReminder(profile, value),
-                            activeThumbColor: kBronze,
+                            child: SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'General notifications',
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Text(
+                                snapshot.connectionState ==
+                                        ConnectionState.waiting
+                                    ? 'Loading your preference...'
+                                    : 'Receive push notifications for updates and reminders.',
+                                style: TextStyle(
+                                  color: tokens.textSecondary,
+                                  fontSize: 12.5,
+                                  height: 1.4,
+                                ),
+                              ),
+                              value: generalEnabled,
+                              onChanged:
+                                  _savingReminder || profile == null
+                                      ? null
+                                      : (value) => _toggleGeneralNotifications(
+                                        profile,
+                                        value,
+                                      ),
+                              activeThumbColor: kBronze,
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        _SettingsCard(
-                          icon: Icons.place_outlined,
-                          title: 'Prayer times & location',
-                          subtitle: 'Use device or set manually',
-                          onTap: () => _showLocationDialog(),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ]),
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: tokens.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: tokens.borderSubtle),
+                            ),
+                            child: SwitchListTile.adaptive(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(
+                                'Friday reminder',
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Text(
+                                snapshot.connectionState ==
+                                        ConnectionState.waiting
+                                    ? 'Loading your preference...'
+                                    : 'Get a gentle Friday reminder when it is enabled.',
+                                style: TextStyle(
+                                  color: tokens.textSecondary,
+                                  fontSize: 12.5,
+                                  height: 1.4,
+                                ),
+                              ),
+                              value: fridayEnabled,
+                              onChanged:
+                                  _savingReminder || profile == null
+                                      ? null
+                                      : (value) =>
+                                          _toggleFridayReminder(profile, value),
+                              activeThumbColor: kBronze,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _SettingsCard(
+                            icon: Icons.place_outlined,
+                            title: 'Prayer times & location',
+                            subtitle: 'Use device or set manually',
+                            onTap: () => _showLocationDialog(),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 14),
             _SettingsSection(
@@ -259,7 +356,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 title: 'Change password',
                 subtitle: 'Update your password',
                 onTap: () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ChangePasswordScreen()));
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const ChangePasswordScreen(),
+                    ),
+                  );
                 },
               ),
             ),
@@ -270,9 +371,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: _SettingsCard(
                 icon: Icons.palette_outlined,
                 title: 'Appearance',
-                subtitle: ref.watch(themeModeProvider) == ThemeMode.system
-                    ? 'Use your device setting'
-                    : (ref.watch(themeModeProvider) == ThemeMode.light ? 'Light' : 'Dark'),
+                subtitle:
+                    ref.watch(themeModeProvider) == ThemeMode.system
+                        ? 'Use your device setting'
+                        : (ref.watch(themeModeProvider) == ThemeMode.light
+                            ? 'Light'
+                            : 'Dark'),
                 onTap: () => _showAppearanceSelector(context),
                 enabled: true,
               ),
@@ -281,31 +385,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _SettingsSection(
               title: 'Family',
               subtitle: 'Shared spaces',
-              child: _SettingsCard(icon: Icons.groups_outlined, title: 'Family preferences', subtitle: 'Manage invitations and sharing', onTap: null, enabled: false),
+              child: _SettingsCard(
+                icon: Icons.groups_outlined,
+                title: 'Family preferences',
+                subtitle: 'Manage invitations and sharing',
+                onTap: null,
+                enabled: false,
+              ),
             ),
             const SizedBox(height: 14),
             _SettingsSection(
               title: 'Support',
               subtitle: 'Help and product information',
-              child: Column(children: [
-                _SettingsCard(
-                  icon: Icons.help_outline,
-                  title: 'Help',
-                  subtitle: 'Get support',
-                  onTap: () {
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpScreen()));
-                  },
-                ),
-                const SizedBox(height: 10),
-                _SettingsCard(
-                  icon: Icons.info_outline,
-                  title: 'About',
-                  subtitle: 'Mizan version and legal',
-                  onTap: () {
-                    Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AboutScreen()));
-                  },
-                ),
-              ]),
+              child: Column(
+                children: [
+                  _SettingsCard(
+                    icon: Icons.help_outline,
+                    title: 'Help',
+                    subtitle: 'Get support',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const HelpScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _SettingsCard(
+                    icon: Icons.info_outline,
+                    title: 'About',
+                    subtitle: 'Mizan version and legal',
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AboutScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 14),
             _SettingsSection(
@@ -333,40 +449,104 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void _showAppearanceSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      backgroundColor: context.colors.surfaceElevated,
+      showDragHandle: true,
       builder: (ctx) {
         final current = ref.watch(themeModeProvider);
+        final tokens = ctx.colors;
+        Widget option({
+          required ThemeMode mode,
+          required String label,
+          required IconData icon,
+        }) {
+          final selected = current == mode;
+          return Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Material(
+              color:
+                  selected ? tokens.primaryContainer : tokens.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: () {
+                  ref.read(themeModeProvider.notifier).setMode(mode);
+                  Navigator.pop(ctx);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        icon,
+                        color: selected ? tokens.primary : tokens.iconSecondary,
+                        size: 21,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            color:
+                                selected
+                                    ? tokens.onPrimaryContainer
+                                    : tokens.textPrimary,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (selected)
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: tokens.primary,
+                          size: 20,
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile<ThemeMode>(
-                title: const Text('System'),
-                value: ThemeMode.system,
-                groupValue: current,
-                onChanged: (v) {
-                  if (v != null) ref.read(themeModeProvider.notifier).setMode(v);
-                  Navigator.pop(ctx);
-                },
-              ),
-              RadioListTile<ThemeMode>(
-                title: const Text('Light'),
-                value: ThemeMode.light,
-                groupValue: current,
-                onChanged: (v) {
-                  if (v != null) ref.read(themeModeProvider.notifier).setMode(v);
-                  Navigator.pop(ctx);
-                },
-              ),
-              RadioListTile<ThemeMode>(
-                title: const Text('Dark'),
-                value: ThemeMode.dark,
-                groupValue: current,
-                onChanged: (v) {
-                  if (v != null) ref.read(themeModeProvider.notifier).setMode(v);
-                  Navigator.pop(ctx);
-                },
-              ),
-            ],
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Appearance',
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontFamily: 'Georgia',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                option(
+                  mode: ThemeMode.system,
+                  label: 'System',
+                  icon: Icons.settings_suggest_outlined,
+                ),
+                option(
+                  mode: ThemeMode.light,
+                  label: 'Light',
+                  icon: Icons.light_mode_outlined,
+                ),
+                option(
+                  mode: ThemeMode.dark,
+                  label: 'Dark',
+                  icon: Icons.dark_mode_outlined,
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -374,102 +554,170 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _showLocationDialog() {
-    showModalBottomSheet(context: context, builder: (ctx) {
-      return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text('Prayer times & location', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 8),
-              Text(_storedPosition == null ? 'No location set' : 'Lat: ${_storedPosition!['lat']}, Lon: ${_storedPosition!['lon']}', style: TextStyle(color: kMuted)),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                icon: const Icon(Icons.my_location_outlined),
-                label: const Text('Use device location'),
-                onPressed: () async {
-                  Navigator.of(ctx).pop();
-                  final snack = ScaffoldMessenger.of(context);
-                  try {
-                    final pos = await LocationService.instance.getCurrentPosition();
-                    if (pos == null) {
-                      snack.showSnackBar(const SnackBar(content: Text('Location permission denied or unavailable')));
-                      return;
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) {
+        final tokens = ctx.colors;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Prayer times & location',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _storedPosition == null
+                      ? 'No location set'
+                      : 'Lat: ${_storedPosition!['lat']}, Lon: ${_storedPosition!['lon']}',
+                  style: TextStyle(color: tokens.textSecondary),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  icon: const Icon(Icons.my_location_outlined),
+                  label: const Text('Use device location'),
+                  onPressed: () async {
+                    Navigator.of(ctx).pop();
+                    final snack = ScaffoldMessenger.of(context);
+                    try {
+                      final pos =
+                          await LocationService.instance.getCurrentPosition();
+                      if (pos == null) {
+                        snack.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Location permission denied or unavailable',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+                      await PrayerCountdownService.instance
+                          .refreshTimingsForDate(DateTime.now());
+                      await _loadStoredPosition();
+                      snack.showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Prayer times refreshed using device location',
+                          ),
+                        ),
+                      );
+                    } catch (e) {
+                      snack.showSnackBar(
+                        SnackBar(content: Text('Could not get location: $e')),
+                      );
                     }
-                    await PrayerCountdownService.instance.refreshTimingsForDate(DateTime.now());
-                    await _loadStoredPosition();
-                    snack.showSnackBar(const SnackBar(content: Text('Prayer times refreshed using device location')));
-                  } catch (e) {
-                    snack.showSnackBar(SnackBar(content: Text('Could not get location: $e')));
-                  }
-                },
-              ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                icon: const Icon(Icons.edit_location_alt_outlined),
-                label: const Text('Set manual location'),
-                onPressed: () {
-                  Navigator.of(ctx).pop();
-                  _showManualLocationPrompt();
-                },
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Close'),
-              ),
-            ],
+                  },
+                ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  icon: const Icon(Icons.edit_location_alt_outlined),
+                  label: const Text('Set manual location'),
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    _showManualLocationPrompt();
+                  },
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   void _showManualLocationPrompt() {
     final latController = TextEditingController();
     final lonController = TextEditingController();
-    showDialog(context: context, builder: (ctx) {
-      return AlertDialog(
-        title: const Text('Set manual location'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: latController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Latitude')),
-            TextField(controller: lonController, keyboardType: TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Longitude')),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () async {
-              final lat = double.tryParse(latController.text.trim());
-              final lon = double.tryParse(lonController.text.trim());
-              if (lat == null || lon == null) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter valid coordinates')));
-                return;
-              }
-              Navigator.of(ctx).pop();
-              try {
-                await LocationService.instance.setManualPosition(lat, lon);
-                await PrayerCountdownService.instance.refreshTimingsForDate(DateTime.now());
-                await _loadStoredPosition();
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Manual location saved and prayer times refreshed')));
-              } catch (e) {
-                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save manual location: $e')));
-              }
-            },
-            child: const Text('Save'),
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Set manual location'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: latController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Latitude'),
+              ),
+              TextField(
+                controller: lonController,
+                keyboardType: TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Longitude'),
+              ),
+            ],
           ),
-        ],
-      );
-    });
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final lat = double.tryParse(latController.text.trim());
+                final lon = double.tryParse(lonController.text.trim());
+                if (lat == null || lon == null) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter valid coordinates'),
+                      ),
+                    );
+                  }
+                  return;
+                }
+                Navigator.of(ctx).pop();
+                try {
+                  await LocationService.instance.setManualPosition(lat, lon);
+                  await PrayerCountdownService.instance.refreshTimingsForDate(
+                    DateTime.now(),
+                  );
+                  await _loadStoredPosition();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Manual location saved and prayer times refreshed',
+                        ),
+                      ),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not save manual location: $e'),
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
 
 class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.subtitle, required this.child});
+  const _SettingsSection({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
 
   final String title;
   final String subtitle;
@@ -477,29 +725,47 @@ class _SettingsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final tokens = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 4, bottom: 8),
-          child: Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              fontSize: 11,
-              letterSpacing: 1.2,
-              fontWeight: FontWeight.w700,
-              color: dark ? kBronzeDarkMode : kBronze,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w800,
+                  color: tokens.primary,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.3,
+                  fontWeight: FontWeight.w600,
+                  color: tokens.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: dark ? kSurfaceDark : kPaper,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: dark ? kLineDark : kLine),
+            color: tokens.surfaceContainer,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: tokens.borderSubtle),
           ),
-          child: child,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: child,
+          ),
         ),
       ],
     );
@@ -525,8 +791,8 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final accent = emphasizeDanger ? kDanger : (dark ? kBronzeDarkMode : kBronze);
+    final tokens = context.colors;
+    final accent = emphasizeDanger ? tokens.error : tokens.primary;
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -540,23 +806,51 @@ class _SettingsCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: enabled ? accent.withValues(alpha: (dark ? 0.18 : 0.12)) : (dark ? kElevatedDark : kLine),
+                  color:
+                      enabled
+                          ? accent.withValues(alpha: 0.14)
+                          : tokens.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: enabled ? accent : kMutedLight, size: 20),
+                child: Icon(
+                  icon,
+                  color: enabled ? accent : tokens.iconDisabled,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: TextStyle(color: enabled ? (dark ? kInkDark : kInk) : (dark ? kMutedDark : kMutedLight), fontSize: 15, fontWeight: FontWeight.w600)),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color:
+                            enabled ? tokens.textPrimary : tokens.textDisabled,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(subtitle, style: TextStyle(color: enabled ? (dark ? kMutedDark : kMuted) : (dark ? kMutedDark.withValues(alpha: 0.65) : kMutedLight), fontSize: 12.5)),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color:
+                            enabled ? tokens.textSecondary : tokens.textMuted,
+                        fontSize: 12.5,
+                        height: 1.35,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              if (enabled) Icon(Icons.chevron_right_rounded, color: kMutedLight, size: 18),
+              if (enabled)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: tokens.iconSecondary,
+                  size: 18,
+                ),
             ],
           ),
         ),
@@ -586,17 +880,18 @@ class _GoalsSectionState extends State<_GoalsSection> {
       _goalsFuture = BackendApi.instance.getGoals();
       await _goalsFuture;
     } catch (_) {
-      // Goals may not exist yet — that's fine
+      // Goals may not exist yet - that's fine
     }
     if (mounted) setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     if (_loading) {
-      return const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator(color: kBronze)),
+      return Padding(
+        padding: const EdgeInsets.all(24),
+        child: Center(child: CircularProgressIndicator(color: tokens.primary)),
       );
     }
 
@@ -604,9 +899,11 @@ class _GoalsSectionState extends State<_GoalsSection> {
       future: _goalsFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(24),
-            child: Center(child: CircularProgressIndicator(color: kBronze)),
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: CircularProgressIndicator(color: tokens.primary),
+            ),
           );
         }
 
@@ -615,7 +912,7 @@ class _GoalsSectionState extends State<_GoalsSection> {
             padding: const EdgeInsets.all(16),
             child: Text(
               'Could not load goals. Pull to try again.',
-              style: TextStyle(color: kMuted, fontSize: 13),
+              style: TextStyle(color: tokens.textSecondary, fontSize: 13),
             ),
           );
         }
@@ -628,7 +925,11 @@ class _GoalsSectionState extends State<_GoalsSection> {
             padding: const EdgeInsets.all(16),
             child: Text(
               'No goals yet. Set one from the home screen to get started.',
-              style: TextStyle(color: kMuted, fontSize: 13, height: 1.5),
+              style: TextStyle(
+                color: tokens.textSecondary,
+                fontSize: 13,
+                height: 1.5,
+              ),
             ),
           );
         }
@@ -666,20 +967,24 @@ class _GoalTile extends StatelessWidget {
 
     final isCompleted = status == 'completed';
     final isArchived = status == 'archived';
+    final tokens = context.colors;
 
     return Material(
-      color: kPaper,
+      color: tokens.surfaceElevated,
       child: InkWell(
-        onTap: isArchived ? null : () async {
-          final result = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(
-              builder: (_) => EditGoalScreen(goal: goal),
-            ),
-          );
-          if (result == true) {
-            onEdited();
-          }
-        },
+        onTap:
+            isArchived
+                ? null
+                : () async {
+                  final result = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(
+                      builder: (_) => EditGoalScreen(goal: goal),
+                    ),
+                  );
+                  if (result == true) {
+                    onEdited();
+                  }
+                },
         borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -689,20 +994,26 @@ class _GoalTile extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: isCompleted
-                      ? kSage.withValues(alpha: 0.12)
-                      : isArchived
-                          ? kLine
-                          : kBronze.withValues(alpha: 0.12),
+                  color:
+                      isCompleted
+                          ? tokens.success.withValues(alpha: 0.14)
+                          : isArchived
+                          ? tokens.surfaceContainerHigh
+                          : tokens.primary.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   isCompleted
                       ? Icons.check_circle_outline
                       : isArchived
-                          ? Icons.archive_outlined
-                          : Icons.flag_outlined,
-                  color: isCompleted ? kSage : isArchived ? kMutedLight : kBronze,
+                      ? Icons.archive_outlined
+                      : Icons.flag_outlined,
+                  color:
+                      isCompleted
+                          ? tokens.success
+                          : isArchived
+                          ? tokens.iconDisabled
+                          : tokens.primary,
                   size: 20,
                 ),
               ),
@@ -714,9 +1025,12 @@ class _GoalTile extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        color: isArchived ? kMutedLight : kInk,
+                        color:
+                            isArchived
+                                ? tokens.textDisabled
+                                : tokens.textPrimary,
                         fontSize: 15,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -725,7 +1039,10 @@ class _GoalTile extends StatelessWidget {
                           ? '$actsDone / $actsTarget acts · $subtitle'
                           : '$actsDone / $actsTarget acts',
                       style: TextStyle(
-                        color: isArchived ? kMutedLight : kMuted,
+                        color:
+                            isArchived
+                                ? tokens.textDisabled
+                                : tokens.textSecondary,
                         fontSize: 12.5,
                       ),
                     ),
@@ -735,9 +1052,9 @@ class _GoalTile extends StatelessWidget {
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: (progress / 100).clamp(0.0, 1.0),
-                          backgroundColor: kLine,
+                          backgroundColor: tokens.surfaceContainerHigh,
                           valueColor: AlwaysStoppedAnimation<Color>(
-                            isCompleted ? kSage : kBronze,
+                            isCompleted ? tokens.success : tokens.primary,
                           ),
                           minHeight: 4,
                         ),
@@ -747,7 +1064,11 @@ class _GoalTile extends StatelessWidget {
                 ),
               ),
               if (!isArchived)
-                const Icon(Icons.chevron_right_rounded, color: kMutedLight, size: 18),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: tokens.iconSecondary,
+                  size: 18,
+                ),
             ],
           ),
         ),
@@ -773,7 +1094,9 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.goal['title']?.toString() ?? '');
+    _titleController = TextEditingController(
+      text: widget.goal['title']?.toString() ?? '',
+    );
     _targetController = TextEditingController(
       text: (widget.goal['acts_target'] as num?)?.toInt().toString() ?? '10',
     );
@@ -816,9 +1139,9 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save goal: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save goal: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -828,23 +1151,32 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: kSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-        title: const Text('Delete goal?', style: TextStyle(fontFamily: 'Georgia', fontSize: 19, fontWeight: FontWeight.w700, color: kInk)),
-        content: const Text('This will remove the goal. This action cannot be undone.', style: TextStyle(color: kMuted, fontSize: 14)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: kMuted)),
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text(
+              'Delete goal?',
+              style: TextStyle(
+                fontFamily: 'Georgia',
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            content: const Text(
+              'This will remove the goal. This action cannot be undone.',
+              style: TextStyle(fontSize: 14),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: FilledButton.styleFrom(backgroundColor: kDanger),
+                child: const Text('Delete'),
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: kDanger),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
     );
 
     if (confirmed != true) return;
@@ -857,9 +1189,9 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not delete goal: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not delete goal: $e')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -868,13 +1200,13 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: tokens.background,
       appBar: AppBar(
-        backgroundColor: kSurface,
+        backgroundColor: tokens.background,
         surfaceTintColor: Colors.transparent,
-        title: const Text('Edit goal', style: TextStyle(color: kInk)),
-        iconTheme: const IconThemeData(color: kInk),
+        title: const Text('Edit goal'),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -899,20 +1231,43 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: kBronze,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 16,
+                      horizontal: 24,
+                    ),
                   ),
                   onPressed: _saving ? null : _save,
-                    child: _saving
-                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
-                      : Text('Save changes', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w700)),
+                  child:
+                      _saving
+                          ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          )
+                          : Text(
+                            'Save changes',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                 ),
               ),
               const SizedBox(height: 12),
               TextButton(
                 onPressed: _saving ? null : _delete,
                 style: TextButton.styleFrom(foregroundColor: kDanger),
-                child: const Text('Delete goal', style: TextStyle(fontWeight: FontWeight.w600)),
+                child: const Text(
+                  'Delete goal',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ),
             ],
           ),
@@ -929,49 +1284,654 @@ class EditProfileScreen extends StatefulWidget {
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
+enum _EmailChangeState {
+  idle,
+  reauthRequired,
+  sending,
+  sent,
+  verifying,
+  verified,
+  cancelled,
+}
+
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _otpController = TextEditingController();
   final _picker = ImagePicker();
 
   bool _loading = true;
-  bool _saving = false;
+  bool _savingProfile = false;
   String? _avatarData;
+  String? _errorMessage;
+  String? _successMessage;
+
+  _EmailChangeState _emailState = _EmailChangeState.idle;
+  String? _pendingNewEmail;
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
 
   @override
   void initState() {
     super.initState();
     _load();
-  }
-
-  Future<void> _load() async {
-    final profile = await BackendApi.instance.getAccountSnapshot();
-    if (!mounted) return;
-    setState(() {
-      _nameController.text = profile?.username ?? '';
-      _emailController.text = profile?.email ?? '';
-      _avatarData = profile?.avatarData;
-      _loading = false;
-    });
+    _emailController.addListener(_onEmailChanged);
   }
 
   @override
   void dispose() {
+    _emailController.removeListener(_onEmailChanged);
     _nameController.dispose();
     _emailController.dispose();
+    _passwordController.dispose();
+    _otpController.dispose();
+    _cooldownTimer?.cancel();
     super.dispose();
   }
 
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    await BackendApi.instance.updateAccount(
-      username: _nameController.text.trim(),
-      email: _emailController.text.trim(),
-      avatarData: _avatarData,
-    );
+  void _onEmailChanged() {
+    if (_emailState == _EmailChangeState.sent ||
+        _emailState == _EmailChangeState.verifying) {
+      return;
+    }
+    final currentEmail = _emailController.text.trim();
+    if (_originalEmail != null &&
+        currentEmail != _originalEmail &&
+        _emailState == _EmailChangeState.idle) {
+      setState(() {
+        _emailState = _EmailChangeState.reauthRequired;
+        _errorMessage = null;
+      });
+    } else if (_originalEmail != null &&
+        currentEmail == _originalEmail &&
+        _emailState == _EmailChangeState.reauthRequired) {
+      setState(() {
+        _emailState = _EmailChangeState.idle;
+        _errorMessage = null;
+      });
+    }
+  }
+
+  Future<void> _load() async {
+    try {
+      final profile = await BackendApi.instance.getUserProfile();
+      if (!mounted) return;
+      setState(() {
+        _nameController.text = profile.username;
+        _emailController.text = profile.email;
+        _avatarData = profile.avatarData;
+        _loading = false;
+        _originalEmail = profile.email;
+      });
+    } catch (_) {
+      try {
+        final profile = await BackendApi.instance.getAccountSnapshot();
+        if (!mounted) return;
+        setState(() {
+          _nameController.text = profile?.username ?? '';
+          _emailController.text = profile?.email ?? '';
+          _avatarData = profile?.avatarData;
+          _loading = false;
+          _originalEmail = profile?.email;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  bool get _emailChanged {
+    // Compare against the initially loaded value by checking if we have a pending
+    // email or the current text differs from what's in the name field (loaded first).
+    // Simpler: track original email.
+    return _originalEmail != null &&
+        _emailController.text.trim() != _originalEmail;
+  }
+
+  String? _originalEmail;
+
+  Future<void> _saveProfile() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+
+    if (name.isEmpty) {
+      setState(() => _errorMessage = 'Please enter your name.');
+      return;
+    }
+    if (!email.contains('@')) {
+      setState(() => _errorMessage = 'Please enter a valid email address.');
+      return;
+    }
+
+    setState(() {
+      _savingProfile = true;
+      _errorMessage = null;
+      _successMessage = null;
+    });
+
+    try {
+      await BackendApi.instance.updateAccount(
+        username: name,
+        avatarData: _avatarData,
+      );
+      if (!mounted) return;
+      setState(() => _successMessage = 'Profile updated.');
+      Future.delayed(const Duration(milliseconds: 800), () {
+        if (mounted) Navigator.of(context).pop(true);
+      });
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _savingProfile = false;
+        _errorMessage = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _savingProfile = false;
+        _errorMessage =
+            'Could not save changes. Please check your connection and try again.';
+      });
+    }
+  }
+
+  Future<void> _startEmailChange() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final newEmail = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (!newEmail.contains('@')) {
+      setState(() => _errorMessage = 'Please enter a valid email address.');
+      return;
+    }
+    if (password.isEmpty) {
+      setState(
+        () =>
+            _errorMessage =
+                'Please enter your current password to confirm this change.',
+      );
+      return;
+    }
+
+    setState(() {
+      _emailState = _EmailChangeState.sending;
+      _errorMessage = null;
+      _successMessage = null;
+    });
+
+    try {
+      await BackendApi.instance.updateAccount(
+        username: _nameController.text.trim(),
+        avatarData: _avatarData,
+      );
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _emailState = _EmailChangeState.reauthRequired;
+        _errorMessage = 'Could not save profile: ${e.message}';
+      });
+      return;
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _emailState = _EmailChangeState.reauthRequired;
+        _errorMessage = 'Network error saving profile. Please try again.';
+      });
+      return;
+    }
+
+    try {
+      await BackendApi.instance.requestEmailChange(
+        currentPassword: password,
+        newEmail: newEmail,
+      );
+      if (!mounted) return;
+      setState(() {
+        _emailState = _EmailChangeState.sent;
+        _pendingNewEmail = newEmail;
+        _resendCooldown = 60;
+        _passwordController.clear();
+      });
+      _startResendCooldown();
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _emailState = _EmailChangeState.reauthRequired;
+        _errorMessage = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _emailState = _EmailChangeState.reauthRequired;
+        _errorMessage =
+            'Network error. Please check your connection and try again.';
+      });
+    }
+  }
+
+  Future<void> _confirmEmailChange() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final code = _otpController.text.trim();
+
+    if (code.length != 6) {
+      setState(() => _errorMessage = 'Please enter the 6-digit code.');
+      return;
+    }
+
+    setState(() {
+      _emailState = _EmailChangeState.verifying;
+      _errorMessage = null;
+    });
+
+    try {
+      await BackendApi.instance.confirmEmailChange(token: code);
+      if (!mounted) return;
+      final profile = await BackendApi.instance.getUserProfile();
+      if (!mounted) return;
+      setState(() {
+        _emailState = _EmailChangeState.verified;
+        _successMessage = 'Email updated successfully.';
+        _emailController.text = profile.email;
+        _nameController.text = profile.username;
+        _otpController.clear();
+        _pendingNewEmail = null;
+      });
+      Future.delayed(const Duration(milliseconds: 1200), () {
+        if (mounted) Navigator.of(context).pop(true);
+      });
+    } on BackendApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _emailState = _EmailChangeState.sent;
+        _errorMessage = e.message;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _emailState = _EmailChangeState.sent;
+        _errorMessage =
+            'Network error. Please check your connection and try again.';
+      });
+    }
+  }
+
+  Future<void> _cancelEmailChange() async {
+    try {
+      await BackendApi.instance.cancelEmailChange();
+    } catch (_) {}
     if (!mounted) return;
-    setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(behavior: SnackBarBehavior.floating, margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16), content: const SnackBar(content: Text('Profile updated.'))));
+    setState(() {
+      _emailState = _EmailChangeState.idle;
+      _pendingNewEmail = null;
+      _otpController.clear();
+      _passwordController.clear();
+      _errorMessage = null;
+    });
+  }
+
+  Future<void> _resendCode() async {
+    if (_resendCooldown > 0) return;
+    try {
+      await BackendApi.instance.resendEmailChangeVerification();
+      if (!mounted) return;
+      setState(() {
+        _resendCooldown = 60;
+      });
+      _startResendCooldown();
+    } catch (_) {
+      if (!mounted) return;
+      setState(
+        () => _errorMessage = 'Could not resend code. Please try again.',
+      );
+    }
+  }
+
+  void _startResendCooldown() {
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {
+        _resendCooldown -= 1;
+        if (_resendCooldown <= 0) timer.cancel();
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: tokens.background,
+        appBar: AppBar(
+          backgroundColor: tokens.background,
+          surfaceTintColor: Colors.transparent,
+          leading: IconButton(
+            onPressed: () => Navigator.of(context).pop(),
+            icon: Icon(Icons.arrow_back_rounded, color: tokens.iconPrimary),
+          ),
+          title: const Text(
+            'Settings',
+            style: TextStyle(
+              fontFamily: 'Georgia',
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        body: Center(child: CircularProgressIndicator(color: tokens.primary)),
+      );
+    }
+
+    final isEmailChanging =
+        _emailState == _EmailChangeState.reauthRequired ||
+        _emailState == _EmailChangeState.sending ||
+        _emailState == _EmailChangeState.sent ||
+        _emailState == _EmailChangeState.verifying ||
+        _emailState == _EmailChangeState.verified;
+
+    return Scaffold(
+      backgroundColor: tokens.background,
+      appBar: AppBar(
+        backgroundColor: tokens.background,
+        surfaceTintColor: Colors.transparent,
+        title: Text(isEmailChanging ? 'Change email' : 'Edit profile'),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: tokens.surfaceElevated,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: tokens.borderSubtle),
+                ),
+                child: Column(
+                  children: [
+                    GestureDetector(
+                      onTap: _pickAvatar,
+                      child: Container(
+                        width: 88,
+                        height: 88,
+                        decoration: BoxDecoration(
+                          color: kClayLight,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child:
+                            _avatarData != null && _avatarData!.isNotEmpty
+                                ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(24),
+                                  child: Image.memory(
+                                    base64Decode(_avatarData!),
+                                    fit: BoxFit.cover,
+                                  ),
+                                )
+                                : Icon(
+                                  Icons.person,
+                                  color: tokens.primary,
+                                  size: 40,
+                                ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    TextButton.icon(
+                      onPressed: _pickAvatar,
+                      icon: Icon(
+                        Icons.photo_camera_outlined,
+                        size: 18,
+                        color: tokens.primary,
+                      ),
+                      label: Text(
+                        'Change avatar',
+                        style: TextStyle(
+                          color: tokens.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              _FieldCard(
+                controller: _nameController,
+                label: 'Name',
+                icon: Icons.badge_outlined,
+              ),
+              const SizedBox(height: 12),
+              _EmailFieldCard(
+                controller: _emailController,
+                label: 'Email',
+                icon: Icons.alternate_email,
+                emailState: _emailState,
+              ),
+              if (_emailState == _EmailChangeState.reauthRequired) ...[
+                const SizedBox(height: 12),
+                _FieldCard(
+                  controller: _passwordController,
+                  label: 'Current password',
+                  icon: Icons.lock_outline,
+                  obscure: true,
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: _savingProfile ? null : _startEmailChange,
+                  child:
+                      _savingProfile
+                          ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                          )
+                          : const Text('Send verification code'),
+                ),
+              ],
+              if (_emailState == _EmailChangeState.sent ||
+                  _emailState == _EmailChangeState.verifying) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: tokens.borderSubtle),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Enter the 6-digit code sent to $_pendingNewEmail',
+                        style: TextStyle(
+                          color: tokens.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _otpController,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          letterSpacing: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        decoration: InputDecoration(
+                          counterText: '',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: FilledButton(
+                              onPressed:
+                                  _emailState == _EmailChangeState.verifying
+                                      ? null
+                                      : _confirmEmailChange,
+                              child:
+                                  _emailState == _EmailChangeState.verifying
+                                      ? SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.onPrimary,
+                                        ),
+                                      )
+                                      : const Text('Verify email'),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          TextButton(
+                            onPressed:
+                                _emailState == _EmailChangeState.verifying
+                                    ? null
+                                    : _cancelEmailChange,
+                            child: const Text('Cancel'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      TextButton.icon(
+                        onPressed: _resendCooldown > 0 ? null : _resendCode,
+                        icon: Icon(
+                          _resendCooldown > 0
+                              ? Icons.hourglass_empty
+                              : Icons.refresh_rounded,
+                          size: 18,
+                        ),
+                        label: Text(
+                          _resendCooldown > 0
+                              ? 'Resend in $_resendCooldown s'
+                              : 'Resend code',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (_emailState == _EmailChangeState.verified) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: tokens.successContainer,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: tokens.success.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: tokens.success,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _successMessage ?? 'Email updated successfully.',
+                          style: TextStyle(
+                            color: tokens.success,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: tokens.errorContainer,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: tokens.error.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: Text(
+                    _errorMessage!,
+                    style: TextStyle(
+                      color: tokens.error,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              if (_emailState == _EmailChangeState.idle ||
+                  _emailState == _EmailChangeState.cancelled)
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kBronze,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 24,
+                      ),
+                    ),
+                    onPressed: _savingProfile ? null : _saveProfile,
+                    child:
+                        _savingProfile
+                            ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            )
+                            : Text(
+                              _emailChanged
+                                  ? 'Save profile changes'
+                                  : 'Save changes',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _pickAvatar() async {
@@ -989,101 +1949,65 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _avatarData = base64Encode(bytes);
     });
   }
+}
+
+class _EmailFieldCard extends StatefulWidget {
+  const _EmailFieldCard({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    required this.emailState,
+  });
+
+  final TextEditingController controller;
+  final String label;
+  final IconData icon;
+  final _EmailChangeState emailState;
 
   @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return Scaffold(
-        backgroundColor: kSurface,
-      appBar: AppBar(
-        backgroundColor: kSurface,
-        surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: kInk),
-        ),
-        title: const Text('Settings', style: TextStyle(color: kInk, fontFamily: 'Georgia', fontWeight: FontWeight.w800)),
-        iconTheme: const IconThemeData(color: kInk),
-      ),
-        body: const Center(child: CircularProgressIndicator(color: kBronze)),
-      );
-    }
+  State<_EmailFieldCard> createState() => _EmailFieldCardState();
+}
 
-    return Scaffold(
-      backgroundColor: kSurface,
-      appBar: AppBar(
-        backgroundColor: kSurface,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('Edit profile', style: TextStyle(color: kInk)),
-        iconTheme: const IconThemeData(color: kInk),
+class _EmailFieldCardState extends State<_EmailFieldCard> {
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    final isChanging =
+        widget.emailState == _EmailChangeState.reauthRequired ||
+        widget.emailState == _EmailChangeState.sending ||
+        widget.emailState == _EmailChangeState.sent ||
+        widget.emailState == _EmailChangeState.verifying;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isChanging ? tokens.warningContainer : tokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color:
+              isChanging
+                  ? tokens.warning.withValues(alpha: 0.35)
+                  : tokens.borderSubtle,
+        ),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: kPaper,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: kLine),
-                ),
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: _pickAvatar,
-                      child: Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          color: kClayLight,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child: _avatarData != null && _avatarData!.isNotEmpty
-                            ? ClipRRect(borderRadius: BorderRadius.circular(24), child: Image.memory(base64Decode(_avatarData!), fit: BoxFit.cover))
-                            : const Icon(Icons.person, color: kBronzeDark, size: 40),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextButton.icon(
-                      onPressed: _pickAvatar,
-                      icon: const Icon(Icons.photo_camera_outlined, size: 18, color: kBronze),
-                      label: const Text('Change avatar', style: TextStyle(color: kBronze, fontWeight: FontWeight.w600)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _FieldCard(
-                controller: _nameController,
-                label: 'Name',
-                icon: Icons.badge_outlined,
-              ),
-              const SizedBox(height: 12),
-              _FieldCard(
-                controller: _emailController,
-                label: 'Email',
-                icon: Icons.alternate_email,
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kBronze,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                    padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                  ),
-                  onPressed: _saving ? null : _save,
-                    child: _saving
-                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
-                      : Text('Save changes', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w700)),
-                ),
-              ),
-            ],
+      child: TextField(
+        controller: widget.controller,
+        enabled: !isChanging,
+        keyboardType: TextInputType.emailAddress,
+        decoration: InputDecoration(
+          prefixIcon: Icon(
+            widget.icon,
+            color: isChanging ? tokens.warning : tokens.primary,
           ),
+          labelText: widget.label,
+          labelStyle: TextStyle(
+            color: isChanging ? tokens.warning : tokens.textSecondary,
+          ),
+          border: InputBorder.none,
+          helperText:
+              isChanging
+                  ? 'Complete verification before changing your email'
+                  : null,
         ),
       ),
     );
@@ -1091,27 +2015,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 }
 
 class _FieldCard extends StatelessWidget {
-  const _FieldCard({required this.controller, required this.label, required this.icon});
+  const _FieldCard({
+    required this.controller,
+    required this.label,
+    required this.icon,
+    this.obscure = false,
+  });
 
   final TextEditingController controller;
   final String label;
   final IconData icon;
+  final bool obscure;
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kPaper,
+        color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: kLine),
+        border: Border.all(color: tokens.borderSubtle),
       ),
       child: TextField(
         controller: controller,
+        obscureText: obscure,
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, color: kBronze),
+          prefixIcon: Icon(icon, color: tokens.primary),
           labelText: label,
-          labelStyle: const TextStyle(color: kMuted),
+          labelStyle: TextStyle(color: tokens.textSecondary),
           border: InputBorder.none,
         ),
       ),

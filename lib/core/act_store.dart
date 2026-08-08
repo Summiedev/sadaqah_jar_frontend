@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -21,7 +22,7 @@ class ActStore extends ChangeNotifier {
   }).length;
 
   // Acts added locally that the backend has not yet confirmed. This makes the
-  // jar fill move the instant a user adds an act — online or offline — instead
+  // jar fill move the instant a user adds an act - online or offline - instead
   // of waiting for a round-trip that may still be queued. It is reconciled back
   // toward zero in [_refreshJarProgress] as the server count catches up.
   int _optimisticDelta = 0;
@@ -129,7 +130,7 @@ class ActStore extends ChangeNotifier {
     final confirmed = _goalActsDone ?? _jarCurrentStars;
     if (confirmed == null) return;
     if (_lastKnownDone != null && confirmed <= _lastKnownDone!) {
-      // Server hasn't moved yet (queued act not synced) — keep the delta.
+      // Server hasn't moved yet (queued act not synced) - keep the delta.
       _lastKnownDone = confirmed;
       return;
     }
@@ -171,12 +172,15 @@ class ActStore extends ChangeNotifier {
     notifyListeners();
 
     _writeQueue = _writeQueue.then((_) async {
-
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_key, jsonEncode(_acts));
     }).catchError((_) {});
     await _writeQueue;
-    await _refreshJarProgress();
+
+    // Fire-and-forget refresh so the UI is never blocked on network calls.
+    // The local act already counts; the server state will reconcile in the
+    // background regardless of connectivity.
+    unawaited(_refreshJarProgress());
   }
 
   Future<void> addRemote({required String type, String? note, String? requestId}) async {
@@ -196,14 +200,27 @@ class ActStore extends ChangeNotifier {
   Future<void> updateGoal({required String title, String? subtitle, required int actsTarget}) async {
     final id = _goalId;
     if (id == null) {
-      throw StateError('No active goal to update.');
+      _goalId = DateTime.now().microsecondsSinceEpoch;
+      _goalTitle = title;
+      _goalSubtitle = subtitle;
+      _goalTarget = actsTarget;
+      notifyListeners();
+      return;
     }
-    await BackendApi.instance.updateGoal(
-      goalId: id,
-      title: title,
-      subtitle: subtitle,
-      actsTarget: actsTarget,
-    );
+    try {
+      await BackendApi.instance.updateGoal(
+        goalId: id,
+        title: title,
+        subtitle: subtitle,
+        actsTarget: actsTarget,
+      );
+    } catch (_) {
+      rethrow;
+    }
+    _goalTitle = title;
+    _goalSubtitle = subtitle;
+    _goalTarget = actsTarget;
+    notifyListeners();
     await _refreshJarProgress();
   }
 }

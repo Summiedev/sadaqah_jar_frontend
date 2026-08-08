@@ -24,7 +24,7 @@ class AfterSalahDua {
 }
 
 class AfterSalahAdhkarData {
-  static const source = 'Hisnul Muslim (Fortress of the Muslim) — Sa\'id bin Ali Al-Qahtani';
+  static const source = 'Hisnul Muslim (Fortress of the Muslim) - Sa\'id bin Ali Al-Qahtani';
   static const chapter = 'Remembrance after the prayer';
   static const chapterNumber = 18;
   static const duaRange = '58-68 (individual dhikr split out separately)';
@@ -96,7 +96,7 @@ class AfterSalahAdhkarData {
       arabicOnly: 'لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ، لَهُ الْمُلْكُ وَلَهُ الْحَمْدُ وَهُوَ عَلَى كُلِّ شَيْءٍ قَدِيرٌ',
       transliteration: 'Laa ilaaha illallaahu wahdahu laa shareeka lah, lahul-mulku wa lahul-hamdu wa Huwa \'alaa kulli shay\'in Qadeer.',
       translation: 'None has the right to be worshipped except Allaah, alone, without partner, to Him belongs all sovereignty and praise, and He is over all things omnipotent.',
-      commonName: 'Tasbeeh after prayer (4 of 4 — completes the hundred)',
+      commonName: 'Tasbeeh after prayer (4 of 4 - completes the hundred)',
       repetition: 'Once, completing the set of one hundred',
       source: 'Muslim',
     ),

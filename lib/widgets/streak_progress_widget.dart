@@ -13,142 +13,194 @@ class StreakProgressRectangular extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final store = ref.watch(actStoreProvider);
     final streak = store.currentStreak ?? 0;
-    final progress = store.progress;
+    final progress = store.progress.clamp(0.0, 1.0).toDouble();
     final totalStars = store.totalStars;
     final remaining = store.remainingActs;
 
-    if (streak > 0) {
-      return _ModeA(streak: streak, totalStars: totalStars, remaining: remaining);
-    }
-    return _ModeB(progress: progress, goalTitle: store.goalTitle, totalStars: totalStars, remaining: remaining);
-  }
-}
-
-class _ModeA extends StatelessWidget {
-  const _ModeA({required this.streak, required this.totalStars, required this.remaining});
-
-  final int streak;
-  final int totalStars;
-  final int remaining;
-
-  @override
-  Widget build(BuildContext context) {
-    final dots = _buildDots(context, streak);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.light ? kClay : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: kBronze.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(Icons.local_fire_department_rounded, color: kBronze, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+    return Semantics(
+      label:
+          streak > 0
+              ? '$streak day streak'
+              : '${(progress * 100).round()} percent goal progress',
+      child: _WidgetPreviewCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                Row(
-                  children: [
-                    Text('$streak', style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 18, fontWeight: FontWeight.w800, fontFamily: 'Georgia')),
-                    const SizedBox(width: 4),
-                    Text('day streak', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 12.5, fontWeight: FontWeight.w600)),
-                  ],
+                Text(
+                  streak > 0 ? '$streak' : '${(progress * 100).round()}%',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: 'Georgia',
+                    fontSize: 30,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-                const SizedBox(height: 6),
-                Row(children: dots),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    streak > 0 ? 'day streak' : 'monthly progress',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const _WidgetChip('Week'),
               ],
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.09),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+              ),
+              child:
+                  streak > 0
+                      ? _WeekDots(streak: streak)
+                      : Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(99),
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 8,
+                              backgroundColor: Colors.white.withValues(
+                                alpha: 0.18,
+                              ),
+                              valueColor: const AlwaysStoppedAnimation(
+                                Color(0xFFF0D8B8),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            '$totalStars of ${totalStars + remaining} acts',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFFF0D8B8),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
 
-  List<Widget> _buildDots(BuildContext context, int streak) {
-    final maxDots = 7;
-    final active = streak > maxDots ? maxDots : streak;
-    final dots = <Widget>[];
-    for (var i = 0; i < maxDots; i++) {
-      final isActive = i < active;
-      dots.add(
-        Container(
-          width: 8,
-          height: 8,
-          margin: const EdgeInsets.only(right: 4),
-          decoration: BoxDecoration(
-            color: isActive ? kBronze : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(4),
-          ),
+class _WeekDots extends StatelessWidget {
+  const _WeekDots({required this.streak});
+
+  final int streak;
+
+  @override
+  Widget build(BuildContext context) {
+    final days = const ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final completed = min(streak, days.length);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'This week',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            Text(
+              '$completed/${days.length}',
+              style: const TextStyle(
+                color: Color(0xFFF0D8B8),
+                fontSize: 11.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
         ),
-      );
-    }
-    if (streak > maxDots) {
-      dots.add(
-        Text('+${streak - maxDots}', style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7), fontSize: 11, fontWeight: FontWeight.w700)),
-      );
-    }
-    return dots;
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            for (var i = 0; i < days.length; i++)
+              Expanded(
+                child: _WeekCell(
+                  label: days[i],
+                  done: i < completed,
+                  isFirst: i == 0,
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
   }
 }
 
-class _ModeB extends StatelessWidget {
-  const _ModeB({required this.progress, required this.goalTitle, required this.totalStars, required this.remaining});
+class _WeekCell extends StatelessWidget {
+  const _WeekCell({
+    required this.label,
+    required this.done,
+    required this.isFirst,
+  });
 
-  final double progress;
-  final String? goalTitle;
-  final int totalStars;
-  final int remaining;
+  final String label;
+  final bool done;
+  final bool isFirst;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      margin: EdgeInsets.only(left: isFirst ? 0 : 5),
+      padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
       decoration: BoxDecoration(
-        color: Theme.of(context).brightness == Brightness.light ? kClay : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(18),
+        color:
+            done
+                ? Colors.white.withValues(alpha: 0.94)
+                : Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: done ? Colors.white : Colors.white.withValues(alpha: 0.22),
+        ),
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: kBronze.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(Icons.track_changes_rounded, color: kBronze, size: 20),
+          Icon(
+            done ? Icons.check_rounded : Icons.remove_rounded,
+            color: done ? const Color(0xFF0A3B34) : Colors.white54,
+            size: 14,
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '$totalStars of ${totalStars + remaining}',
-                  style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 16, fontWeight: FontWeight.w800, fontFamily: 'Georgia'),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress.clamp(0.0, 1.0),
-                    minHeight: 6,
-                    backgroundColor: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.12),
-                    valueColor: AlwaysStoppedAnimation(kBronze),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 3),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: done ? const Color(0xFF0A3B34) : Colors.white70,
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ],
@@ -178,7 +230,14 @@ class StreakProgressCircular extends ConsumerWidget {
       child: Center(
         child: Text(
           streak > 0 ? '$streak' : '${(progress * 100).round()}%',
-          style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.87), fontSize: 22, fontWeight: FontWeight.w800, fontFamily: 'Georgia'),
+          style: TextStyle(
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.87),
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            fontFamily: 'Georgia',
+          ),
         ),
       ),
     );
@@ -186,7 +245,12 @@ class StreakProgressCircular extends ConsumerWidget {
 }
 
 class _CircularPainter extends CustomPainter {
-  _CircularPainter({required this.streak, required this.progress, required this.totalStars, required this.onSurface});
+  _CircularPainter({
+    required this.streak,
+    required this.progress,
+    required this.totalStars,
+    required this.onSurface,
+  });
 
   final int streak;
   final double progress;
@@ -199,20 +263,25 @@ class _CircularPainter extends CustomPainter {
     final radius = size.width / 2;
     final strokeWidth = 6.0;
 
-    final track = Paint()
-      ..color = onSurface.withValues(alpha: 0.12)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
+    final track =
+        Paint()
+          ..color = onSurface.withValues(alpha: 0.12)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth;
 
-    final arc = Paint()
-      ..color = onSurface.withValues(alpha: 0.6)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    final arc =
+        Paint()
+          ..color = kBronze
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round;
 
     canvas.drawCircle(center, radius - strokeWidth / 2, track);
 
-    final sweep = streak > 0 ? min(streak / 30.0, 1.0) : progress.clamp(0.0, 1.0);
+    final sweep =
+        streak > 0
+            ? min(streak / 30.0, 1.0)
+            : progress.clamp(0.0, 1.0).toDouble();
     if (sweep > 0) {
       canvas.drawArc(
         Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
@@ -226,7 +295,9 @@ class _CircularPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CircularPainter old) {
-    return old.streak != streak || old.progress != progress || old.onSurface != onSurface;
+    return old.streak != streak ||
+        old.progress != progress ||
+        old.onSurface != onSurface;
   }
 }
 
@@ -237,21 +308,36 @@ class StreakProgressInline extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final store = ref.watch(actStoreProvider);
     final streak = store.currentStreak ?? 0;
-
-    final label = streak > 0 ? '$streak day streak' : '${store.totalStars} this month';
+    final label =
+        streak > 0 ? '$streak day streak' : '${store.totalStars} this month';
 
     return Semantics(
       label: label,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(streak > 0 ? Icons.local_fire_department_rounded : Icons.track_changes_rounded, size: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7)),
+          Icon(
+            streak > 0
+                ? Icons.local_fire_department_rounded
+                : Icons.track_changes_rounded,
+            size: 14,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.7),
+          ),
           const SizedBox(width: 6),
-          Text(
-            _inlineText(label),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: Theme.of(context).colorScheme.onSurface, fontSize: 13, fontWeight: FontWeight.w600, fontFamily: 'Georgia'),
+          Flexible(
+            child: Text(
+              _inlineText(label),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'Georgia',
+              ),
+            ),
           ),
         ],
       ),
@@ -268,8 +354,65 @@ class StreakProgressInline extends ConsumerWidget {
       buffer.write(word);
     }
     final result = buffer.toString().trim();
-    if (result.length < text.length) return '$result…';
+    if (result.length < text.length) return '$result...';
     return result;
   }
 }
 
+class _WidgetPreviewCard extends StatelessWidget {
+  const _WidgetPreviewCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 132),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF06433B), Color(0xFF0B302B), Color(0xFF201A16)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+}
+
+class _WidgetChip extends StatelessWidget {
+  const _WidgetChip(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: kBronze.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(99),
+        border: Border.all(color: kBronze.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        text,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Color(0xFFF0D8B8),
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+  }
+}

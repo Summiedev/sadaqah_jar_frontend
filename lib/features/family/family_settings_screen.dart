@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../services/backend_api.dart';
 import '../../core/theme/app_theme.dart';
-import 'family_models.dart';
 import 'family_theme.dart';
 
 class FamilySettingsScreen extends StatefulWidget {
@@ -16,14 +15,13 @@ class FamilySettingsScreen extends StatefulWidget {
 }
 
 class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
-  FamilyJar? _jar;
+  Map<String, dynamic>? _jar;
   Map<String, bool> _notifs = {};
   bool _loadingNotifs = true;
 
   @override
   void initState() {
     super.initState();
-    _jar = getFamilyById(widget.id);
     _loadSettings();
   }
 
@@ -34,9 +32,11 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
       return;
     }
     try {
+      final detail = await BackendApi.instance.getFamilyDetail(familyId);
       final settings = await BackendApi.instance.getFamilySettings(familyId);
       final prefs = settings['notification_preferences'] as Map<String, dynamic>? ?? {};
       setState(() {
+        _jar = detail;
         _notifs = Map<String, bool>.from(prefs.map((k, v) => MapEntry(k, v == true)));
         _loadingNotifs = false;
       });
@@ -92,6 +92,8 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final jar = _jar;
+    final memberCount = (jar?['members'] as List?)?.length ?? 0;
+    final goalsCount = (jar?['goals'] as List?)?.length ?? 0;
     return Scaffold(
       backgroundColor: fIvory,
       body: SafeArea(
@@ -101,13 +103,13 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: ScreenHeader(title: 'Settings', subtitle: jar?.name),
+                child: ScreenHeader(title: 'Settings', subtitle: jar?['name']?.toString()),
               ),
             ),
             SliverToBoxAdapter(child: _CoverCard(jar: jar)),
             SliverToBoxAdapter(child: _Section(title: 'People', children: [
-              _Tile(icon: Icons.groups_outlined, label: 'Members', trailing: '${jar?.memberCount ?? 0}', onTap: () => context.push('/family/members/${widget.id}')),
-              _Tile(icon: Icons.badge_outlined, label: 'Roles', trailing: 'Admin · Member', onTap: () {
+              _Tile(icon: Icons.groups_outlined, label: 'Members', trailing: '$memberCount', onTap: () => context.push('/family/members/${widget.id}')),
+              _Tile(icon: Icons.badge_outlined, label: 'Roles', trailing: 'Admin, Member', onTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Roles management is coming soon.'), behavior: SnackBarBehavior.floating));
               }),
               _Tile(icon: Icons.shield_outlined, label: 'Permissions', trailing: 'Contribute & view', onTap: () {
@@ -133,7 +135,7 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
                     messenger.showSnackBar(SnackBar(content: Text('Failed to update preferences: $e'), backgroundColor: Colors.brown));
                   }
                 })),
-              _Tile(icon: Icons.flag_outlined, label: 'Goals', trailing: '${jar?.goals.length ?? 0} active', onTap: () => context.push('/family/goals/${widget.id}')),
+              _Tile(icon: Icons.flag_outlined, label: 'Goals', trailing: '$goalsCount active', onTap: () => context.push('/family/goals/${widget.id}')),
             ])),
             SliverToBoxAdapter(child: _DangerZone(
               onArchive: _archiveFamily,
@@ -166,7 +168,7 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
 class _CoverCard extends StatelessWidget {
   const _CoverCard({required this.jar});
 
-  final FamilyJar? jar;
+  final Map<String, dynamic>? jar;
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +182,7 @@ class _CoverCard extends StatelessWidget {
               width: 64,
               height: 64,
               decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(18), border: Border.all(color: fClay)),
-              child: Center(child: Icon(jar?.coverIcon ?? Icons.eco_outlined, size: 32, color: fBronze)),
+              child: const Center(child: Icon(Icons.eco_outlined, size: 32, color: fBronze)),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -189,7 +191,7 @@ class _CoverCard extends StatelessWidget {
                 children: [
                   const Text('FAMILY NAME', style: TextStyle(fontSize: 9, letterSpacing: 2, fontWeight: FontWeight.w700, color: fStonePale)),
                   const SizedBox(height: 4),
-                  Text(jar?.name ?? 'Family Jar', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+                  Text(jar?['name']?.toString() ?? 'Family Jar', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
                 ],
               ),
             ),

@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_extensions.dart';
 import '../services/backend_api.dart';
+import '../services/push_notification_service.dart';
 
 class NotificationPreferencesScreen extends StatefulWidget {
   const NotificationPreferencesScreen({super.key});
 
   @override
-  State<NotificationPreferencesScreen> createState() => _NotificationPreferencesScreenState();
+  State<NotificationPreferencesScreen> createState() =>
+      _NotificationPreferencesScreenState();
 }
 
-class _NotificationPreferencesScreenState extends State<NotificationPreferencesScreen> {
+class _NotificationPreferencesScreenState
+    extends State<NotificationPreferencesScreen> {
   bool _loading = true;
   bool _saving = false;
   bool _allEnabled = true;
@@ -37,11 +41,15 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
         _frequency = prefs['frequency']?.toString() ?? 'medium';
         final cats = prefs['categories'];
         if (cats is Map) {
-          _categories = cats.map((k, v) => MapEntry(k.toString(), v as bool? ?? true));
+          _categories = cats.map(
+            (k, v) => MapEntry(k.toString(), v as bool? ?? true),
+          );
         }
         final labels = prefs['category_labels'];
         if (labels is Map) {
-          _categoryLabels = labels.map((k, v) => MapEntry(k.toString(), v.toString()));
+          _categoryLabels = labels.map(
+            (k, v) => MapEntry(k.toString(), v.toString()),
+          );
         }
         final qh = prefs['quiet_hours'];
         if (qh is Map) {
@@ -64,6 +72,12 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      if (_allEnabled &&
+          !await PushNotificationService.instance.enableForReminders()) {
+        throw StateError(
+          'Notification permission is required to enable notifications.',
+        );
+      }
       await BackendApi.instance.updateNotificationPreferences(
         allEnabled: _allEnabled,
         frequency: _frequency,
@@ -99,39 +113,63 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: kInk, size: 19),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: kInk,
+            size: 19,
+          ),
         ),
       ),
       body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator(color: kBronze))
-            : ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                children: [
-                  _buildMasterToggle(),
-                  const SizedBox(height: 16),
-                  _buildFrequencySection(),
-                  const SizedBox(height: 16),
-                  _buildQuietHoursSection(),
-                  const SizedBox(height: 16),
-                  _buildCategorySection(),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: kBronze,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
+        child:
+            _loading
+                ? const Center(child: CircularProgressIndicator(color: kBronze))
+                : ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  children: [
+                    _buildMasterToggle(),
+                    const SizedBox(height: 16),
+                    _buildFrequencySection(),
+                    const SizedBox(height: 16),
+                    _buildQuietHoursSection(),
+                    const SizedBox(height: 16),
+                    _buildCategorySection(),
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: kBronze,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                        onPressed: _saving ? null : _save,
+                        child:
+                            _saving
+                                ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                )
+                                : Text(
+                                  'Save Preferences',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                       ),
-                      onPressed: _saving ? null : _save,
-                        child: _saving
-                          ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
-                          : Text('Save Preferences', style: TextStyle(fontSize: 16, color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w700)),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
       ),
     );
   }
@@ -146,8 +184,18 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
       ),
       child: SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
-        title: const Text('Enable All Notifications', style: TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w700)),
-        subtitle: const Text('Master toggle for every reminder category.', style: TextStyle(color: kMuted, fontSize: 12.5)),
+        title: const Text(
+          'Enable All Notifications',
+          style: TextStyle(
+            color: kInk,
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        subtitle: const Text(
+          'Master toggle for every reminder category.',
+          style: TextStyle(color: kMuted, fontSize: 12.5),
+        ),
         value: _allEnabled,
         onChanged: (v) => setState(() => _allEnabled = v),
         activeThumbColor: kBronze,
@@ -156,21 +204,67 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
   }
 
   Widget _buildFrequencySection() {
+    final tokens = context.colors;
+    String labelFor(String freq) {
+      if (freq == 'low') return 'Low - essential reminders only';
+      if (freq == 'medium') return 'Medium - balanced reminders';
+      return 'High - frequent reminders';
+    }
+
     return _SectionCard(
       title: 'Frequency',
       subtitle: 'How often you receive reminders',
       child: Column(
         children: [
           for (final freq in ['low', 'medium', 'high'])
-            RadioListTile<String>(
-              title: Text(
-                freq == 'low' ? 'Low — essential reminders only' : freq == 'medium' ? 'Medium — balanced reminders' : 'High — frequent reminders',
-                style: const TextStyle(color: kInk, fontSize: 14),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => setState(() => _frequency = freq),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 11,
+                  ),
+                  decoration: BoxDecoration(
+                    color:
+                        _frequency == freq
+                            ? tokens.primaryContainer
+                            : tokens.surfaceContainer,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color:
+                          _frequency == freq
+                              ? tokens.primary
+                              : tokens.borderSubtle,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          labelFor(freq),
+                          style: TextStyle(
+                            color:
+                                _frequency == freq
+                                    ? tokens.onPrimaryContainer
+                                    : tokens.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (_frequency == freq)
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: 19,
+                          color: tokens.primary,
+                        ),
+                    ],
+                  ),
+                ),
               ),
-              value: freq,
-              groupValue: _frequency,
-              onChanged: (v) => setState(() => _frequency = v ?? 'medium'),
-              activeColor: kBronze,
             ),
         ],
       ),
@@ -185,7 +279,14 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
         children: [
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Enable Quiet Hours', style: TextStyle(color: kInk, fontSize: 14, fontWeight: FontWeight.w600)),
+            title: const Text(
+              'Enable Quiet Hours',
+              style: TextStyle(
+                color: kInk,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
             value: _quietHoursEnabled,
             onChanged: (v) => setState(() => _quietHoursEnabled = v),
             activeThumbColor: kBronze,
@@ -227,7 +328,14 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
           for (final key in orderedKeys)
             SwitchListTile.adaptive(
               contentPadding: EdgeInsets.zero,
-              title: Text(_categoryLabels[key] ?? key, style: const TextStyle(color: kInk, fontSize: 14, fontWeight: FontWeight.w600)),
+              title: Text(
+                _categoryLabels[key] ?? key,
+                style: const TextStyle(
+                  color: kInk,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               value: _categories[key] ?? true,
               onChanged: (v) => setState(() => _categories[key] = v),
               activeThumbColor: kBronze,
@@ -239,7 +347,11 @@ class _NotificationPreferencesScreenState extends State<NotificationPreferencesS
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.subtitle, required this.child});
+  const _SectionCard({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
 
   final String title;
   final String subtitle;
@@ -257,7 +369,14 @@ class _SectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: kInk,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(subtitle, style: const TextStyle(color: kMuted, fontSize: 12.5)),
           const SizedBox(height: 12),
@@ -269,7 +388,11 @@ class _SectionCard extends StatelessWidget {
 }
 
 class _TimeField extends StatelessWidget {
-  const _TimeField({required this.label, required this.value, required this.onChanged});
+  const _TimeField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
 
   final String label;
   final String value;
@@ -282,8 +405,14 @@ class _TimeField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(color: kMuted),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kLine)),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: kLine)),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kLine),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: kLine),
+        ),
       ),
       onChanged: onChanged,
     );

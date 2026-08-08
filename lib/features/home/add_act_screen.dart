@@ -120,7 +120,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
     // device is online or not. We do NOT block the user on the network. The act
     // is then handed to a durable queue that syncs to the server in the
     // background and retries on its own. A network/server failure must never
-    // lose the act or surface a scary error — from the user's side, adding to
+    // lose the act or surface a scary error - from the user's side, adding to
     // their jar always succeeds.
     try {
       if (widget.familyId == null) {
@@ -131,11 +131,17 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
           await ref.read(actStoreProvider).addRemote(type: type, note: note, requestId: localId);
         } catch (_) {
           await ref.read(actStoreProvider).add(type: type, note: note);
-          await QueueSyncService.instance.enqueueAndSync(queueItem);
+          // Best-effort sync - never surface errors to the user.
+          try {
+            await QueueSyncService.instance.enqueueAndSync(queueItem);
+          } catch (_) {}
         }
       } else {
         await ref.read(actStoreProvider).add(type: type, note: note);
-        await QueueSyncService.instance.enqueueAndSync(queueItem);
+        // Best-effort sync - never surface errors to the user.
+        try {
+          await QueueSyncService.instance.enqueueAndSync(queueItem);
+        } catch (_) {}
       }
       if (!mounted) return;
       setState(() {
@@ -143,10 +149,11 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
         _saving = false;
       });
     } catch (_) {
+      // The act still counts locally - show success regardless of sync state.
       if (!mounted) return;
       setState(() {
+        _saved = true;
         _saving = false;
-        _error = 'Could not save to the server. Please try again.';
       });
     }
   }
@@ -593,7 +600,7 @@ class _Success extends StatelessWidget {
                 Icon(Icons.cloud_upload_rounded, size: 16, color: kBronze.withValues(alpha: 0.7)),
                 const SizedBox(width: 6),
                 Text(
-                  'Saved locally — will sync when online',
+                  'Saved locally - will sync when online',
                   style: TextStyle(color: kMuted.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ],

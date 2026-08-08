@@ -4,9 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 
 // ─────────────────────────────────────────────────────────────
-// MIZAN · FAMILY — DESIGN TOKENS
+// MIZAN · FAMILY - DESIGN TOKENS
 // Warm ivory, paper textures, walnut / clay / bronze / muted olive.
 // All tokens are aliases of the canonical app_theme.dart values.
 // ─────────────────────────────────────────────────────────────
@@ -45,28 +46,39 @@ class SoftCard extends StatelessWidget {
     required this.child,
     super.key,
     this.padding = const EdgeInsets.all(16),
-    this.color = fWhite,
-    this.borderColor = fClay,
+    this.color,
+    this.borderColor,
     this.radius = fRadius,
     this.onTap,
   });
 
   final Widget child;
   final EdgeInsets padding;
-  final Color color;
-  final Color borderColor;
+  final Color? color;
+  final Color? borderColor;
   final double radius;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final card = Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: color,
+        color: color ?? tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: borderColor),
-        boxShadow: const [BoxShadow(color: fShadow, blurRadius: 10, offset: Offset(0, 4))],
+        border: Border.all(color: borderColor ?? tokens.borderSubtle),
+        boxShadow:
+            isDark
+                ? const []
+                : [
+                  BoxShadow(
+                    color: fBronze.withValues(alpha: 0.09),
+                    blurRadius: 12,
+                    offset: const Offset(0, 5),
+                  ),
+                ],
       ),
       child: child,
     );
@@ -76,10 +88,10 @@ class SoftCard extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-        borderRadius: BorderRadius.circular(radius),
-        onTap: onTap,
-        child: card,
-      ),
+          borderRadius: BorderRadius.circular(radius),
+          onTap: onTap,
+          child: card,
+        ),
       ),
     );
   }
@@ -114,14 +126,18 @@ class MizanAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     final ring = contributed && showRing ? fOlive : fClay;
     return Container(
       width: size,
       height: size,
-        decoration: BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: accent.withValues(alpha: 0.14),
-        border: Border.all(color: ring, width: contributed && showRing ? 2 : 1.2),
+        border: Border.all(
+          color: contributed && showRing ? ring : tokens.borderSubtle,
+          width: contributed && showRing ? 2 : 1.2,
+        ),
       ),
       child: Center(
         child: Text(
@@ -160,7 +176,7 @@ class ProgressTrack extends StatelessWidget {
     return Container(
       height: height,
       decoration: BoxDecoration(
-        color: fClay,
+        color: context.colors.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(99),
       ),
       child: FractionallySizedBox(
@@ -212,11 +228,11 @@ class ScreenHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     height: 1.1,
                     fontWeight: FontWeight.w700,
-                    color: fWalnut,
+                    color: context.colors.textPrimary,
                     fontFamily: 'Georgia',
                   ),
                 ),
@@ -225,7 +241,11 @@ class ScreenHeader extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       subtitle!,
-                      style: const TextStyle(fontSize: 11, color: fStoneLight, letterSpacing: 0.3),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.colors.textMuted,
+                        letterSpacing: 0,
+                      ),
                     ),
                   ),
               ],
@@ -246,8 +266,9 @@ class _RoundButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     return Material(
-      color: fWhite,
+      color: tokens.surfaceElevated,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
@@ -257,9 +278,9 @@ class _RoundButton extends StatelessWidget {
           height: 42,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: fClay),
+            border: Border.all(color: tokens.borderSubtle),
           ),
-          child: Icon(icon, size: 16, color: fWalnutLight),
+          child: Icon(icon, size: 16, color: tokens.iconSecondary),
         ),
       ),
     );
@@ -271,7 +292,12 @@ class _RoundButton extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────
 
 class MizanButton extends StatefulWidget {
-  const MizanButton({required this.label, required this.onTap, super.key, this.fullWidth = true});
+  const MizanButton({
+    required this.label,
+    required this.onTap,
+    super.key,
+    this.fullWidth = true,
+  });
 
   final String label;
   final VoidCallback onTap;
@@ -281,9 +307,16 @@ class MizanButton extends StatefulWidget {
   State<MizanButton> createState() => _MizanButtonState();
 }
 
-class _MizanButtonState extends State<MizanButton> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-  late final Animation<double> _a = Tween<double>(begin: 1, end: 0.97).animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
+class _MizanButtonState extends State<MizanButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 150),
+  );
+  late final Animation<double> _a = Tween<double>(
+    begin: 1,
+    end: 0.97,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
 
   @override
   void dispose() {
@@ -293,6 +326,8 @@ class _MizanButtonState extends State<MizanButton> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return ScaleTransition(
       scale: _a,
       child: Semantics(
@@ -308,18 +343,32 @@ class _MizanButtonState extends State<MizanButton> with SingleTickerProviderStat
             onTapUp: (_) => _c.reverse(),
             onTapCancel: () => _c.reverse(),
             child: Container(
-          width: widget.fullWidth ? double.infinity : null,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          decoration: BoxDecoration(
-            color: fBronze,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: const [BoxShadow(color: fShadowWarm, blurRadius: 12, offset: Offset(0, 4))],
-          ),
-          child: Text(
-            widget.label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fWhite, letterSpacing: 0.3),
-          ),
+              width: widget.fullWidth ? double.infinity : null,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                color: tokens.primary,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow:
+                    isDark
+                        ? const []
+                        : [
+                          BoxShadow(
+                            color: tokens.primary.withValues(alpha: 0.16),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+              ),
+              child: Text(
+                widget.label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: tokens.onPrimary,
+                  letterSpacing: 0,
+                ),
+              ),
             ),
           ),
         ),
@@ -329,7 +378,12 @@ class _MizanButtonState extends State<MizanButton> with SingleTickerProviderStat
 }
 
 class MizanOutlineButton extends StatefulWidget {
-  const MizanOutlineButton({required this.label, required this.onTap, super.key, this.fullWidth = true});
+  const MizanOutlineButton({
+    required this.label,
+    required this.onTap,
+    super.key,
+    this.fullWidth = true,
+  });
 
   final String label;
   final VoidCallback onTap;
@@ -339,9 +393,16 @@ class MizanOutlineButton extends StatefulWidget {
   State<MizanOutlineButton> createState() => _MizanOutlineButtonState();
 }
 
-class _MizanOutlineButtonState extends State<MizanOutlineButton> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 150));
-  late final Animation<double> _a = Tween<double>(begin: 1, end: 0.97).animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
+class _MizanOutlineButtonState extends State<MizanOutlineButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 150),
+  );
+  late final Animation<double> _a = Tween<double>(
+    begin: 1,
+    end: 0.97,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOut));
 
   @override
   void dispose() {
@@ -351,6 +412,7 @@ class _MizanOutlineButtonState extends State<MizanOutlineButton> with SingleTick
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     return ScaleTransition(
       scale: _a,
       child: Semantics(
@@ -366,18 +428,23 @@ class _MizanOutlineButtonState extends State<MizanOutlineButton> with SingleTick
             onTapUp: (_) => _c.reverse(),
             onTapCancel: () => _c.reverse(),
             child: Container(
-          width: widget.fullWidth ? double.infinity : null,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-          decoration: BoxDecoration(
-            color: fWhite,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: fClay),
-          ),
-          child: Text(
-            widget.label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: fStone, letterSpacing: 0.3),
-          ),
+              width: widget.fullWidth ? double.infinity : null,
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              decoration: BoxDecoration(
+                color: tokens.surfaceElevated,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: tokens.border),
+              ),
+              child: Text(
+                widget.label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  color: tokens.textSecondary,
+                  letterSpacing: 0,
+                ),
+              ),
             ),
           ),
         ),
@@ -399,7 +466,12 @@ class SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text.toUpperCase(),
-      style: const TextStyle(fontSize: 10, letterSpacing: 2.4, fontWeight: FontWeight.w700, color: fStonePale),
+      style: TextStyle(
+        fontSize: 10,
+        letterSpacing: 1.4,
+        fontWeight: FontWeight.w800,
+        color: context.colors.textMuted,
+      ),
     );
   }
 }
@@ -409,15 +481,15 @@ class SectionLabel extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────
 
 class PaperBackground extends StatelessWidget {
-  const PaperBackground({required this.child, super.key, this.color = fIvory});
+  const PaperBackground({required this.child, super.key, this.color});
 
   final Widget child;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: color,
+      color: color ?? context.colors.background,
       child: Stack(
         children: [
           Positioned.fill(child: CustomPaint(painter: _SoftGrainPainter())),
@@ -431,7 +503,10 @@ class PaperBackground extends StatelessWidget {
 class _SoftGrainPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = fWalnut.withValues(alpha: 0.012)..style = PaintingStyle.fill;
+    final paint =
+        Paint()
+          ..color = fWalnut.withValues(alpha: 0.012)
+          ..style = PaintingStyle.fill;
     final random = math.Random(7);
     for (int i = 0; i < 160; i++) {
       final x = random.nextDouble() * size.width;
@@ -446,12 +521,17 @@ class _SoftGrainPainter extends CustomPainter {
 }
 
 // ─────────────────────────────────────────────────────────────
-// FAMILY JAR PAINTER — ceramic jar filled with warm LIGHT
-// (never coins, never money — generosity is light)
+// FAMILY JAR PAINTER - ceramic jar filled with warm LIGHT
+// (never coins, never money - generosity is light)
 // ─────────────────────────────────────────────────────────────
 
 class FamilyJarView extends StatefulWidget {
-  const FamilyJarView({required this.fill, super.key, this.size = 200, this.glow = 0.0});
+  const FamilyJarView({
+    required this.fill,
+    super.key,
+    this.size = 200,
+    this.glow = 0.0,
+  });
 
   final double fill;
   final double size;
@@ -461,9 +541,16 @@ class FamilyJarView extends StatefulWidget {
   State<FamilyJarView> createState() => _FamilyJarViewState();
 }
 
-class _FamilyJarViewState extends State<FamilyJarView> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
-  late Animation<double> _fill = Tween<double>(begin: 0, end: widget.fill).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack));
+class _FamilyJarViewState extends State<FamilyJarView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 650),
+  );
+  late Animation<double> _fill = Tween<double>(
+    begin: 0,
+    end: widget.fill,
+  ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack));
 
   @override
   void initState() {
@@ -481,7 +568,10 @@ class _FamilyJarViewState extends State<FamilyJarView> with SingleTickerProvider
   void didUpdateWidget(covariant FamilyJarView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.fill == widget.fill) return;
-    _fill = Tween<double>(begin: oldWidget.fill, end: widget.fill.clamp(0.0, 1.0)).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack));
+    _fill = Tween<double>(
+      begin: oldWidget.fill,
+      end: widget.fill.clamp(0.0, 1.0),
+    ).animate(CurvedAnimation(parent: _c, curve: Curves.easeOutBack));
     _c.forward(from: 0);
   }
 
@@ -519,42 +609,79 @@ class _FamilyJarPainter extends CustomPainter {
 
     // Gentle ambient glow behind jar
     if (glow > 0) {
-      final gp = Paint()
-        ..shader = RadialGradient(
-          colors: [
-            fBronzeLight.withValues(alpha: glow * 0.16),
-            fBronzeLight.withValues(alpha: glow * 0.04),
-            Colors.transparent,
-          ],
-        ).createShader(Rect.fromCircle(center: Offset(cx, cy + 10 * s), radius: 130 * s));
+      final gp =
+          Paint()
+            ..shader = RadialGradient(
+              colors: [
+                fBronzeLight.withValues(alpha: glow * 0.16),
+                fBronzeLight.withValues(alpha: glow * 0.04),
+                Colors.transparent,
+              ],
+            ).createShader(
+              Rect.fromCircle(center: Offset(cx, cy + 10 * s), radius: 130 * s),
+            );
       canvas.drawCircle(Offset(cx, cy + 10 * s), 130 * s, gp);
     }
 
     // Jar body path
-    final jarPath = Path()
-      ..moveTo(cx - 40 * s, cy - 78 * s)
-      ..quadraticBezierTo(cx - 50 * s, cy - 72 * s, cx - 55 * s, cy - 58 * s)
-      ..quadraticBezierTo(cx - 60 * s, cy - 38 * s, cx - 58 * s, cy - 18 * s)
-      ..lineTo(cx - 55 * s, cy + 42 * s)
-      ..quadraticBezierTo(cx - 50 * s, cy + 72 * s, cx - 30 * s, cy + 78 * s)
-      ..lineTo(cx + 30 * s, cy + 78 * s)
-      ..quadraticBezierTo(cx + 50 * s, cy + 72 * s, cx + 55 * s, cy + 42 * s)
-      ..lineTo(cx + 58 * s, cy - 18 * s)
-      ..quadraticBezierTo(cx + 60 * s, cy - 38 * s, cx + 55 * s, cy - 58 * s)
-      ..quadraticBezierTo(cx + 50 * s, cy - 72 * s, cx + 40 * s, cy - 78 * s)
-      ..close();
+    final jarPath =
+        Path()
+          ..moveTo(cx - 40 * s, cy - 78 * s)
+          ..quadraticBezierTo(
+            cx - 50 * s,
+            cy - 72 * s,
+            cx - 55 * s,
+            cy - 58 * s,
+          )
+          ..quadraticBezierTo(
+            cx - 60 * s,
+            cy - 38 * s,
+            cx - 58 * s,
+            cy - 18 * s,
+          )
+          ..lineTo(cx - 55 * s, cy + 42 * s)
+          ..quadraticBezierTo(
+            cx - 50 * s,
+            cy + 72 * s,
+            cx - 30 * s,
+            cy + 78 * s,
+          )
+          ..lineTo(cx + 30 * s, cy + 78 * s)
+          ..quadraticBezierTo(
+            cx + 50 * s,
+            cy + 72 * s,
+            cx + 55 * s,
+            cy + 42 * s,
+          )
+          ..lineTo(cx + 58 * s, cy - 18 * s)
+          ..quadraticBezierTo(
+            cx + 60 * s,
+            cy - 38 * s,
+            cx + 55 * s,
+            cy - 58 * s,
+          )
+          ..quadraticBezierTo(
+            cx + 50 * s,
+            cy - 72 * s,
+            cx + 40 * s,
+            cy - 78 * s,
+          )
+          ..close();
 
     // Matte clay body
-    final bodyPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: const [kClayLight, kClay, kBronzeLight],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromLTWH(cx - 60 * s, cy - 80 * s, 120 * s, 160 * s));
+    final bodyPaint =
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: const [kClayLight, kClay, kBronzeLight],
+            stops: const [0.0, 0.5, 1.0],
+          ).createShader(
+            Rect.fromLTWH(cx - 60 * s, cy - 80 * s, 120 * s, 160 * s),
+          );
     canvas.drawPath(jarPath, bodyPaint);
 
-    // Light inside the jar — rises with `fill`
+    // Light inside the jar - rises with `fill`
     if (fill > 0.001) {
       canvas.save();
       canvas.clipPath(jarPath);
@@ -562,18 +689,24 @@ class _FamilyJarPainter extends CustomPainter {
       final innerBottom = cy + 74 * s;
       final lightH = (innerBottom - innerTop) * fill.clamp(0.0, 1.0);
       final lightTop = innerBottom - lightH;
-      final lightPaint = Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-              fBronzeLight.withValues(alpha: 0.05),
-              fBronzeLight.withValues(alpha: 0.28),
-              fBronze.withValues(alpha: 0.42),
-            ],
-          stops: const [0.0, 0.5, 1.0],
-          ).createShader(Rect.fromLTRB(cx - 60 * s, lightTop, cx + 60 * s, innerBottom));
-      canvas.drawRect(Rect.fromLTRB(cx - 60 * s, lightTop, cx + 60 * s, innerBottom), lightPaint);
+      final lightPaint =
+          Paint()
+            ..shader = LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                fBronzeLight.withValues(alpha: 0.05),
+                fBronzeLight.withValues(alpha: 0.28),
+                fBronze.withValues(alpha: 0.42),
+              ],
+              stops: const [0.0, 0.5, 1.0],
+            ).createShader(
+              Rect.fromLTRB(cx - 60 * s, lightTop, cx + 60 * s, innerBottom),
+            );
+      canvas.drawRect(
+        Rect.fromLTRB(cx - 60 * s, lightTop, cx + 60 * s, innerBottom),
+        lightPaint,
+      );
 
       // Floating specks of light within the glow
       final speck = Paint()..color = fBronzeLight.withValues(alpha: 0.5);
@@ -588,56 +721,83 @@ class _FamilyJarPainter extends CustomPainter {
       canvas.restore();
 
       // Soft halo at the surface of the light
-      final surfacePaint = Paint()
-        ..shader = RadialGradient(
-          colors: [fBronzeLight.withValues(alpha: 0.35), Colors.transparent],
-        ).createShader(Rect.fromCircle(center: Offset(cx, lightTop), radius: 46 * s));
+      final surfacePaint =
+          Paint()
+            ..shader = RadialGradient(
+              colors: [
+                fBronzeLight.withValues(alpha: 0.35),
+                Colors.transparent,
+              ],
+            ).createShader(
+              Rect.fromCircle(center: Offset(cx, lightTop), radius: 46 * s),
+            );
       canvas.drawCircle(Offset(cx, lightTop), 46 * s, surfacePaint);
     }
 
     // Rim
-    final rimPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: const [kClayLight, kClay, kClayPale],
-      ).createShader(Rect.fromLTWH(cx - 42 * s, cy - 86 * s, 84 * s, 16 * s));
+    final rimPaint =
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: const [kClayLight, kClay, kClayPale],
+          ).createShader(
+            Rect.fromLTWH(cx - 42 * s, cy - 86 * s, 84 * s, 16 * s),
+          );
     canvas.drawPath(
-      Path()
-        ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset(cx, cy - 80 * s), width: 84 * s, height: 14 * s),
+      Path()..addRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(cx, cy - 80 * s),
+            width: 84 * s,
+            height: 14 * s,
+          ),
           Radius.circular(7 * s),
-        )),
+        ),
+      ),
       rimPaint,
     );
 
     // Inner opening (dark)
     canvas.drawOval(
-      Rect.fromCenter(center: Offset(cx, cy - 80 * s), width: 60 * s, height: 10 * s),
+      Rect.fromCenter(
+        center: Offset(cx, cy - 80 * s),
+        width: 60 * s,
+        height: 10 * s,
+      ),
       Paint()..color = kBronzeLight,
     );
 
     // Decorative bands
-    final band = Paint()
-      ..color = fBronzeLight.withValues(alpha: 0.18)
-      ..strokeWidth = 1.5 * s
-      ..style = PaintingStyle.stroke;
-    final top = Path()
-      ..moveTo(cx - 48 * s, cy - 12 * s)
-      ..quadraticBezierTo(cx, cy - 7 * s, cx + 48 * s, cy - 12 * s);
+    final band =
+        Paint()
+          ..color = fBronzeLight.withValues(alpha: 0.18)
+          ..strokeWidth = 1.5 * s
+          ..style = PaintingStyle.stroke;
+    final top =
+        Path()
+          ..moveTo(cx - 48 * s, cy - 12 * s)
+          ..quadraticBezierTo(cx, cy - 7 * s, cx + 48 * s, cy - 12 * s);
     canvas.drawPath(top, band);
-    final bot = Path()
-      ..moveTo(cx - 45 * s, cy + 46 * s)
-      ..quadraticBezierTo(cx, cy + 51 * s, cx + 45 * s, cy + 46 * s);
+    final bot =
+        Path()
+          ..moveTo(cx - 45 * s, cy + 46 * s)
+          ..quadraticBezierTo(cx, cy + 51 * s, cx + 45 * s, cy + 46 * s);
     canvas.drawPath(bot, band);
 
     // Side shine
-    final shine = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [fWhite.withValues(alpha: 0.18), fWhite.withValues(alpha: 0.0)],
-      ).createShader(Rect.fromLTWH(cx - 50 * s, cy - 70 * s, 30 * s, 100 * s));
+    final shine =
+        Paint()
+          ..shader = LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              fWhite.withValues(alpha: 0.18),
+              fWhite.withValues(alpha: 0.0),
+            ],
+          ).createShader(
+            Rect.fromLTWH(cx - 50 * s, cy - 70 * s, 30 * s, 100 * s),
+          );
     canvas.drawPath(
       Path()
         ..moveTo(cx - 45 * s, cy - 65 * s)
@@ -652,5 +812,6 @@ class _FamilyJarPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _FamilyJarPainter old) => old.fill != fill || old.glow != glow;
+  bool shouldRepaint(covariant _FamilyJarPainter old) =>
+      old.fill != fill || old.glow != glow;
 }

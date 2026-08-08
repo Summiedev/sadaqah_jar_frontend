@@ -27,7 +27,7 @@ class TravelDua {
 }
 
 class TravelAdhkarData {
-  static const bookSource = 'Hisnul Muslim (Fortress of the Muslim) — Sa\'id bin Ali Al-Qahtani';
+  static const bookSource = 'Hisnul Muslim (Fortress of the Muslim) - Sa\'id bin Ali Al-Qahtani';
   static const chapterRange = '89-99';
 
   static const List<TravelDua> duas = [

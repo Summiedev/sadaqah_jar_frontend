@@ -36,15 +36,16 @@ class BackendApi {
     _sessionExpiredNotified = false;
   }
 
-
   static String _resolveBaseUrl() {
-    final configured = const String.fromEnvironment(
-      'API_BASE_URL',
-      defaultValue: _defaultBaseUrl,
-    ).trim();
-    final normalized = configured.endsWith('/') && configured.length > 1
-        ? configured.substring(0, configured.length - 1)
-        : configured;
+    final configured =
+        const String.fromEnvironment(
+          'API_BASE_URL',
+          defaultValue: _defaultBaseUrl,
+        ).trim();
+    final normalized =
+        configured.endsWith('/') && configured.length > 1
+            ? configured.substring(0, configured.length - 1)
+            : configured;
     final uri = Uri.tryParse(normalized);
     final validScheme = uri?.scheme == 'http' || uri?.scheme == 'https';
     if (uri == null || !validScheme || uri.host.isEmpty) {
@@ -81,23 +82,28 @@ class BackendApi {
     await _secureStorage.delete(key: _refreshTokenKey);
   }
 
-  Future<void> saveSessionTokens({required String accessToken, required String refreshToken}) async {
-    await Future.wait([
-      saveToken(accessToken),
-      saveRefreshToken(refreshToken),
-    ]);
-    // A fresh session is now established — allow a future expiry to notify.
+  Future<void> saveSessionTokens({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    await Future.wait([saveToken(accessToken), saveRefreshToken(refreshToken)]);
+    // A fresh session is now established - allow a future expiry to notify.
     resetSessionExpiredFlag();
   }
 
-
-  Future<void> saveAccountSnapshot({int? userId, String? username, String? email, String? avatarData}) async {
+  Future<void> saveAccountSnapshot({
+    int? userId,
+    String? username,
+    String? email,
+    String? avatarData,
+  }) async {
     final prefs = await _prefs;
     final snapshot = <String, dynamic>{
       if (userId != null) 'user_id': userId,
       if (username != null && username.isNotEmpty) 'username': username,
       if (email != null && email.isNotEmpty) 'email': email,
-      if (avatarData != null && avatarData.isNotEmpty) 'avatar_data': avatarData,
+      if (avatarData != null && avatarData.isNotEmpty)
+        'avatar_data': avatarData,
     };
 
     if (snapshot.isEmpty) {
@@ -127,7 +133,9 @@ class BackendApi {
       return null;
     }
     try {
-      return AccountSnapshot.fromJson(Map<String, dynamic>.from(jsonDecode(raw) as Map));
+      return AccountSnapshot.fromJson(
+        Map<String, dynamic>.from(jsonDecode(raw) as Map),
+      );
     } catch (e) {
       debugPrint('Local account snapshot parse error: $e');
       return null;
@@ -176,11 +184,15 @@ class BackendApi {
   Future<SessionBootstrapState> bootstrapSession() async {
     final refreshToken = await getRefreshToken();
     if (refreshToken != null && refreshToken.isNotEmpty) {
-      return (await _refreshSession()) ? SessionBootstrapState.restored : SessionBootstrapState.expired;
+      return (await _refreshSession())
+          ? SessionBootstrapState.restored
+          : SessionBootstrapState.expired;
     }
 
     final accessToken = await getToken();
-    return accessToken != null && accessToken.isNotEmpty ? SessionBootstrapState.restored : SessionBootstrapState.none;
+    return accessToken != null && accessToken.isNotEmpty
+        ? SessionBootstrapState.restored
+        : SessionBootstrapState.none;
   }
 
   Future<Map<String, String>> _headers({bool auth = false}) async {
@@ -228,7 +240,9 @@ class BackendApi {
     bool retryOnUnauthorized = true,
   }) {
     return _request(
-      (headers) => http.get(_uri(path, query), headers: headers).timeout(_requestTimeout),
+      (headers) => http
+          .get(_uri(path, query), headers: headers)
+          .timeout(_requestTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -242,7 +256,9 @@ class BackendApi {
     Object? body,
   }) {
     return _request(
-      (headers) => http.post(_uri(path, query), headers: headers, body: body).timeout(_requestTimeout),
+      (headers) => http
+          .post(_uri(path, query), headers: headers, body: body)
+          .timeout(_requestTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -256,7 +272,9 @@ class BackendApi {
     Object? body,
   }) {
     return _request(
-      (headers) => http.patch(_uri(path, query), headers: headers, body: body).timeout(_requestTimeout),
+      (headers) => http
+          .patch(_uri(path, query), headers: headers, body: body)
+          .timeout(_requestTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -270,7 +288,9 @@ class BackendApi {
     Object? body,
   }) {
     return _request(
-      (headers) => http.put(_uri(path, query), headers: headers, body: body).timeout(_requestTimeout),
+      (headers) => http
+          .put(_uri(path, query), headers: headers, body: body)
+          .timeout(_requestTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -283,7 +303,9 @@ class BackendApi {
     bool retryOnUnauthorized = true,
   }) {
     return _request(
-      (headers) => http.delete(_uri(path, query), headers: headers).timeout(_requestTimeout),
+      (headers) => http
+          .delete(_uri(path, query), headers: headers)
+          .timeout(_requestTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -318,13 +340,19 @@ class BackendApi {
       final decoded = _handleJson(response) as Map<String, dynamic>;
       final accessToken = decoded['access_token']?.toString();
       final nextRefreshToken = decoded['refresh_token']?.toString();
-      if (accessToken == null || accessToken.isEmpty || nextRefreshToken == null || nextRefreshToken.isEmpty) {
+      if (accessToken == null ||
+          accessToken.isEmpty ||
+          nextRefreshToken == null ||
+          nextRefreshToken.isEmpty) {
         await _expireSession();
         completer.complete(false);
         return false;
       }
 
-      await saveSessionTokens(accessToken: accessToken, refreshToken: nextRefreshToken);
+      await saveSessionTokens(
+        accessToken: accessToken,
+        refreshToken: nextRefreshToken,
+      );
       completer.complete(true);
       return true;
     } catch (_) {
@@ -356,7 +384,6 @@ class BackendApi {
     }
   }
 
-
   Future<void> revokeSessionOnServer() async {
     final refreshToken = await getRefreshToken();
     if (refreshToken == null || refreshToken.isEmpty) {
@@ -375,8 +402,8 @@ class BackendApi {
   /// Unwraps a response that may or may not use the envelope format.
   ///
   /// The Mizan backend has two response styles:
-  /// 1. **Envelope** — `{"data": ..., "meta": {...}, "message": "..."}` (newer routers)
-  /// 2. **Bare** — The data object/list directly (legacy routers)
+  /// 1. **Envelope** - `{"data": ..., "meta": {...}, "message": "..."}` (newer routers)
+  /// 2. **Bare** - The data object/list directly (legacy routers)
   ///
   /// This method handles both transparently. If a `data` key exists it unwraps;
   /// otherwise it returns the decoded body as-is.
@@ -413,8 +440,14 @@ class BackendApi {
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
-    if (accessToken != null && accessToken.isNotEmpty && refreshToken != null && refreshToken.isNotEmpty) {
-      await saveSessionTokens(accessToken: accessToken, refreshToken: refreshToken);
+    if (accessToken != null &&
+        accessToken.isNotEmpty &&
+        refreshToken != null &&
+        refreshToken.isNotEmpty) {
+      await saveSessionTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
     }
     await saveAccountSnapshot(username: username, email: email);
     return decoded;
@@ -426,33 +459,43 @@ class BackendApi {
   }) async {
     final response = await _post(
       '/auth/login',
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
+      body: jsonEncode({'email': email, 'password': password}),
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
-    if (accessToken != null && accessToken.isNotEmpty && refreshToken != null && refreshToken.isNotEmpty) {
-      await saveSessionTokens(accessToken: accessToken, refreshToken: refreshToken);
+    if (accessToken != null &&
+        accessToken.isNotEmpty &&
+        refreshToken != null &&
+        refreshToken.isNotEmpty) {
+      await saveSessionTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
     }
-    await saveAccountSnapshot(username: email.contains('@') ? email.split('@').first : email, email: email);
+    await saveAccountSnapshot(
+      username: email.contains('@') ? email.split('@').first : email,
+      email: email,
+    );
     return decoded;
   }
 
   Future<Map<String, dynamic>> googleAuth({required String idToken}) async {
     final response = await _post(
       '/auth/google',
-      body: jsonEncode({
-        'id_token': idToken,
-      }),
+      body: jsonEncode({'id_token': idToken}),
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
-    if (accessToken != null && accessToken.isNotEmpty && refreshToken != null && refreshToken.isNotEmpty) {
-      await saveSessionTokens(accessToken: accessToken, refreshToken: refreshToken);
+    if (accessToken != null &&
+        accessToken.isNotEmpty &&
+        refreshToken != null &&
+        refreshToken.isNotEmpty) {
+      await saveSessionTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
     }
     await saveAccountSnapshot(
       userId: (decoded['user_id'] as num?)?.toInt(),
@@ -462,7 +505,10 @@ class BackendApi {
     return decoded;
   }
 
-  Future<void> changePassword({required String currentPassword, required String newPassword}) async {
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
     final response = await _patch(
       '/users/me/password',
       auth: true,
@@ -475,7 +521,10 @@ class BackendApi {
     if (response.statusCode != 204) {
       final decoded = _handleJson(response);
       if (decoded is Map<String, dynamic>) {
-        throw BackendApiException(decoded['detail']?.toString() ?? 'Password change failed', response.statusCode);
+        throw BackendApiException(
+          decoded['detail']?.toString() ?? 'Password change failed',
+          response.statusCode,
+        );
       }
     }
   }
@@ -484,13 +533,15 @@ class BackendApi {
     await _post('/auth/resend-verification', auth: true, body: jsonEncode({}));
   }
 
-  Future<AccountSnapshot> updateAccount({String? username, String? email, String? avatarData}) async {
+  Future<AccountSnapshot> updateAccount({
+    String? username,
+    String? avatarData,
+  }) async {
     final response = await _patch(
       '/auth/me',
       auth: true,
       body: jsonEncode({
         if (username != null) 'username': username,
-        if (email != null) 'email': email,
         if (avatarData != null) 'avatar_data': avatarData,
       }),
     );
@@ -505,6 +556,60 @@ class BackendApi {
     return snapshot;
   }
 
+  Future<Map<String, dynamic>> requestEmailChange({
+    required String currentPassword,
+    required String newEmail,
+  }) async {
+    final response = await _post(
+      '/users/me/email/change-request',
+      auth: true,
+      body: jsonEncode({
+        'current_password': currentPassword,
+        'new_email': newEmail,
+      }),
+    );
+    return _handleJson(response) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> confirmEmailChange({
+    required String token,
+  }) async {
+    final response = await _post(
+      '/users/me/email/confirm',
+      auth: true,
+      body: jsonEncode({'token': token}),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    if (decoded['access_token'] != null && decoded['refresh_token'] != null) {
+      await saveSessionTokens(
+        accessToken: decoded['access_token'].toString(),
+        refreshToken: decoded['refresh_token'].toString(),
+      );
+    }
+    return decoded;
+  }
+
+  Future<Map<String, dynamic>?> getPendingEmailChange() async {
+    try {
+      final response = await _get('/users/me/email/pending', auth: true);
+      final decoded = _handleJson(response);
+      if (decoded == null || decoded is! Map<String, dynamic>) return null;
+      if (decoded.isEmpty) return null;
+      return decoded;
+    } on BackendApiException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  Future<void> cancelEmailChange() async {
+    await _post('/users/me/email/cancel', auth: true, body: '{}');
+  }
+
+  Future<void> resendEmailChangeVerification() async {
+    await _post('/users/me/email/resend-verification', auth: true, body: '{}');
+  }
+
   Future<Map<String, dynamic>> me() async {
     final response = await _get('/auth/me', auth: true);
     return _handleJson(response);
@@ -517,14 +622,19 @@ class BackendApi {
     return UserProfile.fromJson(decoded);
   }
 
-  Future<UserPreferences> updatePreferences({bool? evidenceMode, bool? fridayReminder, bool? generalNotifications}) async {
+  Future<UserPreferences> updatePreferences({
+    bool? evidenceMode,
+    bool? fridayReminder,
+    bool? generalNotifications,
+  }) async {
     final response = await _patch(
       '/auth/preferences',
       auth: true,
       body: jsonEncode({
         if (evidenceMode != null) 'evidence_mode': evidenceMode,
         if (fridayReminder != null) 'friday_reminder': fridayReminder,
-        if (generalNotifications != null) 'general_notifications': generalNotifications,
+        if (generalNotifications != null)
+          'general_notifications': generalNotifications,
       }),
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
@@ -545,11 +655,7 @@ class BackendApi {
       if (timeZone != null) 'time_zone': timeZone,
       if (coords != null) 'coords': coords,
     };
-    await _post(
-      '/users/me/push-token',
-      auth: true,
-      body: jsonEncode(body),
-    );
+    await _post('/users/me/push-token', auth: true, body: jsonEncode(body));
   }
 
   Future<bool> isEmailVerified() async {
@@ -569,7 +675,10 @@ class BackendApi {
     );
   }
 
-  Future<void> resetPassword({required String token, required String newPassword}) async {
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
     await _post(
       '/auth/reset-password',
       body: jsonEncode({'token': token, 'new_password': newPassword}),
@@ -586,30 +695,105 @@ class BackendApi {
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
-    if (accessToken != null && accessToken.isNotEmpty && refreshToken != null && refreshToken.isNotEmpty) {
-      await saveSessionTokens(accessToken: accessToken, refreshToken: refreshToken);
+    if (accessToken != null &&
+        accessToken.isNotEmpty &&
+        refreshToken != null &&
+        refreshToken.isNotEmpty) {
+      await saveSessionTokens(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
     }
   }
 
   Future<void> verifyEmailOtp({required String code}) async {
-    final response = await _post('/auth/verify-email', body: jsonEncode({'code': code}), retryOnUnauthorized: false);
+    final response = await _post(
+      '/auth/verify-email',
+      body: jsonEncode({'code': code}),
+      retryOnUnauthorized: false,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
-    if (accessToken == null || accessToken.isEmpty || refreshToken == null || refreshToken.isEmpty) {
-      throw BackendApiException('Verification succeeded but no session was returned.', response.statusCode);
+    if (accessToken == null ||
+        accessToken.isEmpty ||
+        refreshToken == null ||
+        refreshToken.isEmpty) {
+      throw BackendApiException(
+        'Verification succeeded but no session was returned.',
+        response.statusCode,
+      );
     }
-    await saveSessionTokens(accessToken: accessToken, refreshToken: refreshToken);
+    await saveSessionTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
   }
 
-  Future<void> uploadAdminBookFile({required int bookId, required List<int> bytes, required String filename}) async {
-    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/admin/books/$bookId/file'));
+  Future<void> uploadAdminBookFile({
+    required int bookId,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/admin/books/$bookId/file'),
+    );
     final token = await getToken();
     if (token != null) request.headers['Authorization'] = 'Bearer $token';
-    request.files.add(http.MultipartFile.fromBytes('file', bytes, filename: filename));
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
     final streamed = await request.send().timeout(_requestTimeout);
     final response = await http.Response.fromStream(streamed);
     _handleJson(response);
+  }
+
+  Future<AdminBookRecord> uploadAdminBookCover({
+    required int bookId,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/admin/books/$bookId/cover'),
+    );
+    final token = await getToken();
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: filename),
+    );
+    final streamed = await request.send().timeout(_requestTimeout);
+    final response = await http.Response.fromStream(streamed);
+    return AdminBookRecord.fromJson(
+      _handleJson(response) as Map<String, dynamic>,
+    );
+  }
+
+  Future<AdminBookRecord> uploadAdminBookPages({
+    required int bookId,
+    required List<PickedUploadFile> files,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/admin/books/$bookId/pages'),
+    );
+    final token = await getToken();
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    for (final file in files) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'files',
+          file.bytes,
+          filename: file.filename,
+        ),
+      );
+    }
+    final streamed = await request.send().timeout(_requestTimeout);
+    final response = await http.Response.fromStream(streamed);
+    return AdminBookRecord.fromJson(
+      _handleJson(response) as Map<String, dynamic>,
+    );
   }
 
   Future<int?> getCurrentUserId() async {
@@ -642,7 +826,11 @@ class BackendApi {
   Future<List<DailyAct>> getDailyActs() async {
     final response = await _get('/sadaqah/daily', auth: true);
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => DailyAct.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return decoded
+        .map(
+          (item) => DailyAct.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   Future<SadaqahActPage> getActs({int limit = 100, int offset = 0}) async {
@@ -666,7 +854,12 @@ class BackendApi {
     return JarStats.fromJson(decoded);
   }
 
-  Future<JarStats> addJarStar({int? actId, String? type, String? note, String? requestId}) async {
+  Future<JarStats> addJarStar({
+    int? actId,
+    String? type,
+    String? note,
+    String? requestId,
+  }) async {
     final response = await _post(
       '/sadaqah/jar/add-star',
       auth: true,
@@ -682,7 +875,10 @@ class BackendApi {
     return JarStats.fromJson(decoded);
   }
 
-  Future<CompletedJarPage> getCompletedJars({int limit = 20, int offset = 0}) async {
+  Future<CompletedJarPage> getCompletedJars({
+    int limit = 20,
+    int offset = 0,
+  }) async {
     final response = await _get(
       '/sadaqah/jars/completed',
       auth: true,
@@ -697,7 +893,9 @@ class BackendApi {
     final response = await _get('/dashboard/heatmap', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
     // Legacy endpoint returns bare map, not envelope
-    return decoded.map((key, value) => MapEntry(key, int.tryParse('$value') ?? 0));
+    return decoded.map(
+      (key, value) => MapEntry(key, int.tryParse('$value') ?? 0),
+    );
   }
 
   Future<StreakInfo> getStreak() async {
@@ -715,7 +913,11 @@ class BackendApi {
   }
 
   Future<List<LeaderboardEntry>> getFridayLeaderboard({int limit = 10}) async {
-    final response = await _get('/leaderboard/friday', auth: true, query: {'limit': limit});
+    final response = await _get(
+      '/leaderboard/friday',
+      auth: true,
+      query: {'limit': limit},
+    );
     return _leaderboardFromResponse(response);
   }
 
@@ -725,7 +927,11 @@ class BackendApi {
   }
 
   Future<List<LeaderboardEntry>> getGlobalLeaderboard({int limit = 10}) async {
-    final response = await _get('/leaderboard/global', auth: true, query: {'limit': limit});
+    final response = await _get(
+      '/leaderboard/global',
+      auth: true,
+      query: {'limit': limit},
+    );
     return _leaderboardFromResponse(response);
   }
 
@@ -746,7 +952,12 @@ class BackendApi {
   Future<List<AdminTopActEntry>> getAdminTopActs() async {
     final response = await _get('/admin/analytics/top-acts', auth: true);
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => AdminTopActEntry.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return decoded
+        .map(
+          (item) =>
+              AdminTopActEntry.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   Future<int> getAdminStarsToday() async {
@@ -757,9 +968,18 @@ class BackendApi {
   }
 
   Future<List<AdminDonationIntentEntry>> getAdminDonationIntents() async {
-    final response = await _get('/admin/analytics/donation-intents', auth: true);
+    final response = await _get(
+      '/admin/analytics/donation-intents',
+      auth: true,
+    );
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => AdminDonationIntentEntry.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return decoded
+        .map(
+          (item) => AdminDonationIntentEntry.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList();
   }
 
   Future<DashboardStats> getDashboardStats() async {
@@ -772,7 +992,13 @@ class BackendApi {
   Future<List<CategoryAnalyticsEntry>> getCategoryAnalytics() async {
     final response = await _get('/dashboard/category-analytics', auth: true);
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => CategoryAnalyticsEntry.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return decoded
+        .map(
+          (item) => CategoryAnalyticsEntry.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
+        .toList();
   }
 
   Future<int> getUnreadNotificationCount() async {
@@ -783,15 +1009,15 @@ class BackendApi {
     return (map['count'] as num?)?.toInt() ?? 0;
   }
 
-  Future<NotificationPage> getNotifications({bool unread = false, int limit = 20, int offset = 0}) async {
+  Future<NotificationPage> getNotifications({
+    bool unread = false,
+    int limit = 20,
+    int offset = 0,
+  }) async {
     final response = await _get(
       '/notifications/',
       auth: true,
-      query: {
-        if (unread) 'unread': true,
-        'limit': limit,
-        'offset': offset,
-      },
+      query: {if (unread) 'unread': true, 'limit': limit, 'offset': offset},
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
@@ -800,12 +1026,23 @@ class BackendApi {
       total: (meta?['total'] as num?)?.toInt() ?? 0,
       limit: limit,
       offset: offset,
-      data: (data as List).map((i) => NotificationItem.fromJson(Map<String, dynamic>.from(i as Map))).toList(),
+      data:
+          (data as List)
+              .map(
+                (i) => NotificationItem.fromJson(
+                  Map<String, dynamic>.from(i as Map),
+                ),
+              )
+              .toList(),
     );
   }
 
   Future<void> markNotificationRead(int notificationId) async {
-    final response = await _patch('/notifications/$notificationId/read', auth: true, retryOnUnauthorized: true);
+    final response = await _patch(
+      '/notifications/$notificationId/read',
+      auth: true,
+      retryOnUnauthorized: true,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
     // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
@@ -813,7 +1050,11 @@ class BackendApi {
   }
 
   Future<void> markAllNotificationsRead() async {
-    final response = await _post('/notifications/read-all', auth: true, retryOnUnauthorized: true);
+    final response = await _post(
+      '/notifications/read-all',
+      auth: true,
+      retryOnUnauthorized: true,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
     // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
@@ -821,14 +1062,21 @@ class BackendApi {
   }
 
   Future<void> deleteNotification(int notificationId) async {
-    final response = await _delete('/notifications/$notificationId', auth: true, retryOnUnauthorized: true);
+    final response = await _delete(
+      '/notifications/$notificationId',
+      auth: true,
+      retryOnUnauthorized: true,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
     // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
     _getEnvelopeMessage(decoded);
   }
 
-  Future<void> registerDeviceToken({required String token, required String platform}) async {
+  Future<void> registerDeviceToken({
+    required String token,
+    required String platform,
+  }) async {
     await _post(
       '/notifications/device-token',
       auth: true,
@@ -867,28 +1115,69 @@ class BackendApi {
   Future<List<CharityItem>> getFeaturedCharities() async {
     final response = await _get('/charities/featured', auth: true);
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => CharityItem.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return decoded
+        .map(
+          (item) =>
+              CharityItem.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
-  Future<AdminCharityPage> getAdminCharities({int limit = 50, int offset = 0}) async {
-    final response = await _get('/admin/charities/', auth: true, query: {'limit': limit, 'offset': offset});
+  Future<AdminCharityPage> getAdminCharities({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _get(
+      '/admin/charities/',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
     return AdminCharityPage.fromJson(_handleJson(response));
   }
 
   Future<AdminCharityRecord> createAdminCharity({
     required String name,
-    required String websiteUrl,
+    String? websiteUrl,
+    String? title,
+    String donationType = 'external',
+    String? caseName,
     String? description,
     String? category,
+    double? targetAmount,
+    double? amountRaised,
+    String currency = 'NGN',
+    String? evidence,
+    List<String>? imageUrls,
+    List<String>? evidenceUrls,
+    String? contactInfo,
+    String status = 'active',
+    String? deadline,
+    bool isPublished = true,
+    bool isFeatured = false,
   }) async {
     final response = await _post(
       '/admin/charities/',
       auth: true,
       body: jsonEncode({
         'name': name,
-        'website_url': websiteUrl,
+        'donation_type': donationType,
+        if (websiteUrl != null && websiteUrl.isNotEmpty)
+          'website_url': websiteUrl,
+        if (title != null) 'title': title,
+        if (caseName != null) 'case_name': caseName,
         if (description != null) 'description': description,
         if (category != null) 'category': category,
+        if (targetAmount != null) 'target_amount': targetAmount,
+        if (amountRaised != null) 'amount_raised': amountRaised,
+        'currency': currency,
+        if (evidence != null) 'evidence': evidence,
+        if (imageUrls != null) 'image_urls': imageUrls,
+        if (evidenceUrls != null) 'evidence_urls': evidenceUrls,
+        if (contactInfo != null) 'contact_info': contactInfo,
+        'status': status,
+        if (deadline != null) 'deadline': deadline,
+        'is_published': isPublished,
+        'is_featured': isFeatured,
       }),
     );
     return AdminCharityRecord.fromJson(_handleJson(response));
@@ -898,8 +1187,21 @@ class BackendApi {
     required int charityId,
     String? name,
     String? websiteUrl,
+    String? title,
+    String? donationType,
+    String? caseName,
     String? description,
     String? category,
+    double? targetAmount,
+    double? amountRaised,
+    String? currency,
+    String? evidence,
+    List<String>? imageUrls,
+    List<String>? evidenceUrls,
+    String? contactInfo,
+    String? status,
+    String? deadline,
+    bool? isPublished,
     bool? isVerified,
     bool? isActive,
     bool? isFeatured,
@@ -910,8 +1212,21 @@ class BackendApi {
       body: jsonEncode({
         if (name != null) 'name': name,
         if (websiteUrl != null) 'website_url': websiteUrl,
+        if (title != null) 'title': title,
+        if (donationType != null) 'donation_type': donationType,
+        if (caseName != null) 'case_name': caseName,
         if (description != null) 'description': description,
         if (category != null) 'category': category,
+        if (targetAmount != null) 'target_amount': targetAmount,
+        if (amountRaised != null) 'amount_raised': amountRaised,
+        if (currency != null) 'currency': currency,
+        if (evidence != null) 'evidence': evidence,
+        if (imageUrls != null) 'image_urls': imageUrls,
+        if (evidenceUrls != null) 'evidence_urls': evidenceUrls,
+        if (contactInfo != null) 'contact_info': contactInfo,
+        if (status != null) 'status': status,
+        if (deadline != null) 'deadline': deadline,
+        if (isPublished != null) 'is_published': isPublished,
         if (isVerified != null) 'is_verified': isVerified,
         if (isActive != null) 'is_active': isActive,
         if (isFeatured != null) 'is_featured': isFeatured,
@@ -924,12 +1239,70 @@ class BackendApi {
     await _delete('/admin/charities/$charityId', auth: true);
   }
 
+  Future<AdminCharityRecord> uploadAdminCharityImages({
+    required int charityId,
+    required List<PickedUploadFile> files,
+    bool replace = false,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri('/admin/charities/$charityId/images', {'replace': replace}),
+    );
+    final token = await getToken();
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    for (final file in files) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'files',
+          file.bytes,
+          filename: file.filename,
+        ),
+      );
+    }
+    final streamed = await request.send().timeout(_requestTimeout);
+    final response = await http.Response.fromStream(streamed);
+    return AdminCharityRecord.fromJson(
+      _handleJson(response) as Map<String, dynamic>,
+    );
+  }
+
+  Future<AdminCharityRecord> uploadAdminCharityEvidence({
+    required int charityId,
+    required List<PickedUploadFile> files,
+    bool replace = false,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri('/admin/charities/$charityId/evidence', {'replace': replace}),
+    );
+    final token = await getToken();
+    if (token != null) request.headers['Authorization'] = 'Bearer $token';
+    for (final file in files) {
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'files',
+          file.bytes,
+          filename: file.filename,
+        ),
+      );
+    }
+    final streamed = await request.send().timeout(_requestTimeout);
+    final response = await http.Response.fromStream(streamed);
+    return AdminCharityRecord.fromJson(
+      _handleJson(response) as Map<String, dynamic>,
+    );
+  }
+
   Future<CharityDetail> getCharity(int charityId) async {
     final response = await _get('/charities/$charityId', auth: true);
     return CharityDetail.fromJson(_handleJson(response));
   }
 
-  Future<CharityPage> getCharities({String? category, int limit = 50, int offset = 0}) async {
+  Future<CharityPage> getCharities({
+    String? category,
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final response = await _get(
       '/charities/',
       query: {
@@ -942,8 +1315,15 @@ class BackendApi {
     return CharityPage.fromJson(_handleJson(response));
   }
 
-  Future<AdminEvidencePage> getAdminEvidence({int limit = 50, int offset = 0}) async {
-    final response = await _get('/admin/evidence/', auth: true, query: {'limit': limit, 'offset': offset});
+  Future<AdminEvidencePage> getAdminEvidence({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _get(
+      '/admin/evidence/',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
     return AdminEvidencePage.fromJson(_handleJson(response));
   }
 
@@ -1005,8 +1385,15 @@ class BackendApi {
     await _delete('/admin/evidence/$evidenceId', auth: true);
   }
 
-  Future<Map<String, dynamic>> createFamilyJar({required String name, int capacity = 33}) async {
-    final response = await _post('/family/create', auth: true, query: {'name': name, 'capacity': capacity});
+  Future<Map<String, dynamic>> createFamilyJar({
+    required String name,
+    int capacity = 33,
+  }) async {
+    final response = await _post(
+      '/family/create',
+      auth: true,
+      query: {'name': name, 'capacity': capacity},
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
     final map = Map<String, dynamic>.from(data as Map);
@@ -1014,8 +1401,15 @@ class BackendApi {
     return map;
   }
 
-  Future<Map<String, dynamic>> joinFamilyJar({required String inviteCode}) async {
-    final response = await _post('/family/join', auth: true, query: {'invite_code': inviteCode});
+  Future<Map<String, dynamic>> joinFamilyJar({
+    required String inviteCode,
+  }) async {
+    final normalizedCode = inviteCode.trim().toUpperCase();
+    final response = await _post(
+      '/family/join',
+      auth: true,
+      body: jsonEncode({'invite_code': normalizedCode}),
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
     final map = Map<String, dynamic>.from(data as Map);
@@ -1023,14 +1417,27 @@ class BackendApi {
     return map;
   }
 
-  Future<List<LeaderboardEntry>> getFamilyLeaderboard({required int jarId, int limit = 10}) async {
-    final response = await _get('/family/$jarId/leaderboard', auth: true, query: {'limit': limit});
+  Future<List<LeaderboardEntry>> getFamilyLeaderboard({
+    required int jarId,
+    int limit = 10,
+  }) async {
+    final response = await _get(
+      '/family/$jarId/leaderboard',
+      auth: true,
+      query: {'limit': limit},
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((i) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(i as Map))).toList();
+    return (data as List)
+        .map(
+          (i) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(i as Map)),
+        )
+        .toList();
   }
 
-  Future<Map<String, dynamic>> getFamilyTopContributor({required int jarId}) async {
+  Future<Map<String, dynamic>> getFamilyTopContributor({
+    required int jarId,
+  }) async {
     final response = await _get('/family/$jarId/top-contributor', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
@@ -1047,22 +1454,31 @@ class BackendApi {
   Future<List<Map<String, dynamic>>> getFridayRecommendations() async {
     final response = await _get('/friday/recommendations', auth: true);
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    return decoded
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> getMorningAdhkar() async {
     final response = await _get('/adhkar/morning', auth: true);
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    return decoded
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> getEveningAdhkar() async {
     final response = await _get('/adhkar/evening', auth: true);
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    return decoded
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
   }
 
-  Future<JourneyReflectionPage> getReflections({int limit = 20, int offset = 0}) async {
+  Future<JourneyReflectionPage> getReflections({
+    int limit = 20,
+    int offset = 0,
+  }) async {
     final response = await _get(
       '/journey/reflections',
       auth: true,
@@ -1072,12 +1488,26 @@ class BackendApi {
     final data = _unwrap(decoded);
     final meta = _getEnvelopeMeta(decoded);
     return JourneyReflectionPage(
-      items: (data as List).map((i) => JourneyReflection.fromJson(Map<String, dynamic>.from(i as Map))).toList(),
+      items:
+          (data as List)
+              .map(
+                (i) => JourneyReflection.fromJson(
+                  Map<String, dynamic>.from(i as Map),
+                ),
+              )
+              .toList(),
       total: (meta?['total'] as num?)?.toInt() ?? 0,
     );
   }
 
-  Future<JourneyReflection> createReflection({required String title, required String body, required String mood, bool isPrivate = false, DateTime? date, String? requestId}) async {
+  Future<JourneyReflection> createReflection({
+    required String title,
+    required String body,
+    required String mood,
+    bool isPrivate = false,
+    DateTime? date,
+    String? requestId,
+  }) async {
     final response = await _post(
       '/journey/reflections',
       auth: true,
@@ -1095,7 +1525,34 @@ class BackendApi {
     return JourneyReflection.fromJson(Map<String, dynamic>.from(data as Map));
   }
 
-  Future<JourneyAdhkarProgress> setAdhkarProgress(int adhkarId, int count) async {
+  Future<JourneyReflection> updateReflection(
+    int reflectionId, {
+    String? title,
+    String? body,
+    String? mood,
+    bool? isPrivate,
+    DateTime? date,
+  }) async {
+    final response = await _patch(
+      '/journey/reflections/$reflectionId',
+      auth: true,
+      body: jsonEncode({
+        if (title != null) 'title': title,
+        if (body != null) 'body': body,
+        if (mood != null) 'mood': mood,
+        if (isPrivate != null) 'is_private': isPrivate,
+        if (date != null) 'date': date.toIso8601String(),
+      }),
+    );
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return JourneyReflection.fromJson(Map<String, dynamic>.from(data as Map));
+  }
+
+  Future<JourneyAdhkarProgress> setAdhkarProgress(
+    int adhkarId,
+    int count,
+  ) async {
     final response = await _post(
       '/journey/adhkar/$adhkarId/progress',
       auth: true,
@@ -1103,32 +1560,53 @@ class BackendApi {
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return JourneyAdhkarProgress.fromJson(Map<String, dynamic>.from(data as Map));
+    return JourneyAdhkarProgress.fromJson(
+      Map<String, dynamic>.from(data as Map),
+    );
   }
 
   Future<List<JourneyAdhkarProgress>> getAdhkarProgress() async {
     final response = await _get('/journey/adhkar/progress', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((i) => JourneyAdhkarProgress.fromJson(Map<String, dynamic>.from(i as Map))).toList();
+    return (data as List)
+        .map(
+          (i) => JourneyAdhkarProgress.fromJson(
+            Map<String, dynamic>.from(i as Map),
+          ),
+        )
+        .toList();
   }
 
   Future<JourneyAdhkarProgress> getAdhkarProgressFor(int adhkarId) async {
-    final response = await _get('/journey/adhkar/$adhkarId/progress', auth: true);
+    final response = await _get(
+      '/journey/adhkar/$adhkarId/progress',
+      auth: true,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return JourneyAdhkarProgress.fromJson(Map<String, dynamic>.from(data as Map));
+    return JourneyAdhkarProgress.fromJson(
+      Map<String, dynamic>.from(data as Map),
+    );
   }
 
   Future<JourneyAdhkarFavorite> favoriteAdhkar(int adhkarId) async {
-    final response = await _post('/journey/adhkar/$adhkarId/favorite', auth: true);
+    final response = await _post(
+      '/journey/adhkar/$adhkarId/favorite',
+      auth: true,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return JourneyAdhkarFavorite.fromJson(Map<String, dynamic>.from(data as Map));
+    return JourneyAdhkarFavorite.fromJson(
+      Map<String, dynamic>.from(data as Map),
+    );
   }
 
   Future<void> unfavoriteAdhkar(int adhkarId) async {
-    final response = await _delete('/journey/adhkar/$adhkarId/favorite', auth: true);
+    final response = await _delete(
+      '/journey/adhkar/$adhkarId/favorite',
+      auth: true,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
     // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
@@ -1139,11 +1617,23 @@ class BackendApi {
     final response = await _get('/journey/adhkar/favorites', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((i) => JourneyAdhkarFavorite.fromJson(Map<String, dynamic>.from(i as Map))).toList();
+    return (data as List)
+        .map(
+          (i) => JourneyAdhkarFavorite.fromJson(
+            Map<String, dynamic>.from(i as Map),
+          ),
+        )
+        .toList();
   }
 
-  Future<List<Map<String, dynamic>>> getTodaysGentleActs({int limit = 3}) async {
-    final response = await _get('/sadaqah/acts', auth: true, query: {'limit': limit, 'verified_only': 'true'});
+  Future<List<Map<String, dynamic>>> getTodaysGentleActs({
+    int limit = 3,
+  }) async {
+    final response = await _get(
+      '/sadaqah/acts',
+      auth: true,
+      query: {'limit': limit, 'verified_only': 'true'},
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
     final list = data as List;
@@ -1162,12 +1652,51 @@ class BackendApi {
     }
   }
 
-  Future<void> saveReadingProgress({required int bookId, required int chapterNumber}) async {
-    await _post('/journey/reading/progress', auth: true, body: jsonEncode({'book_id': bookId, 'chapter_number': chapterNumber}));
+  Future<void> saveReadingProgress({
+    required int bookId,
+    required int chapterNumber,
+  }) async {
+    await _post(
+      '/journey/reading/progress',
+      auth: true,
+      body: jsonEncode({'book_id': bookId, 'chapter_number': chapterNumber}),
+    );
+  }
+
+  Future<Map<String, dynamic>?> getQuranProgress() async {
+    try {
+      final response = await _get('/journey/quran/progress', auth: true);
+      final decoded = _handleJson(response) as Map<String, dynamic>;
+      final data = _unwrap(decoded);
+      if (data == null) return null;
+      return Map<String, dynamic>.from(data as Map);
+    } on BackendApiException catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> saveQuranProgress({
+    required int surahId,
+    required String verseKey,
+    required int page,
+  }) async {
+    await _post(
+      '/journey/quran/progress',
+      auth: true,
+      body: jsonEncode({
+        'surah_id': surahId,
+        'verse_key': verseKey,
+        'page': page,
+      }),
+    );
   }
 
   Future<List<Map<String, dynamic>>> getTodaysReflections() async {
-    final response = await _get('/journey/reflections', auth: true, query: {'limit': 5});
+    final response = await _get(
+      '/journey/reflections',
+      auth: true,
+      query: {'limit': 5},
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
     final list = data as List? ?? const [];
@@ -1234,7 +1763,10 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> updateGoalProgress(int goalId, int actsDone) async {
+  Future<Map<String, dynamic>> updateGoalProgress(
+    int goalId,
+    int actsDone,
+  ) async {
     final response = await _patch(
       '/goals/$goalId/progress',
       auth: true,
@@ -1245,7 +1777,10 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> updateGoalStatus(int goalId, String status) async {
+  Future<Map<String, dynamic>> updateGoalStatus(
+    int goalId,
+    String status,
+  ) async {
     final response = await _patch(
       '/goals/$goalId/status',
       auth: true,
@@ -1300,8 +1835,25 @@ class BackendApi {
     _getEnvelopeMessage(decoded);
   }
 
-  Future<void> removeFamilyMember({required int jarId, required int targetUserId}) async {
-    final response = await _delete('/family/$jarId/members/$targetUserId', auth: true);
+  Future<List<Map<String, dynamic>>> getFamilyMembers({
+    required int jarId,
+  }) async {
+    final response = await _get('/family/$jarId/members', auth: true);
+    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final data = _unwrap(decoded);
+    return (data as List)
+        .map((i) => Map<String, dynamic>.from(i as Map))
+        .toList();
+  }
+
+  Future<void> removeFamilyMember({
+    required int jarId,
+    required int memberId,
+  }) async {
+    final response = await _delete(
+      '/family/$jarId/members/$memberId',
+      auth: true,
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     // B2/A0.1: a 2xx envelope may carry an informational message (e.g. Notification deleted).
     // _handleJson already throws for statusCode >= 400, so a message on success is NOT an error.
@@ -1312,17 +1864,26 @@ class BackendApi {
     final response = await _get('/family/invitations', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+    return (data as List)
+        .map((i) => Map<String, dynamic>.from(i as Map))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> getFamilyGoals(int familyId) async {
     final response = await _get('/family/$familyId/goals', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+    return (data as List)
+        .map((i) => Map<String, dynamic>.from(i as Map))
+        .toList();
   }
 
-  Future<Map<String, dynamic>> createFamilyGoal(int familyId, {required String title, String? subtitle, required int actsTarget}) async {
+  Future<Map<String, dynamic>> createFamilyGoal(
+    int familyId, {
+    required String title,
+    String? subtitle,
+    required int actsTarget,
+  }) async {
     final response = await _post(
       '/family/$familyId/goals',
       auth: true,
@@ -1337,7 +1898,11 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<List<Map<String, dynamic>>> getFamilyReflections(int familyId, {int limit = 50, int offset = 0}) async {
+  Future<List<Map<String, dynamic>>> getFamilyReflections(
+    int familyId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final response = await _get(
       '/family/$familyId/reflections',
       auth: true,
@@ -1345,10 +1910,15 @@ class BackendApi {
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+    return (data as List)
+        .map((i) => Map<String, dynamic>.from(i as Map))
+        .toList();
   }
 
-  Future<Map<String, dynamic>> createFamilyReflection(int familyId, {required String text}) async {
+  Future<Map<String, dynamic>> createFamilyReflection(
+    int familyId, {
+    required String text,
+  }) async {
     final response = await _post(
       '/family/$familyId/reflections',
       auth: true,
@@ -1359,7 +1929,11 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> updateFamilyReflection(int familyId, int reflectionId, {required String text}) async {
+  Future<Map<String, dynamic>> updateFamilyReflection(
+    int familyId,
+    int reflectionId, {
+    required String text,
+  }) async {
     final response = await _patch(
       '/family/$familyId/reflections/$reflectionId',
       auth: true,
@@ -1370,8 +1944,11 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> encourageFamilyReflection(int familyId, int reflectionId, String encouragementType) async {
-
+  Future<Map<String, dynamic>> encourageFamilyReflection(
+    int familyId,
+    int reflectionId,
+    String encouragementType,
+  ) async {
     final response = await _post(
       '/family/$familyId/reflections/$reflectionId/encourage',
       auth: true,
@@ -1382,7 +1959,11 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<List<Map<String, dynamic>>> getFamilyPrayers(int familyId, {int limit = 50, int offset = 0}) async {
+  Future<List<Map<String, dynamic>>> getFamilyPrayers(
+    int familyId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final response = await _get(
       '/family/$familyId/prayers',
       auth: true,
@@ -1390,10 +1971,16 @@ class BackendApi {
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+    return (data as List)
+        .map((i) => Map<String, dynamic>.from(i as Map))
+        .toList();
   }
 
-  Future<Map<String, dynamic>> createFamilyPrayer(int familyId, {required String text, bool isPrivate = false}) async {
+  Future<Map<String, dynamic>> createFamilyPrayer(
+    int familyId, {
+    required String text,
+    bool isPrivate = false,
+  }) async {
     final response = await _post(
       '/family/$familyId/prayers',
       auth: true,
@@ -1404,7 +1991,11 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> respondToFamilyPrayer(int familyId, int prayerId, String responseType) async {
+  Future<Map<String, dynamic>> respondToFamilyPrayer(
+    int familyId,
+    int prayerId,
+    String responseType,
+  ) async {
     final response = await _post(
       '/family/$familyId/prayers/$prayerId/respond',
       auth: true,
@@ -1415,7 +2006,12 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<List<Map<String, dynamic>>> getPrayerComments(int familyId, int prayerId, {int limit = 50, int offset = 0}) async {
+  Future<List<Map<String, dynamic>>> getPrayerComments(
+    int familyId,
+    int prayerId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final response = await _get(
       '/family/$familyId/prayers/$prayerId/comments',
       auth: true,
@@ -1423,10 +2019,16 @@ class BackendApi {
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+    return (data as List)
+        .map((i) => Map<String, dynamic>.from(i as Map))
+        .toList();
   }
 
-  Future<Map<String, dynamic>> createPrayerComment(int familyId, int prayerId, {required String text}) async {
+  Future<Map<String, dynamic>> createPrayerComment(
+    int familyId,
+    int prayerId, {
+    required String text,
+  }) async {
     final response = await _post(
       '/family/$familyId/prayers/$prayerId/comments',
       auth: true,
@@ -1437,7 +2039,12 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> updatePrayerComment(int familyId, int prayerId, int commentId, {required String text}) async {
+  Future<Map<String, dynamic>> updatePrayerComment(
+    int familyId,
+    int prayerId,
+    int commentId, {
+    required String text,
+  }) async {
     final response = await _patch(
       '/family/$familyId/prayers/$prayerId/comments/$commentId',
       auth: true,
@@ -1448,8 +2055,15 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<void> deletePrayerComment(int familyId, int prayerId, int commentId) async {
-    await _delete('/family/$familyId/prayers/$prayerId/comments/$commentId', auth: true);
+  Future<void> deletePrayerComment(
+    int familyId,
+    int prayerId,
+    int commentId,
+  ) async {
+    await _delete(
+      '/family/$familyId/prayers/$prayerId/comments/$commentId',
+      auth: true,
+    );
   }
 
   Future<Map<String, dynamic>> getFamilySettings(int familyId) async {
@@ -1459,12 +2073,16 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> updateFamilySettings(int familyId, {Map<String, bool>? notificationPreferences}) async {
+  Future<Map<String, dynamic>> updateFamilySettings(
+    int familyId, {
+    Map<String, bool>? notificationPreferences,
+  }) async {
     final response = await _patch(
       '/family/$familyId/settings',
       auth: true,
       body: jsonEncode({
-        if (notificationPreferences != null) 'notification_preferences': notificationPreferences,
+        if (notificationPreferences != null)
+          'notification_preferences': notificationPreferences,
       }),
     );
     final decoded = _handleJson(response) as Map<String, dynamic>;
@@ -1484,11 +2102,20 @@ class BackendApi {
     await _delete('/family/$familyId', auth: true);
   }
 
-  Future<List<Map<String, dynamic>>> getFamilies({int limit = 50, int offset = 0}) async {
-    final response = await _get('/family/', auth: true, query: {'limit': limit, 'offset': offset});
+  Future<List<Map<String, dynamic>>> getFamilies({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _get(
+      '/family/',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    return (data as List)
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
   }
 
   Future<Map<String, dynamic>> getFamilyDetail(int familyId) async {
@@ -1498,7 +2125,10 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> addFamilyAct(int familyId, {String? requestId}) async {
+  Future<Map<String, dynamic>> addFamilyAct(
+    int familyId, {
+    String? requestId,
+  }) async {
     final response = await _post(
       '/family/$familyId/add-act',
       auth: true,
@@ -1511,7 +2141,10 @@ class BackendApi {
     return Map<String, dynamic>.from(data as Map);
   }
 
-  Future<Map<String, dynamic>> bookmarkBook({required int bookId, int? chapterNumber}) async {
+  Future<Map<String, dynamic>> bookmarkBook({
+    required int bookId,
+    int? chapterNumber,
+  }) async {
     final response = await _post(
       '/books/$bookId/bookmark',
       auth: true,
@@ -1528,7 +2161,10 @@ class BackendApi {
     await _delete('/books/$bookId/bookmark', auth: true);
   }
 
-  Future<List<Map<String, dynamic>>> getBookmarks({int limit = 50, int offset = 0}) async {
+  Future<List<Map<String, dynamic>>> getBookmarks({
+    int limit = 50,
+    int offset = 0,
+  }) async {
     final response = await _get(
       '/books/bookmarks',
       auth: true,
@@ -1537,14 +2173,24 @@ class BackendApi {
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
     final map = Map<String, dynamic>.from(data as Map);
-    return (map['data'] as List).map((i) => Map<String, dynamic>.from(i as Map)).toList();
+    return (map['data'] as List)
+        .map((i) => Map<String, dynamic>.from(i as Map))
+        .toList();
   }
 
   Future<List<BookRead>> getBooks({int limit = 50, int offset = 0}) async {
-    final response = await _get('/books/', auth: true, query: {'limit': limit, 'offset': offset});
+    final response = await _get(
+      '/books/',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded) as List;
-    return data.map((item) => BookRead.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return data
+        .map(
+          (item) => BookRead.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   Future<BookDetail> getBook(int bookId) async {
@@ -1558,16 +2204,30 @@ class BackendApi {
     final response = await _get('/books/$bookId/chapters', auth: true);
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final data = _unwrap(decoded);
-    return (data as List).map((item) => BookChapterRead.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return (data as List)
+        .map(
+          (item) =>
+              BookChapterRead.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   Future<AdminBookPage> getAdminBooks({int limit = 50, int offset = 0}) async {
-    final response = await _get('/admin/books/', auth: true, query: {'limit': limit, 'offset': offset});
+    final response = await _get(
+      '/admin/books/',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     final meta = _getEnvelopeMeta(decoded);
-    final rows = (decoded['data'] as List? ?? [])
-        .map((item) => AdminBookRecord.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (decoded['data'] as List? ?? [])
+            .map(
+              (item) => AdminBookRecord.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
     return AdminBookPage(
       total: (meta?['total'] as num?)?.toInt() ?? rows.length,
       limit: limit,
@@ -1576,7 +2236,16 @@ class BackendApi {
     );
   }
 
-  Future<AdminBookRecord> createAdminBook({required String title, required String author, String? description, String? coverUrl, required String category, String language = 'en', bool published = true, int sortOrder = 0}) async {
+  Future<AdminBookRecord> createAdminBook({
+    required String title,
+    required String author,
+    String? description,
+    String? coverUrl,
+    required String category,
+    String language = 'en',
+    bool published = true,
+    int sortOrder = 0,
+  }) async {
     final response = await _post(
       '/admin/books/',
       auth: true,
@@ -1595,7 +2264,17 @@ class BackendApi {
     return AdminBookRecord.fromJson(decoded);
   }
 
-  Future<AdminBookRecord> updateAdminBook(int bookId, {String? title, String? author, String? description, String? coverUrl, String? category, String? language, bool? published, int? sortOrder}) async {
+  Future<AdminBookRecord> updateAdminBook(
+    int bookId, {
+    String? title,
+    String? author,
+    String? description,
+    String? coverUrl,
+    String? category,
+    String? language,
+    bool? published,
+    int? sortOrder,
+  }) async {
     final body = <String, dynamic>{};
     if (title != null) body['title'] = title;
     if (author != null) body['author'] = author;
@@ -1605,7 +2284,11 @@ class BackendApi {
     if (language != null) body['language'] = language;
     if (published != null) body['published'] = published;
     if (sortOrder != null) body['sort_order'] = sortOrder;
-    final response = await _patch('/admin/books/$bookId', auth: true, body: jsonEncode(body));
+    final response = await _patch(
+      '/admin/books/$bookId',
+      auth: true,
+      body: jsonEncode(body),
+    );
     final decoded = _handleJson(response) as Map<String, dynamic>;
     return AdminBookRecord.fromJson(decoded);
   }
@@ -1614,9 +2297,26 @@ class BackendApi {
     await _delete('/admin/books/$bookId', auth: true);
   }
 
+  Future<BookDetail> getAdminBook(int bookId) async {
+    final response = await _get('/admin/books/$bookId', auth: true);
+    return BookDetail.fromJson(_handleJson(response) as Map<String, dynamic>);
+  }
+
+  String absoluteApiUrl(String pathOrUrl) {
+    final uri = Uri.tryParse(pathOrUrl);
+    if (uri != null && uri.hasScheme) return pathOrUrl;
+    final path = pathOrUrl.startsWith('/') ? pathOrUrl : '/$pathOrUrl';
+    return '$baseUrl$path';
+  }
+
   List<LeaderboardEntry> _leaderboardFromResponse(http.Response response) {
     final decoded = _handleJson(response) as List<dynamic>;
-    return decoded.map((item) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(item as Map))).toList();
+    return decoded
+        .map(
+          (item) =>
+              LeaderboardEntry.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
   }
 
   dynamic _handleJson(http.Response response) {
@@ -1625,7 +2325,9 @@ class BackendApi {
     try {
       decoded = jsonDecode(body);
     } on FormatException {
-      decoded = <String, dynamic>{'detail': 'Invalid JSON response from server'};
+      decoded = <String, dynamic>{
+        'detail': 'Invalid JSON response from server',
+      };
     }
     if (response.statusCode >= 400) {
       String message = 'Request failed (${response.statusCode})';
@@ -1640,7 +2342,10 @@ class BackendApi {
         }
         final detail = decoded['detail'];
         if (detail is Map) {
-          message = detail['message']?.toString() ?? detail['detail']?.toString() ?? message;
+          message =
+              detail['message']?.toString() ??
+              detail['detail']?.toString() ??
+              message;
           code = detail['code']?.toString();
         } else if (detail != null) {
           message = detail.toString();
@@ -1661,11 +2366,26 @@ class BackendApiException implements Exception {
   final String? code;
 
   @override
-  String toString() => code == null ? 'BackendApiException($statusCode): $message' : 'BackendApiException($statusCode, $code): $message';
+  String toString() =>
+      code == null
+          ? 'BackendApiException($statusCode): $message'
+          : 'BackendApiException($statusCode, $code): $message';
+}
+
+class PickedUploadFile {
+  const PickedUploadFile({required this.filename, required this.bytes});
+
+  final String filename;
+  final List<int> bytes;
 }
 
 class DailyAct {
-  DailyAct({required this.id, required this.title, required this.category, required this.difficulty});
+  DailyAct({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.difficulty,
+  });
 
   final int id;
   final String title;
@@ -1683,7 +2403,12 @@ class DailyAct {
 }
 
 class SadaqahActPage {
-  SadaqahActPage({required this.total, required this.limit, required this.offset, required this.data});
+  SadaqahActPage({
+    required this.total,
+    required this.limit,
+    required this.offset,
+    required this.data,
+  });
 
   final int total;
   final int limit;
@@ -1691,9 +2416,14 @@ class SadaqahActPage {
   final List<SadaqahActItem> data;
 
   factory SadaqahActPage.fromJson(Map<String, dynamic> json) {
-    final rows = (json['data'] as List<dynamic>? ?? [])
-        .map((item) => SadaqahActItem.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (json['data'] as List<dynamic>? ?? [])
+            .map(
+              (item) => SadaqahActItem.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
     return SadaqahActPage(
       total: (json['total'] as num?)?.toInt() ?? rows.length,
       limit: (json['limit'] as num?)?.toInt() ?? rows.length,
@@ -1704,7 +2434,12 @@ class SadaqahActPage {
 }
 
 class SadaqahActItem {
-  SadaqahActItem({required this.id, required this.title, required this.category, required this.difficulty});
+  SadaqahActItem({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.difficulty,
+  });
 
   final int id;
   final String title;
@@ -1780,13 +2515,23 @@ class SadaqahActDetail {
       difficulty: (json['difficulty'] as num?)?.toInt() ?? 1,
       rewardWeight: (json['reward_weight'] as num?)?.toInt() ?? 1,
       estimatedTimeMinutes: (json['estimated_time_minutes'] as num?)?.toInt(),
-      evidence: json['evidence'] == null ? null : SadaqahEvidence.fromJson(Map<String, dynamic>.from(json['evidence'] as Map)),
+      evidence:
+          json['evidence'] == null
+              ? null
+              : SadaqahEvidence.fromJson(
+                Map<String, dynamic>.from(json['evidence'] as Map),
+              ),
     );
   }
 }
 
 class CompletedJarPage {
-  CompletedJarPage({required this.total, required this.limit, required this.offset, required this.data});
+  CompletedJarPage({
+    required this.total,
+    required this.limit,
+    required this.offset,
+    required this.data,
+  });
 
   final int total;
   final int limit;
@@ -1794,9 +2539,14 @@ class CompletedJarPage {
   final List<CompletedJarItem> data;
 
   factory CompletedJarPage.fromJson(Map<String, dynamic> json) {
-    final rows = (json['data'] as List<dynamic>? ?? [])
-        .map((item) => CompletedJarItem.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (json['data'] as List<dynamic>? ?? [])
+            .map(
+              (item) => CompletedJarItem.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
     return CompletedJarPage(
       total: (json['total'] as num?)?.toInt() ?? rows.length,
       limit: (json['limit'] as num?)?.toInt() ?? rows.length,
@@ -1836,7 +2586,11 @@ class CompletedJarItem {
 }
 
 class JarStats {
-  JarStats({required this.currentStars, required this.capacity, this.completedAt});
+  JarStats({
+    required this.currentStars,
+    required this.capacity,
+    this.completedAt,
+  });
 
   final int currentStars;
   final int capacity;
@@ -1852,7 +2606,11 @@ class JarStats {
 }
 
 class StreakInfo {
-  StreakInfo({required this.currentStreak, required this.longestStreak, required this.source});
+  StreakInfo({
+    required this.currentStreak,
+    required this.longestStreak,
+    required this.source,
+  });
 
   final int currentStreak;
   final int longestStreak;
@@ -1874,7 +2632,10 @@ class RankSummary {
   final dynamic ramadanData;
 
   factory RankSummary.fromJson(Map<String, dynamic> json) {
-    return RankSummary(globalData: json['global'], ramadanData: json['ramadan']);
+    return RankSummary(
+      globalData: json['global'],
+      ramadanData: json['ramadan'],
+    );
   }
 
   int? get globalRank => _rankFrom(globalData);
@@ -1915,7 +2676,10 @@ class LeaderboardEntry {
     if (json is Map<String, dynamic>) {
       return LeaderboardEntry(
         userId: (json['user_id'] as num?)?.toInt() ?? 0,
-        stars: (json['stars'] as num?)?.toInt() ?? (json['total'] as num?)?.toInt() ?? 0,
+        stars:
+            (json['stars'] as num?)?.toInt() ??
+            (json['total'] as num?)?.toInt() ??
+            0,
       );
     }
     final list = List<dynamic>.from(json as List<dynamic>);
@@ -1970,22 +2734,63 @@ class AccountSnapshot {
 }
 
 class CharityItem {
-  CharityItem({required this.id, required this.name, required this.description, required this.websiteUrl, required this.category, required this.isFeatured});
+  CharityItem({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.websiteUrl,
+    required this.category,
+    required this.isFeatured,
+    this.title,
+    this.donationType = 'external',
+    this.caseName,
+    this.externalUrl,
+    this.targetAmount,
+    this.amountRaised,
+    this.currency = 'NGN',
+    this.imageUrls = const [],
+    this.status = 'active',
+    this.deadline,
+  });
 
   final int id;
   final String name;
+  final String? title;
+  final String donationType;
+  final String? caseName;
   final String? description;
   final String websiteUrl;
+  final String? externalUrl;
   final String? category;
+  final double? targetAmount;
+  final double? amountRaised;
+  final String currency;
+  final List<String> imageUrls;
+  final String status;
+  final String? deadline;
   final bool isFeatured;
 
   factory CharityItem.fromJson(Map<String, dynamic> json) {
     return CharityItem(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name']?.toString() ?? '',
+      title: json['title']?.toString(),
+      donationType: json['donation_type']?.toString() ?? 'external',
+      caseName: json['case_name']?.toString(),
       description: json['description']?.toString(),
       websiteUrl: json['website_url']?.toString() ?? '',
+      externalUrl: json['external_url']?.toString(),
       category: json['category']?.toString(),
+      targetAmount: (json['target_amount'] as num?)?.toDouble(),
+      amountRaised: (json['amount_raised'] as num?)?.toDouble(),
+      currency: json['currency']?.toString() ?? 'NGN',
+      imageUrls:
+          (json['image_urls'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+      status: json['status']?.toString() ?? 'active',
+      deadline: json['deadline']?.toString(),
       isFeatured: json['is_featured'] as bool? ?? false,
     );
   }
@@ -2001,13 +2806,39 @@ class CharityDetail {
     required this.isActive,
     this.description,
     this.category,
+    this.title,
+    this.donationType = 'external',
+    this.caseName,
+    this.externalUrl,
+    this.targetAmount,
+    this.amountRaised,
+    this.currency = 'NGN',
+    this.imageUrls = const [],
+    this.evidence,
+    this.evidenceUrls = const [],
+    this.contactInfo,
+    this.status = 'active',
+    this.deadline,
   });
 
   final int id;
   final String name;
+  final String? title;
+  final String donationType;
+  final String? caseName;
   final String? description;
   final String websiteUrl;
+  final String? externalUrl;
   final String? category;
+  final double? targetAmount;
+  final double? amountRaised;
+  final String currency;
+  final List<String> imageUrls;
+  final String? evidence;
+  final List<String> evidenceUrls;
+  final String? contactInfo;
+  final String status;
+  final String? deadline;
   final bool isFeatured;
   final bool isVerified;
   final bool isActive;
@@ -2016,9 +2847,30 @@ class CharityDetail {
     return CharityDetail(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name']?.toString() ?? '',
+      title: json['title']?.toString(),
+      donationType: json['donation_type']?.toString() ?? 'external',
+      caseName: json['case_name']?.toString(),
       description: json['description']?.toString(),
       websiteUrl: json['website_url']?.toString() ?? '',
+      externalUrl: json['external_url']?.toString(),
       category: json['category']?.toString(),
+      targetAmount: (json['target_amount'] as num?)?.toDouble(),
+      amountRaised: (json['amount_raised'] as num?)?.toDouble(),
+      currency: json['currency']?.toString() ?? 'NGN',
+      imageUrls:
+          (json['image_urls'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+      evidence: json['evidence']?.toString(),
+      evidenceUrls:
+          (json['evidence_urls'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+      contactInfo: json['contact_info']?.toString(),
+      status: json['status']?.toString() ?? 'active',
+      deadline: json['deadline']?.toString(),
       isFeatured: json['is_featured'] as bool? ?? false,
       isVerified: json['is_verified'] as bool? ?? false,
       isActive: json['is_active'] as bool? ?? true,
@@ -2027,7 +2879,12 @@ class CharityDetail {
 }
 
 class CharityPage {
-  CharityPage({required this.total, required this.limit, required this.offset, required this.data});
+  CharityPage({
+    required this.total,
+    required this.limit,
+    required this.offset,
+    required this.data,
+  });
 
   final int total;
   final int limit;
@@ -2035,9 +2892,13 @@ class CharityPage {
   final List<CharityItem> data;
 
   factory CharityPage.fromJson(Map<String, dynamic> json) {
-    final rows = (json['data'] as List<dynamic>? ?? [])
-        .map((item) => CharityItem.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (json['data'] as List<dynamic>? ?? [])
+            .map(
+              (item) =>
+                  CharityItem.fromJson(Map<String, dynamic>.from(item as Map)),
+            )
+            .toList();
     return CharityPage(
       total: (json['total'] as num?)?.toInt() ?? rows.length,
       limit: (json['limit'] as num?)?.toInt() ?? 50,
@@ -2110,10 +2971,18 @@ class UserPreferences {
     return UserPreferences(
       theme: json['theme']?.toString() ?? 'light',
       language: json['language']?.toString() ?? 'en',
-      notificationPreferences: Map<String, dynamic>.from(json['notification_preferences'] as Map? ?? const {}),
-      reminderPreferences: Map<String, dynamic>.from(json['reminder_preferences'] as Map? ?? const {}),
-      accessibilityPreferences: Map<String, dynamic>.from(json['accessibility_preferences'] as Map? ?? const {}),
-      privacyPreferences: Map<String, dynamic>.from(json['privacy_preferences'] as Map? ?? const {}),
+      notificationPreferences: Map<String, dynamic>.from(
+        json['notification_preferences'] as Map? ?? const {},
+      ),
+      reminderPreferences: Map<String, dynamic>.from(
+        json['reminder_preferences'] as Map? ?? const {},
+      ),
+      accessibilityPreferences: Map<String, dynamic>.from(
+        json['accessibility_preferences'] as Map? ?? const {},
+      ),
+      privacyPreferences: Map<String, dynamic>.from(
+        json['privacy_preferences'] as Map? ?? const {},
+      ),
       timezone: json['timezone']?.toString(),
       selectedMode: json['selected_mode']?.toString() ?? 'personal',
     );
@@ -2153,7 +3022,11 @@ class DashboardStats {
 }
 
 class CategoryAnalyticsEntry {
-  CategoryAnalyticsEntry({required this.category, required this.count, required this.stars});
+  CategoryAnalyticsEntry({
+    required this.category,
+    required this.count,
+    required this.stars,
+  });
 
   final String category;
   final int count;
@@ -2176,35 +3049,90 @@ class AdminCharityRecord {
     required this.isVerified,
     required this.isActive,
     required this.isFeatured,
+    required this.isPublished,
+    this.title,
+    this.donationType = 'external',
+    this.caseName,
     this.description,
+    this.externalUrl,
     this.category,
+    this.targetAmount,
+    this.amountRaised,
+    this.currency = 'NGN',
+    this.imageUrls = const [],
+    this.evidence,
+    this.evidenceUrls = const [],
+    this.contactInfo,
+    this.status = 'active',
+    this.deadline,
   });
 
   final int id;
   final String name;
+  final String? title;
+  final String donationType;
+  final String? caseName;
   final String? description;
   final String websiteUrl;
+  final String? externalUrl;
   final String? category;
+  final double? targetAmount;
+  final double? amountRaised;
+  final String currency;
+  final List<String> imageUrls;
+  final String? evidence;
+  final List<String> evidenceUrls;
+  final String? contactInfo;
+  final String status;
+  final String? deadline;
   final bool isVerified;
   final bool isActive;
   final bool isFeatured;
+  final bool isPublished;
 
   factory AdminCharityRecord.fromJson(Map<String, dynamic> json) {
     return AdminCharityRecord(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name']?.toString() ?? '',
+      title: json['title']?.toString(),
+      donationType: json['donation_type']?.toString() ?? 'external',
+      caseName: json['case_name']?.toString(),
       description: json['description']?.toString(),
       websiteUrl: json['website_url']?.toString() ?? '',
+      externalUrl: json['external_url']?.toString(),
       category: json['category']?.toString(),
+      targetAmount: (json['target_amount'] as num?)?.toDouble(),
+      amountRaised: (json['amount_raised'] as num?)?.toDouble(),
+      currency: json['currency']?.toString() ?? 'NGN',
+      imageUrls:
+          (json['image_urls'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+      evidence: json['evidence']?.toString(),
+      evidenceUrls:
+          (json['evidence_urls'] as List<dynamic>? ?? const [])
+              .map((e) => e.toString())
+              .where((e) => e.isNotEmpty)
+              .toList(),
+      contactInfo: json['contact_info']?.toString(),
+      status: json['status']?.toString() ?? 'active',
+      deadline: json['deadline']?.toString(),
       isVerified: json['is_verified'] as bool? ?? false,
       isActive: json['is_active'] as bool? ?? true,
       isFeatured: json['is_featured'] as bool? ?? false,
+      isPublished: json['is_published'] as bool? ?? true,
     );
   }
 }
 
 class AdminCharityPage {
-  AdminCharityPage({required this.total, required this.limit, required this.offset, required this.data});
+  AdminCharityPage({
+    required this.total,
+    required this.limit,
+    required this.offset,
+    required this.data,
+  });
 
   final int total;
   final int limit;
@@ -2212,9 +3140,14 @@ class AdminCharityPage {
   final List<AdminCharityRecord> data;
 
   factory AdminCharityPage.fromJson(Map<String, dynamic> json) {
-    final rows = (json['data'] as List<dynamic>? ?? [])
-        .map((item) => AdminCharityRecord.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (json['data'] as List<dynamic>? ?? [])
+            .map(
+              (item) => AdminCharityRecord.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
     return AdminCharityPage(
       total: (json['total'] as num?)?.toInt() ?? rows.length,
       limit: (json['limit'] as num?)?.toInt() ?? rows.length,
@@ -2273,9 +3206,14 @@ class AdminEvidenceDetail {
   final List<AdminEvidenceRecord> evidence;
 
   factory AdminEvidenceDetail.fromJson(Map<String, dynamic> json) {
-    final rows = (json['evidence'] as List<dynamic>? ?? [])
-        .map((item) => AdminEvidenceRecord.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (json['evidence'] as List<dynamic>? ?? [])
+            .map(
+              (item) => AdminEvidenceRecord.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
     return AdminEvidenceDetail(
       id: (json['id'] as num?)?.toInt() ?? 0,
       name: json['name']?.toString() ?? '',
@@ -2286,7 +3224,12 @@ class AdminEvidenceDetail {
 }
 
 class AdminEvidencePage {
-  AdminEvidencePage({required this.total, required this.limit, required this.offset, required this.data});
+  AdminEvidencePage({
+    required this.total,
+    required this.limit,
+    required this.offset,
+    required this.data,
+  });
 
   final int total;
   final int limit;
@@ -2294,9 +3237,14 @@ class AdminEvidencePage {
   final List<AdminEvidenceRecord> data;
 
   factory AdminEvidencePage.fromJson(Map<String, dynamic> json) {
-    final rows = (json['data'] as List<dynamic>? ?? [])
-        .map((item) => AdminEvidenceRecord.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (json['data'] as List<dynamic>? ?? [])
+            .map(
+              (item) => AdminEvidenceRecord.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
     return AdminEvidencePage(
       total: (json['total'] as num?)?.toInt() ?? rows.length,
       limit: (json['limit'] as num?)?.toInt() ?? rows.length,
@@ -2342,10 +3290,13 @@ class AdminBookRecord {
     this.description,
     this.coverUrl,
     this.fileUrl,
+    this.fileFormat,
+    this.fileType,
     required this.category,
     required this.language,
     required this.published,
     this.sortOrder,
+    this.pageCount = 0,
   });
 
   final int id;
@@ -2354,10 +3305,13 @@ class AdminBookRecord {
   final String? description;
   final String? coverUrl;
   final String? fileUrl;
+  final String? fileFormat;
+  final String? fileType;
   final String category;
   final String language;
   final bool published;
   final int? sortOrder;
+  final int pageCount;
 
   factory AdminBookRecord.fromJson(Map<String, dynamic> json) {
     return AdminBookRecord(
@@ -2367,16 +3321,24 @@ class AdminBookRecord {
       description: json['description']?.toString(),
       coverUrl: json['cover_url']?.toString(),
       fileUrl: json['file_url']?.toString(),
+      fileFormat: json['file_format']?.toString(),
+      fileType: json['file_type']?.toString(),
       category: json['category']?.toString() ?? '',
       language: json['language']?.toString() ?? 'en',
       published: json['published'] as bool? ?? true,
       sortOrder: (json['sort_order'] as num?)?.toInt(),
+      pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
     );
   }
 }
 
 class AdminBookPage {
-  AdminBookPage({required this.total, required this.limit, required this.offset, required this.data});
+  AdminBookPage({
+    required this.total,
+    required this.limit,
+    required this.offset,
+    required this.data,
+  });
 
   final int total;
   final int limit;
@@ -2384,9 +3346,14 @@ class AdminBookPage {
   final List<AdminBookRecord> data;
 
   factory AdminBookPage.fromJson(Map<String, dynamic> json) {
-    final rows = (json['data'] as List<dynamic>? ?? [])
-        .map((item) => AdminBookRecord.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (json['data'] as List<dynamic>? ?? [])
+            .map(
+              (item) => AdminBookRecord.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
     return AdminBookPage(
       total: (json['total'] as num?)?.toInt() ?? rows.length,
       limit: (json['limit'] as num?)?.toInt() ?? rows.length,
@@ -2397,7 +3364,22 @@ class AdminBookPage {
 }
 
 class BookRead {
-  BookRead({required this.id, required this.title, required this.author, required this.description, required this.coverUrl, this.fileUrl, required this.category, required this.language, required this.published, this.chapterCount, this.totalReadingTime});
+  BookRead({
+    required this.id,
+    required this.title,
+    required this.author,
+    required this.description,
+    required this.coverUrl,
+    this.fileUrl,
+    this.fileFormat,
+    this.fileType,
+    required this.category,
+    required this.language,
+    required this.published,
+    this.chapterCount,
+    this.totalReadingTime,
+    this.pageCount = 0,
+  });
 
   final int id;
   final String title;
@@ -2405,11 +3387,14 @@ class BookRead {
   final String? description;
   final String? coverUrl;
   final String? fileUrl;
+  final String? fileFormat;
+  final String? fileType;
   final String category;
   final String language;
   final bool published;
   final int? chapterCount;
   final int? totalReadingTime;
+  final int pageCount;
 
   factory BookRead.fromJson(Map<String, dynamic> json) {
     return BookRead(
@@ -2419,26 +3404,54 @@ class BookRead {
       description: json['description']?.toString(),
       coverUrl: json['cover_url']?.toString(),
       fileUrl: json['file_url']?.toString(),
+      fileFormat: json['file_format']?.toString(),
+      fileType: json['file_type']?.toString(),
       category: json['category']?.toString() ?? '',
       language: json['language']?.toString() ?? 'en',
       published: json['published'] as bool? ?? true,
       chapterCount: (json['chapter_count'] as num?)?.toInt(),
       totalReadingTime: (json['total_reading_time'] as num?)?.toInt(),
+      pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
     );
   }
 }
 
 class BookDetail {
-  BookDetail({required this.id, required this.title, required this.author, this.description, this.coverUrl, required this.category, required this.language, required this.published});
+  BookDetail({
+    required this.id,
+    required this.title,
+    required this.author,
+    this.description,
+    this.coverUrl,
+    this.fileUrl,
+    this.fileFormat,
+    this.fileType,
+    required this.category,
+    required this.language,
+    required this.published,
+    this.chapterCount,
+    this.totalReadingTime,
+    this.pageCount = 0,
+    this.chapters = const [],
+    this.pages = const [],
+  });
 
   final int id;
   final String title;
   final String author;
   final String? description;
   final String? coverUrl;
+  final String? fileUrl;
+  final String? fileFormat;
+  final String? fileType;
   final String category;
   final String language;
   final bool published;
+  final int? chapterCount;
+  final int? totalReadingTime;
+  final int pageCount;
+  final List<BookChapterRead> chapters;
+  final List<BookPageRead> pages;
 
   factory BookDetail.fromJson(Map<String, dynamic> json) {
     return BookDetail(
@@ -2447,15 +3460,69 @@ class BookDetail {
       author: json['author']?.toString() ?? '',
       description: json['description']?.toString(),
       coverUrl: json['cover_url']?.toString(),
+      fileUrl: json['file_url']?.toString(),
+      fileFormat: json['file_format']?.toString(),
+      fileType: json['file_type']?.toString(),
       category: json['category']?.toString() ?? '',
       language: json['language']?.toString() ?? 'en',
       published: json['published'] as bool? ?? true,
+      chapterCount: (json['chapter_count'] as num?)?.toInt(),
+      totalReadingTime: (json['total_reading_time'] as num?)?.toInt(),
+      pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
+      chapters:
+          (json['chapters'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => BookChapterRead.fromJson(
+                  Map<String, dynamic>.from(item as Map),
+                ),
+              )
+              .toList(),
+      pages:
+          (json['pages'] as List<dynamic>? ?? const [])
+              .map(
+                (item) => BookPageRead.fromJson(
+                  Map<String, dynamic>.from(item as Map),
+                ),
+              )
+              .toList(),
+    );
+  }
+}
+
+class BookPageRead {
+  BookPageRead({
+    required this.id,
+    required this.bookId,
+    required this.pageNumber,
+    required this.imageUrl,
+    this.imageType,
+  });
+
+  final int id;
+  final int bookId;
+  final int pageNumber;
+  final String imageUrl;
+  final String? imageType;
+
+  factory BookPageRead.fromJson(Map<String, dynamic> json) {
+    return BookPageRead(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      bookId: (json['book_id'] as num?)?.toInt() ?? 0,
+      pageNumber: (json['page_number'] as num?)?.toInt() ?? 0,
+      imageUrl: json['image_url']?.toString() ?? '',
+      imageType: json['image_type']?.toString(),
     );
   }
 }
 
 class BookChapterRead {
-  BookChapterRead({required this.id, required this.bookId, required this.chapterNumber, required this.title, this.content});
+  BookChapterRead({
+    required this.id,
+    required this.bookId,
+    required this.chapterNumber,
+    required this.title,
+    this.content,
+  });
 
   final int id;
   final int bookId;
@@ -2475,7 +3542,15 @@ class BookChapterRead {
 }
 
 class NotificationItem {
-  NotificationItem({required this.id, required this.type, required this.title, required this.body, required this.isRead, required this.createdAt, this.data});
+  NotificationItem({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.isRead,
+    required this.createdAt,
+    this.data,
+  });
 
   final int id;
   final String type;
@@ -2493,13 +3568,21 @@ class NotificationItem {
       body: json['body']?.toString() ?? '',
       isRead: json['is_read'] as bool? ?? false,
       createdAt: json['created_at']?.toString() ?? '',
-      data: json['data'] is Map ? Map<String, dynamic>.from(json['data'] as Map) : null,
+      data:
+          json['data'] is Map
+              ? Map<String, dynamic>.from(json['data'] as Map)
+              : null,
     );
   }
 }
 
 class NotificationPage {
-  NotificationPage({required this.total, required this.limit, required this.offset, required this.data});
+  NotificationPage({
+    required this.total,
+    required this.limit,
+    required this.offset,
+    required this.data,
+  });
 
   final int total;
   final int limit;
@@ -2507,9 +3590,14 @@ class NotificationPage {
   final List<NotificationItem> data;
 
   factory NotificationPage.fromJson(Map<String, dynamic> json) {
-    final rows = (json['data'] as List<dynamic>? ?? [])
-        .map((item) => NotificationItem.fromJson(Map<String, dynamic>.from(item as Map)))
-        .toList();
+    final rows =
+        (json['data'] as List<dynamic>? ?? [])
+            .map(
+              (item) => NotificationItem.fromJson(
+                Map<String, dynamic>.from(item as Map),
+              ),
+            )
+            .toList();
     return NotificationPage(
       total: (json['total'] as num?)?.toInt() ?? rows.length,
       limit: (json['limit'] as num?)?.toInt() ?? rows.length,
@@ -2520,7 +3608,14 @@ class NotificationPage {
 }
 
 class JourneyReflection {
-  JourneyReflection({required this.id, required this.title, required this.body, required this.mood, required this.isPrivate, required this.createdAt});
+  JourneyReflection({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.mood,
+    required this.isPrivate,
+    required this.createdAt,
+  });
 
   final int id;
   final String title;
@@ -2549,7 +3644,13 @@ class JourneyReflectionPage {
 }
 
 class JourneyAdhkarProgress {
-  JourneyAdhkarProgress({required this.id, required this.adhkarId, required this.count, required this.createdAt, required this.updatedAt});
+  JourneyAdhkarProgress({
+    required this.id,
+    required this.adhkarId,
+    required this.count,
+    required this.createdAt,
+    required this.updatedAt,
+  });
 
   final int id;
   final int adhkarId;
@@ -2569,7 +3670,11 @@ class JourneyAdhkarProgress {
 }
 
 class JourneyAdhkarFavorite {
-  JourneyAdhkarFavorite({required this.id, required this.adhkarId, required this.createdAt});
+  JourneyAdhkarFavorite({
+    required this.id,
+    required this.adhkarId,
+    required this.createdAt,
+  });
 
   final int id;
   final int adhkarId;

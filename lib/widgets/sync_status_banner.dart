@@ -10,7 +10,7 @@ class SyncStatusBanner extends ConsumerWidget {
     // Pending-sync indicators are intentionally invisible. Adding a sadaqah is
     // offline-first: the act counts locally and immediately, and the durable
     // queue syncs to the server silently in the background. Surfacing "N
-    // actions pending sync" only creates confusion — from the user's
+    // actions pending sync" only creates confusion - from the user's
     // perspective the act has already been added.
     return const SizedBox.shrink();
   }

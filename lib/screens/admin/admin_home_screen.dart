@@ -19,14 +19,14 @@ class AdminHomeScreen extends StatelessWidget {
           _AdminTile(
             icon: Icons.menu_book_outlined,
             title: 'Books',
-            subtitle: 'Manage Islamic library books and chapters',
+            subtitle: 'Upload, preview, publish, and manage reading files',
             onTap: () => context.push('/admin/books'),
           ),
           const SizedBox(height: 12),
           _AdminTile(
             icon: Icons.volunteer_activism_outlined,
-            title: 'Charities',
-            subtitle: 'Manage charity records and verification status',
+            title: 'Donations',
+            subtitle: 'Manage personal cases and verified external campaigns',
             onTap: () => context.push('/admin/charities'),
           ),
           const SizedBox(height: 12),

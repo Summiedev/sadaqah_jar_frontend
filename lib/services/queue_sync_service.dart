@@ -25,7 +25,7 @@ class QueueSyncService {
       await OfflineActionQueue.instance.enqueue(item);
     } catch (_) {
       // If we couldn't even persist to the queue, there's nothing durable to
-      // retry — but we still must not surface this to the UI. Schedule a retry
+      // retry - but we still must not surface this to the UI. Schedule a retry
       // in case it was a transient DB lock.
       scheduleRetry();
       return;

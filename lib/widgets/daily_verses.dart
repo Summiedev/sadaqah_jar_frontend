@@ -38,7 +38,7 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Praise be to Allah, Lord',
   ),
   DailyVerse(
-    text: 'Whoever fears Allah — He will make a way out.',
+    text: 'Whoever fears Allah - He will make a way out.',
     source: 'Quran 65:2-3',
     category: 'trust',
     shortText: 'Allah makes a way out',
@@ -117,25 +117,28 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'He enriched you after poverty',
   ),
   DailyVerse(
-    text: 'Except those who repent, believe, and do righteous work — for them, Allah will replace their evil deeds with good.',
+    text:
+        'Except those who repent, believe, and do righteous work - for them, Allah will replace their evil deeds with good.',
     source: 'Quran 25:70',
     category: 'repentance',
     shortText: 'Repentance rewrites your record',
   ),
   DailyVerse(
-    text: 'The example of those who spend their wealth in the way of Allah is like a seed that grows seven ears.',
+    text:
+        'The example of those who spend their wealth in the way of Allah is like a seed that grows seven ears.',
     source: 'Quran 2:261',
     category: 'charity',
     shortText: 'Charity grows like a seed',
   ),
   DailyVerse(
-    text: 'Indeed, Allah will not change the condition of a people until they change what is within themselves.',
+    text:
+        'Indeed, Allah will not change the condition of a people until they change what is within themselves.',
     source: 'Quran 13:11',
     category: 'change',
     shortText: 'Change begins within',
   ),
   DailyVerse(
-    text: 'And whoever relies upon Allah — He is sufficient for him.',
+    text: 'And whoever relies upon Allah - He is sufficient for him.',
     source: 'Quran 65:3',
     category: 'tawakkul',
     shortText: 'Allah suffices the one who trusts',
@@ -147,7 +150,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Remember Him and He remembers you',
   ),
   DailyVerse(
-    text: 'And hold firmly to the rope of Allah all together and do not become divided.',
+    text:
+        'And hold firmly to the rope of Allah all together and do not become divided.',
     source: 'Quran 3:103',
     category: 'unity',
     shortText: 'Hold firm to the rope of Allah',
@@ -165,13 +169,15 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'This world is a passing enjoyment',
   ),
   DailyVerse(
-    text: 'Actions are only by intentions, and every person will have only what they intended.',
+    text:
+        'Actions are only by intentions, and every person will have only what they intended.',
     source: 'Sahih al-Bukhari 1',
     category: 'intention',
     shortText: 'Actions are by intentions',
   ),
   DailyVerse(
-    text: 'Allah does not look at your bodies or your forms, but He looks at your hearts and your deeds.',
+    text:
+        'Allah does not look at your bodies or your forms, but He looks at your hearts and your deeds.',
     source: 'Sahih Muslim 2564',
     category: 'sincerity',
     shortText: 'Allah looks at your heart',
@@ -183,7 +189,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Charity never decreases wealth',
   ),
   DailyVerse(
-    text: 'Every good deed is charity. Smiling at your brother is charity; removing harm from the road is charity.',
+    text:
+        'Every good deed is charity. Smiling at your brother is charity; removing harm from the road is charity.',
     source: 'Jami at-Tirmidhi 1970',
     category: 'charity',
     shortText: 'Every good deed is charity',
@@ -201,25 +208,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Thank people, thank Allah',
   ),
   DailyVerse(
-    text: 'Amazing is the affair of the believer. All of it is good — if he is prosperous, he thanks; if he is afflicted, he is patient.',
+    text:
+        'Amazing is the affair of the believer. All of it is good - if he is prosperous, he thanks; if he is afflicted, he is patient.',
     source: 'Sahih Muslim 2999',
     category: 'patience',
     shortText: 'All affairs of the believer are good',
   ),
   DailyVerse(
-    text: 'The strong one is not the one who overcomes people — the strong one is the one who controls himself at the time of anger.',
+    text:
+        'The strong one is not the one who overcomes people - the strong one is the one who controls himself at the time of anger.',
     source: 'Sahih al-Bukhari 6114',
     category: 'character',
     shortText: 'Strength is controlling anger',
   ),
   DailyVerse(
-    text: 'Allah is more delighted with the repentance of His servant than a man who finds his lost camel in the desert.',
+    text:
+        'Allah is more delighted with the repentance of His servant than a man who finds his lost camel in the desert.',
     source: 'Sahih al-Bukhari 6309',
     category: 'repentance',
     shortText: 'Allah delights in your repentance',
   ),
   DailyVerse(
-    text: 'Two phrases are light on the tongue, heavy on the scales: SubhanAllahi wa bihamdih, SubhanAllahil-Adheem.',
+    text:
+        'Two phrases are light on the tongue, heavy on the scales: SubhanAllahi wa bihamdih, SubhanAllahil-Adheem.',
     source: 'Sahih al-Bukhari 6406',
     category: 'dhikr',
     shortText: 'Two phrases heavy on the scales',
@@ -249,55 +260,63 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Dua is worship',
   ),
   DailyVerse(
-    text: 'Those who are merciful will be shown mercy by the Most Merciful. Be merciful to those on earth, and the One above the heavens will be merciful to you.',
+    text:
+        'Those who are merciful will be shown mercy by the Most Merciful. Be merciful to those on earth, and the One above the heavens will be merciful to you.',
     source: 'Jami at-Tirmidhi 1924',
     category: 'mercy',
     shortText: 'Be merciful, receive mercy',
   ),
   DailyVerse(
-    text: 'Remember often the destroyer of pleasures — death.',
+    text: 'Remember often the destroyer of pleasures - death.',
     source: 'Jami at-Tirmidhi 2307',
     category: 'hereafter',
     shortText: 'Remember the destroyer of pleasures',
   ),
   DailyVerse(
-    text: 'The grave is the first stage of the Hereafter. If one is saved from it, what follows is easier; if not, what follows is harder.',
+    text:
+        'The grave is the first stage of the Hereafter. If one is saved from it, what follows is easier; if not, what follows is harder.',
     source: 'Jami at-Tirmidhi 2308',
     category: 'hereafter',
     shortText: 'The grave is the first station',
   ),
   DailyVerse(
-    text: 'Paradise is surrounded by hardships, and the Fire is surrounded by desires.',
+    text:
+        'Paradise is surrounded by hardships, and the Fire is surrounded by desires.',
     source: 'Sahih Muslim 2822',
     category: 'hereafter',
     shortText: 'Paradise is surrounded by hardships',
   ),
   DailyVerse(
-    text: 'In Paradise, there is what no eye has seen, no ear has heard, and no heart has conceived.',
+    text:
+        'In Paradise, there is what no eye has seen, no ear has heard, and no heart has conceived.',
     source: 'Sahih Muslim 2824',
     category: 'jannah',
     shortText: 'Jannah is beyond imagination',
   ),
   DailyVerse(
-    text: 'Whoever believes in Allah and the Last Day, let him speak good or remain silent.',
+    text:
+        'Whoever believes in Allah and the Last Day, let him speak good or remain silent.',
     source: 'Sahih al-Bukhari 6018',
     category: 'speech',
     shortText: 'Speak good or remain silent',
   ),
   DailyVerse(
-    text: 'Protect yourselves from the Fire, even with half a date given in charity.',
+    text:
+        'Protect yourselves from the Fire, even with half a date given in charity.',
     source: 'Sahih al-Bukhari 1417',
     category: 'charity',
     shortText: 'Even half a date protects from Fire',
   ),
   DailyVerse(
-    text: 'The heart finds its true life in the remembrance of its Lord — like the fish finds its life in water.',
+    text:
+        'The heart finds its true life in the remembrance of its Lord - like the fish finds its life in water.',
     source: 'Ibn al-Qayyim',
     category: 'dhikr',
     shortText: 'The heart lives by dhikr',
   ),
   DailyVerse(
-    text: 'O son of Adam, you are but days — whenever a day passes, part of you has gone.',
+    text:
+        'O son of Adam, you are but days - whenever a day passes, part of you has gone.',
     source: 'Hasan al-Basri',
     category: 'time',
     shortText: 'Each day is part of you',
@@ -315,25 +334,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Patience is the head of faith',
   ),
   DailyVerse(
-    text: 'Tawakkul is not to be idle — it is to act with your hands while trusting with your heart.',
+    text:
+        'Tawakkul is not to be idle - it is to act with your hands while trusting with your heart.',
     source: 'Ibn al-Qayyim',
     category: 'tawakkul',
     shortText: 'Trust Allah, tie your camel',
   ),
   DailyVerse(
-    text: 'What can my enemies do to me? My Paradise is in my heart; my garden is between my two breasts.',
+    text:
+        'What can my enemies do to me? My Paradise is in my heart; my garden is between my two breasts.',
     source: 'Ibn Taymiyyah',
     category: 'faith',
     shortText: 'Paradise is in your heart',
   ),
   DailyVerse(
-    text: 'Richness is not having many possessions. Richness is the contentment of the soul.',
+    text:
+        'Richness is not having many possessions. Richness is the contentment of the soul.',
     source: 'Sahih al-Bukhari 6446',
     category: 'contentment',
     shortText: 'Richness is contentment of soul',
   ),
   DailyVerse(
-    text: 'The most beloved deeds to Allah are those done consistently, even if they are small.',
+    text:
+        'The most beloved deeds to Allah are those done consistently, even if they are small.',
     source: 'Sahih al-Bukhari 6464',
     category: 'consistency',
     shortText: 'Consistency is beloved to Allah',
@@ -345,7 +368,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Blessed are the early mornings',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ said: The two rak\'ahs of Fajr are better than the world and everything in it.',
+    text:
+        'The Prophet ﷺ said: The two rak\'ahs of Fajr are better than the world and everything in it.',
     source: 'Sahih Muslim 725',
     category: 'prayer',
     shortText: 'Fajr is better than the world',
@@ -369,25 +393,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Night prayer is the best voluntary',
   ),
   DailyVerse(
-    text: 'For every joint of the body, give charity each morning — two rak\'ahs of Duha suffice.',
+    text:
+        'For every joint of the body, give charity each morning - two rak\'ahs of Duha suffice.',
     source: 'Sahih Muslim 720',
     category: 'prayer',
     shortText: 'Duha is charity for every joint',
   ),
   DailyVerse(
-    text: 'Allah has added a prayer for you — the Witr. Pray it, even a single rak\'ah.',
+    text:
+        'Allah has added a prayer for you - the Witr. Pray it, even a single rak\'ah.',
     source: 'Musnad Ahmad 24069',
     category: 'prayer',
     shortText: 'Pray Witr before you sleep',
   ),
   DailyVerse(
-    text: 'Whoever prays Fajr in congregation, then sits remembering Allah until the sun rises, then prays two rak\'ahs, will have a complete Hajj and Umrah reward.',
+    text:
+        'Whoever prays Fajr in congregation, then sits remembering Allah until the sun rises, then prays two rak\'ahs, will have a complete Hajj and Umrah reward.',
     source: 'Jami at-Tirmidhi 586',
     category: 'prayer',
     shortText: 'Ishraq brings Hajj and Umrah reward',
   ),
   DailyVerse(
-    text: 'Recite Ayat al-Kursi in the morning and you will be protected until the evening.',
+    text:
+        'Recite Ayat al-Kursi in the morning and you will be protected until the evening.',
     source: 'Sahih al-Bukhari 2311',
     category: 'protection',
     shortText: 'Ayat al-Kursi protects you',
@@ -399,55 +427,64 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Begin with Bismillah',
   ),
   DailyVerse(
-    text: 'Say SubhanAllahi wa bihamdih 100 times in the morning — your sins will be forgiven even if they were like the foam of the sea.',
+    text:
+        'Say SubhanAllahi wa bihamdih 100 times in the morning - your sins will be forgiven even if they were like the foam of the sea.',
     source: 'Sahih al-Bukhari 6405',
     category: 'dhikr',
     shortText: 'Morning tasbih forgives sins',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ said Friday is the best day on which the sun has ever risen.',
+    text:
+        'The Prophet ﷺ said Friday is the best day on which the sun has ever risen.',
     source: 'Sahih Muslim 854',
     category: 'friday',
     shortText: 'Friday is the best day',
   ),
   DailyVerse(
-    text: 'Send abundant salawat upon me on Friday — your salawat are presented to me.',
+    text:
+        'Send abundant salawat upon me on Friday - your salawat are presented to me.',
     source: 'Sunan Abi Dawud 1047',
     category: 'friday',
     shortText: 'Send salawat on Friday',
   ),
   DailyVerse(
-    text: 'Whoever recites Surah Al-Kahf on Friday, a light will shine for him between the two Fridays.',
+    text:
+        'Whoever recites Surah Al-Kahf on Friday, a light will shine for him between the two Fridays.',
     source: 'Al-Bayhaqi 6010',
     category: 'friday',
     shortText: 'Surah Al-Kahf is a light',
   ),
   DailyVerse(
-    text: 'There is an hour on Friday when no Muslim asks Allah for something but He gives it.',
+    text:
+        'There is an hour on Friday when no Muslim asks Allah for something but He gives it.',
     source: 'Sahih al-Bukhari 935',
     category: 'friday',
     shortText: 'Seek the hour of acceptance',
   ),
   DailyVerse(
-    text: 'Whoever fasts a day for the sake of Allah, Allah will distance his face from the Fire by seventy autumns.',
+    text:
+        'Whoever fasts a day for the sake of Allah, Allah will distance his face from the Fire by seventy autumns.',
     source: 'Sahih Muslim 1153',
     category: 'fasting',
     shortText: 'Fasting distances you from Fire',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ used to fast Mondays and Thursdays — the days when deeds are presented to Allah.',
+    text:
+        'The Prophet ﷺ used to fast Mondays and Thursdays - the days when deeds are presented to Allah.',
     source: 'Jami at-Tirmidhi 747',
     category: 'fasting',
     shortText: 'Fast Mondays and Thursdays',
   ),
   DailyVerse(
-    text: 'Fast the 13th, 14th, and 15th of the Islamic month — the white days — and receive the reward of fasting the whole month.',
+    text:
+        'Fast the 13th, 14th, and 15th of the Islamic month - the white days - and receive the reward of fasting the whole month.',
     source: 'Sunan an-Nasa\'i 2419',
     category: 'fasting',
     shortText: 'Fast the white days',
   ),
   DailyVerse(
-    text: 'In Ramadan, the gates of Paradise are opened and the gates of Hell are closed.',
+    text:
+        'In Ramadan, the gates of Paradise are opened and the gates of Hell are closed.',
     source: 'Sahih al-Bukhari 1899',
     category: 'ramadan',
     shortText: 'Ramadan opens the gates of Jannah',
@@ -459,7 +496,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Laylatul Qadr is better than 1000 months',
   ),
   DailyVerse(
-    text: 'Fasting the day of Arafah expiates the sins of the past and coming year.',
+    text:
+        'Fasting the day of Arafah expiates the sins of the past and coming year.',
     source: 'Sahih Muslim 1162',
     category: 'fasting',
     shortText: 'Arafah expiates two years of sins',
@@ -471,7 +509,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Ashura expiates the past year',
   ),
   DailyVerse(
-    text: 'Allah descends to the lowest heaven in the last third of the night and asks: Who is calling upon Me so I may answer?',
+    text:
+        'Allah descends to the lowest heaven in the last third of the night and asks: Who is calling upon Me so I may answer?',
     source: 'Sahih al-Bukhari 1145',
     category: 'night',
     shortText: 'The last third of the night is special',
@@ -495,7 +534,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Feed a fasting person',
   ),
   DailyVerse(
-    text: 'Every tasbih is sadaqah, every takbir is sadaqah, every tahmid is sadaqah.',
+    text:
+        'Every tasbih is sadaqah, every takbir is sadaqah, every tahmid is sadaqah.',
     source: 'Sahih Muslim 720',
     category: 'dhikr',
     shortText: 'Dhikr is charity for your soul',
@@ -507,25 +547,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Kind words are charity',
   ),
   DailyVerse(
-    text: 'Shall I tell you of a degree greater than fasting, prayer, and sadaqah? Reconciling between people.',
+    text:
+        'Shall I tell you of a degree greater than fasting, prayer, and sadaqah? Reconciling between people.',
     source: 'Sunan Abi Dawud 4919',
     category: 'peace',
     shortText: 'Reconcile between people',
   ),
   DailyVerse(
-    text: 'Whoever visits a sick Muslim will continue in the garden of Paradise until he returns.',
+    text:
+        'Whoever visits a sick Muslim will continue in the garden of Paradise until he returns.',
     source: 'Sahih Muslim 2568',
     category: 'care',
     shortText: 'Visit the sick',
   ),
   DailyVerse(
-    text: 'Whoever guides someone to goodness has the same reward as the one who does it.',
+    text:
+        'Whoever guides someone to goodness has the same reward as the one who does it.',
     source: 'Sahih Muslim 1893',
     category: 'knowledge',
     shortText: 'Guide someone to goodness',
   ),
   DailyVerse(
-    text: 'Charity does not decrease wealth, and Allah increases the servant who forgives in honor.',
+    text:
+        'Charity does not decrease wealth, and Allah increases the servant who forgives in honor.',
     source: 'Sahih Muslim 2588',
     category: 'forgiveness',
     shortText: 'Forgiveness increases honor',
@@ -537,37 +581,43 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Prayer is the coolness of the eyes',
   ),
   DailyVerse(
-    text: 'The first thing a servant will be asked about is prayer. If it is sound, the rest will be sound.',
+    text:
+        'The first thing a servant will be asked about is prayer. If it is sound, the rest will be sound.',
     source: 'Jami at-Tirmidhi 413',
     category: 'prayer',
     shortText: 'Prayer is the first question',
   ),
   DailyVerse(
-    text: 'The example of the one who remembers his Lord and the one who does not is like that of the living and the dead.',
+    text:
+        'The example of the one who remembers his Lord and the one who does not is like that of the living and the dead.',
     source: 'Sahih al-Bukhari 6407',
     category: 'dhikr',
     shortText: 'Dhikr is the life of the heart',
   ),
   DailyVerse(
-    text: 'When you pass by the gardens of Paradise, graze therein. The gardens of Paradise are the circles of dhikr.',
+    text:
+        'When you pass by the gardens of Paradise, graze therein. The gardens of Paradise are the circles of dhikr.',
     source: 'Jami at-Tirmidhi 3510',
     category: 'dhikr',
     shortText: 'Circles of dhikr are gardens of Jannah',
   ),
   DailyVerse(
-    text: 'No two Muslims meet and shake hands without their sins being forgiven before they part.',
+    text:
+        'No two Muslims meet and shake hands without their sins being forgiven before they part.',
     source: 'Sunan Abi Dawud 5212',
     category: 'forgiveness',
     shortText: 'Handshakes forgive sins',
   ),
   DailyVerse(
-    text: 'Kinship is suspended from the Throne. Whoever connects it, Allah connects with him.',
+    text:
+        'Kinship is suspended from the Throne. Whoever connects it, Allah connects with him.',
     source: 'Sahih al-Bukhari 5989',
     category: 'family',
     shortText: 'Connect kinship, Allah connects with you',
   ),
   DailyVerse(
-    text: 'There is no Muslim who calls upon Allah with a supplication free from sin and cutting ties, but Allah will give him one of three: His request, store it for him, or repel an evil from him.',
+    text:
+        'There is no Muslim who calls upon Allah with a supplication free from sin and cutting ties, but Allah will give him one of three: His request, store it for him, or repel an evil from him.',
     source: 'Musnad Ahmad 11133',
     category: 'dua',
     shortText: 'Every dua is answered in some way',
@@ -579,25 +629,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'The believer is gentle',
   ),
   DailyVerse(
-    text: 'Whoever travels a path seeking knowledge, Allah makes easy for him a path to Paradise.',
+    text:
+        'Whoever travels a path seeking knowledge, Allah makes easy for him a path to Paradise.',
     source: 'Sahih Muslim 2699',
     category: 'knowledge',
     shortText: 'Seeking knowledge leads to Jannah',
   ),
   DailyVerse(
-    text: 'None of you truly believes until he loves for his brother what he loves for himself.',
+    text:
+        'None of you truly believes until he loves for his brother what he loves for himself.',
     source: 'Sahih al-Bukhari 13',
     category: 'brotherhood',
     shortText: 'Love for your brother what you love for yourself',
   ),
   DailyVerse(
-    text: 'The best of deeds is faith in Allah and His Messenger, then prayer at its proper time, then kindness to parents.',
+    text:
+        'The best of deeds is faith in Allah and His Messenger, then prayer at its proper time, then kindness to parents.',
     source: 'Sahih al-Bukhari 527',
     category: 'deeds',
     shortText: 'Faith, prayer, and kindness to parents',
   ),
   DailyVerse(
-    text: 'Look at those below you, not above you, for it is more fitting that you not underestimate the blessings of Allah.',
+    text:
+        'Look at those below you, not above you, for it is more fitting that you not underestimate the blessings of Allah.',
     source: 'Sahih Muslim 2963',
     category: 'gratitude',
     shortText: 'Look at those below you',
@@ -615,19 +669,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Patience at the first shock',
   ),
   DailyVerse(
-    text: 'If you did not commit sins, Allah would wipe you out and bring people who commit sins, then ask for forgiveness, and He would forgive them.',
+    text:
+        'If you did not commit sins, Allah would wipe you out and bring people who commit sins, then ask for forgiveness, and He would forgive them.',
     source: 'Sahih Muslim 2749',
     category: 'repentance',
     shortText: 'Allah loves to forgive',
   ),
   DailyVerse(
-    text: 'Whoever says Astaghfirullah, Allah will provide a way out of every distress and ease in every hardship.',
+    text:
+        'Whoever says Astaghfirullah, Allah will provide a way out of every distress and ease in every hardship.',
     source: 'Sunan Abi Dawud 1518',
     category: 'repentance',
     shortText: 'Istighfar brings ease',
   ),
   DailyVerse(
-    text: 'The upper hand is better than the lower hand. The upper hand gives, the lower hand receives.',
+    text:
+        'The upper hand is better than the lower hand. The upper hand gives, the lower hand receives.',
     source: 'Sahih al-Bukhari 1427',
     category: 'charity',
     shortText: 'The giving hand is better',
@@ -651,7 +708,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Keep family ties',
   ),
   DailyVerse(
-    text: 'There is no Muslim who calls upon Allah at night but He answers him.',
+    text:
+        'There is no Muslim who calls upon Allah at night but He answers him.',
     source: 'Sunan Abi Dawud 1319',
     category: 'dua',
     shortText: 'The night is for dua',
@@ -663,19 +721,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Choose gentle words',
   ),
   DailyVerse(
-    text: 'Whoever believes in Allah and the Last Day, let him honor his guest.',
+    text:
+        'Whoever believes in Allah and the Last Day, let him honor his guest.',
     source: 'Sahih al-Bukhari 6018',
     category: 'character',
     shortText: 'Honor your guest',
   ),
   DailyVerse(
-    text: 'The most beloved of people to Allah are those most beneficial to people.',
+    text:
+        'The most beloved of people to Allah are those most beneficial to people.',
     source: 'Al-Mu\'jam al-Awsat 6192',
     category: 'service',
     shortText: 'Be beneficial to others',
   ),
   DailyVerse(
-    text: 'Whoever removes a worldly grief from a believer, Allah will remove from him one of the griefs of the Day of Resurrection.',
+    text:
+        'Whoever removes a worldly grief from a believer, Allah will remove from him one of the griefs of the Day of Resurrection.',
     source: 'Sahih Muslim 2699',
     category: 'service',
     shortText: 'Remove grief, receive relief',
@@ -687,19 +748,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Be a mirror for your brother',
   ),
   DailyVerse(
-    text: 'Do not envy one another, do not hate one another, do not turn away from one another, and be servants of Allah as brothers.',
+    text:
+        'Do not envy one another, do not hate one another, do not turn away from one another, and be servants of Allah as brothers.',
     source: 'Sahih al-Bukhari 6065',
     category: 'brotherhood',
     shortText: 'Be servants of Allah as brothers',
   ),
   DailyVerse(
-    text: 'The strong believer is better and more beloved to Allah than the weak believer, though there is good in both.',
+    text:
+        'The strong believer is better and more beloved to Allah than the weak believer, though there is good in both.',
     source: 'Sahih Muslim 2664',
     category: 'strength',
     shortText: 'Be a strong believer',
   ),
   DailyVerse(
-    text: 'Whoever is not grateful for small things will not be grateful for large things.',
+    text:
+        'Whoever is not grateful for small things will not be grateful for large things.',
     source: 'Musnad Ahmad 2795',
     category: 'gratitude',
     shortText: 'Be grateful for the small things',
@@ -711,25 +775,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Be best to your family',
   ),
   DailyVerse(
-    text: 'Whoever believes in Allah and the Last Day, let him speak good or remain silent.',
+    text:
+        'Whoever believes in Allah and the Last Day, let him speak good or remain silent.',
     source: 'Sahih al-Bukhari 6018',
     category: 'speech',
     shortText: 'Speak good or stay silent',
   ),
   DailyVerse(
-    text: 'The most complete of believers in faith are those with the best character.',
+    text:
+        'The most complete of believers in faith are those with the best character.',
     source: 'Jami at-Tirmidhi 1162',
     category: 'character',
     shortText: 'Best character, most complete faith',
   ),
   DailyVerse(
-    text: 'Whoever makes dua for his brother in his absence, the angel says: Ameen, and for you the same.',
+    text:
+        'Whoever makes dua for his brother in his absence, the angel says: Ameen, and for you the same.',
     source: 'Sahih Muslim 2732',
     category: 'dua',
     shortText: 'Dua for others returns to you',
   ),
   DailyVerse(
-    text: 'The example of the believer is like a fresh tender plant, bent by the wind — it is bent but not broken.',
+    text:
+        'The example of the believer is like a fresh tender plant, bent by the wind - it is bent but not broken.',
     source: 'Sahih Muslim 2809',
     category: 'resilience',
     shortText: 'The believer bends but never breaks',
@@ -741,7 +809,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Deeds matter, not lineage',
   ),
   DailyVerse(
-    text: 'The world is a prison for the believer and a paradise for the disbeliever.',
+    text:
+        'The world is a prison for the believer and a paradise for the disbeliever.',
     source: 'Sahih Muslim 2956',
     category: 'world',
     shortText: 'This world is a prison for the believer',
@@ -753,13 +822,15 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Love to meet Allah',
   ),
   DailyVerse(
-    text: 'The first thing to be judged among the deeds of a person on the Day of Resurrection is prayer.',
+    text:
+        'The first thing to be judged among the deeds of a person on the Day of Resurrection is prayer.',
     source: 'Jami at-Tirmidhi 413',
     category: 'prayer',
     shortText: 'Prayer is judged first',
   ),
   DailyVerse(
-    text: 'Whoever prays the two cool prayers (Fajr and Asr) will enter Paradise.',
+    text:
+        'Whoever prays the two cool prayers (Fajr and Asr) will enter Paradise.',
     source: 'Sahih al-Bukhari 574',
     category: 'prayer',
     shortText: 'Fajr and Asr lead to Jannah',
@@ -777,19 +848,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Never miss Asr',
   ),
   DailyVerse(
-    text: 'The angels witness the Asr prayer in shifts — morning and evening angels gather at it.',
+    text:
+        'The angels witness the Asr prayer in shifts - morning and evening angels gather at it.',
     source: 'Sahih al-Bukhari 555',
     category: 'prayer',
     shortText: 'Angels witness Asr',
   ),
   DailyVerse(
-    text: 'Whoever prays Isha in congregation, it is as if he prayed half the night.',
+    text:
+        'Whoever prays Isha in congregation, it is as if he prayed half the night.',
     source: 'Sahih Muslim 656',
     category: 'prayer',
     shortText: 'Isha in congregation is half the night',
   ),
   DailyVerse(
-    text: 'The covenant between us and them is prayer, so whoever abandons it has committed disbelief.',
+    text:
+        'The covenant between us and them is prayer, so whoever abandons it has committed disbelief.',
     source: 'Jami at-Tirmidhi 2621',
     category: 'prayer',
     shortText: 'Prayer is the covenant',
@@ -801,7 +875,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Prayer is light',
   ),
   DailyVerse(
-    text: 'The five prayers are like a river flowing at your door — if you bathe in it five times a day, no dirt remains.',
+    text:
+        'The five prayers are like a river flowing at your door - if you bathe in it five times a day, no dirt remains.',
     source: 'Sahih al-Bukhari 528',
     category: 'prayer',
     shortText: 'Five prayers purify like a river',
@@ -831,13 +906,15 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Two rak\'ahs before Fajr',
   ),
   DailyVerse(
-    text: 'The night prayer is the most virtuous prayer after the obligatory ones.',
+    text:
+        'The night prayer is the most virtuous prayer after the obligatory ones.',
     source: 'Sahih Muslim 1163',
     category: 'prayer',
     shortText: 'Tahajjud is the best voluntary',
   ),
   DailyVerse(
-    text: 'The righteous predecessors would divide their night between prayer, quran, and dua.',
+    text:
+        'The righteous predecessors would divide their night between prayer, quran, and dua.',
     source: 'Salaf',
     category: 'night',
     shortText: 'Divide your night with worship',
@@ -849,19 +926,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Tahajjud is intimate conversation',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ sought forgiveness from Allah more than seventy times a day.',
+    text:
+        'The Prophet ﷺ sought forgiveness from Allah more than seventy times a day.',
     source: 'Sahih al-Bukhari 6307',
     category: 'repentance',
     shortText: 'Seek forgiveness like the Prophet',
   ),
   DailyVerse(
-    text: 'The night angels take your deeds to Allah. Let your last words be dhikr.',
+    text:
+        'The night angels take your deeds to Allah. Let your last words be dhikr.',
     source: 'Salaf',
     category: 'evening',
     shortText: 'End your day with dhikr',
   ),
   DailyVerse(
-    text: 'Recite the last two ayahs of Surah al-Baqarah at night and they will suffice you.',
+    text:
+        'Recite the last two ayahs of Surah al-Baqarah at night and they will suffice you.',
     source: 'Sahih al-Bukhari 5009',
     category: 'protection',
     shortText: 'Last two ayahs of Baqarah protect you',
@@ -873,31 +953,36 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Istighfar before Maghrib',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ said: The best words after the Quran are: SubhanAllah, Alhamdulillah, Allahu Akbar, La ilaha illallah.',
+    text:
+        'The Prophet ﷺ said: The best words after the Quran are: SubhanAllah, Alhamdulillah, Allahu Akbar, La ilaha illallah.',
     source: 'Sunan an-Nasa\'i 9259',
     category: 'dhikr',
     shortText: 'The best words after the Quran',
   ),
   DailyVerse(
-    text: 'Whoever says in the evening A\'udhu bi kalimatillahi\'t-tammati min sharri ma khalaq three times, nothing will harm him that night.',
+    text:
+        'Whoever says in the evening A\'udhu bi kalimatillahi\'t-tammati min sharri ma khalaq three times, nothing will harm him that night.',
     source: 'Sahih Muslim 2709',
     category: 'protection',
     shortText: 'Evening protection words',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ taught us to seek refuge with the Perfect Words of Allah in the morning — nothing will harm you after that.',
+    text:
+        'The Prophet ﷺ taught us to seek refuge with the Perfect Words of Allah in the morning - nothing will harm you after that.',
     source: 'Sahih Muslim 2708',
     category: 'protection',
     shortText: 'Morning refuge with Allah\'s words',
   ),
   DailyVerse(
-    text: 'Begin your morning with Alhamdulillah — gratitude opens the doors of more blessings.',
+    text:
+        'Begin your morning with Alhamdulillah - gratitude opens the doors of more blessings.',
     source: 'Salaf',
     category: 'gratitude',
     shortText: 'Start with Alhamdulillah',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ said: The two rak\'ahs of Fajr are better than the world and everything in it.',
+    text:
+        'The Prophet ﷺ said: The two rak\'ahs of Fajr are better than the world and everything in it.',
     source: 'Sahih Muslim 725',
     category: 'prayer',
     shortText: 'Fajr sunnah is better than the world',
@@ -909,31 +994,36 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Fajr brings divine protection',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ said: The best prayer after the obligatory prayers is the night prayer.',
+    text:
+        'The Prophet ﷺ said: The best prayer after the obligatory prayers is the night prayer.',
     source: 'Sahih Muslim 1163',
     category: 'prayer',
     shortText: 'Night prayer is the best',
   ),
   DailyVerse(
-    text: 'For every joint of the body, give charity each morning — two rak\'ahs of Duha suffice.',
+    text:
+        'For every joint of the body, give charity each morning - two rak\'ahs of Duha suffice.',
     source: 'Sahih Muslim 720',
     category: 'prayer',
     shortText: 'Duha is charity for every joint',
   ),
   DailyVerse(
-    text: 'Allah has added a prayer for you — the Witr. Pray it, even a single rak\'ah.',
+    text:
+        'Allah has added a prayer for you - the Witr. Pray it, even a single rak\'ah.',
     source: 'Musnad Ahmad 24069',
     category: 'prayer',
     shortText: 'Pray Witr before sleep',
   ),
   DailyVerse(
-    text: 'Whoever prays Fajr in congregation, then sits remembering Allah until the sun rises, then prays two rak\'ahs, will have a complete Hajj and Umrah reward.',
+    text:
+        'Whoever prays Fajr in congregation, then sits remembering Allah until the sun rises, then prays two rak\'ahs, will have a complete Hajj and Umrah reward.',
     source: 'Jami at-Tirmidhi 586',
     category: 'prayer',
     shortText: 'Ishraq brings Hajj and Umrah reward',
   ),
   DailyVerse(
-    text: 'Recite Ayat al-Kursi in the morning and you will be protected until the evening.',
+    text:
+        'Recite Ayat al-Kursi in the morning and you will be protected until the evening.',
     source: 'Sahih al-Bukhari 2311',
     category: 'protection',
     shortText: 'Ayat al-Kursi protects you',
@@ -945,55 +1035,64 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Begin with Bismillah',
   ),
   DailyVerse(
-    text: 'Say SubhanAllahi wa bihamdih 100 times in the morning — your sins will be forgiven even if they were like the foam of the sea.',
+    text:
+        'Say SubhanAllahi wa bihamdih 100 times in the morning - your sins will be forgiven even if they were like the foam of the sea.',
     source: 'Sahih al-Bukhari 6405',
     category: 'dhikr',
     shortText: 'Morning tasbih forgives sins',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ said Friday is the best day on which the sun has ever risen.',
+    text:
+        'The Prophet ﷺ said Friday is the best day on which the sun has ever risen.',
     source: 'Sahih Muslim 854',
     category: 'friday',
     shortText: 'Friday is the best day',
   ),
   DailyVerse(
-    text: 'Send abundant salawat upon me on Friday — your salawat are presented to me.',
+    text:
+        'Send abundant salawat upon me on Friday - your salawat are presented to me.',
     source: 'Sunan Abi Dawud 1047',
     category: 'friday',
     shortText: 'Send salawat on Friday',
   ),
   DailyVerse(
-    text: 'Whoever recites Surah Al-Kahf on Friday, a light will shine for him between the two Fridays.',
+    text:
+        'Whoever recites Surah Al-Kahf on Friday, a light will shine for him between the two Fridays.',
     source: 'Al-Bayhaqi 6010',
     category: 'friday',
     shortText: 'Surah Al-Kahf is a light',
   ),
   DailyVerse(
-    text: 'There is an hour on Friday when no Muslim asks Allah for something but He gives it.',
+    text:
+        'There is an hour on Friday when no Muslim asks Allah for something but He gives it.',
     source: 'Sahih al-Bukhari 935',
     category: 'friday',
     shortText: 'Seek the hour of acceptance',
   ),
   DailyVerse(
-    text: 'Whoever fasts a day for the sake of Allah, Allah will distance his face from the Fire by seventy autumns.',
+    text:
+        'Whoever fasts a day for the sake of Allah, Allah will distance his face from the Fire by seventy autumns.',
     source: 'Sahih Muslim 1153',
     category: 'fasting',
     shortText: 'Fasting distances you from Fire',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ used to fast Mondays and Thursdays — the days when deeds are presented to Allah.',
+    text:
+        'The Prophet ﷺ used to fast Mondays and Thursdays - the days when deeds are presented to Allah.',
     source: 'Jami at-Tirmidhi 747',
     category: 'fasting',
     shortText: 'Fast Mondays and Thursdays',
   ),
   DailyVerse(
-    text: 'Fast the 13th, 14th, and 15th of the Islamic month — the white days — and receive the reward of fasting the whole month.',
+    text:
+        'Fast the 13th, 14th, and 15th of the Islamic month - the white days - and receive the reward of fasting the whole month.',
     source: 'Sunan an-Nasa\'i 2419',
     category: 'fasting',
     shortText: 'Fast the white days',
   ),
   DailyVerse(
-    text: 'In Ramadan, the gates of Paradise are opened and the gates of Hell are closed.',
+    text:
+        'In Ramadan, the gates of Paradise are opened and the gates of Hell are closed.',
     source: 'Sahih al-Bukhari 1899',
     category: 'ramadan',
     shortText: 'Ramadan opens the gates of Jannah',
@@ -1005,7 +1104,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Laylatul Qadr is better than 1000 months',
   ),
   DailyVerse(
-    text: 'Fasting the day of Arafah expiates the sins of the past and coming year.',
+    text:
+        'Fasting the day of Arafah expiates the sins of the past and coming year.',
     source: 'Sahih Muslim 1162',
     category: 'fasting',
     shortText: 'Arafah expiates two years of sins',
@@ -1017,7 +1117,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Ashura expiates the past year',
   ),
   DailyVerse(
-    text: 'Allah descends to the lowest heaven in the last third of the night and asks: Who is calling upon Me so I may answer?',
+    text:
+        'Allah descends to the lowest heaven in the last third of the night and asks: Who is calling upon Me so I may answer?',
     source: 'Sahih al-Bukhari 1145',
     category: 'night',
     shortText: 'The last third of the night is special',
@@ -1041,7 +1142,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Feed a fasting person',
   ),
   DailyVerse(
-    text: 'Every tasbih is sadaqah, every takbir is sadaqah, every tahmid is sadaqah.',
+    text:
+        'Every tasbih is sadaqah, every takbir is sadaqah, every tahmid is sadaqah.',
     source: 'Sahih Muslim 720',
     category: 'dhikr',
     shortText: 'Dhikr is charity for your soul',
@@ -1053,25 +1155,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Kind words are charity',
   ),
   DailyVerse(
-    text: 'Shall I tell you of a degree greater than fasting, prayer, and sadaqah? Reconciling between people.',
+    text:
+        'Shall I tell you of a degree greater than fasting, prayer, and sadaqah? Reconciling between people.',
     source: 'Sunan Abi Dawud 4919',
     category: 'peace',
     shortText: 'Reconcile between people',
   ),
   DailyVerse(
-    text: 'Whoever visits a sick Muslim will continue in the garden of Paradise until he returns.',
+    text:
+        'Whoever visits a sick Muslim will continue in the garden of Paradise until he returns.',
     source: 'Sahih Muslim 2568',
     category: 'care',
     shortText: 'Visit the sick',
   ),
   DailyVerse(
-    text: 'Whoever guides someone to goodness has the same reward as the one who does it.',
+    text:
+        'Whoever guides someone to goodness has the same reward as the one who does it.',
     source: 'Sahih Muslim 1893',
     category: 'knowledge',
     shortText: 'Guide someone to goodness',
   ),
   DailyVerse(
-    text: 'Charity does not decrease wealth, and Allah increases the servant who forgives in honor.',
+    text:
+        'Charity does not decrease wealth, and Allah increases the servant who forgives in honor.',
     source: 'Sahih Muslim 2588',
     category: 'forgiveness',
     shortText: 'Forgiveness increases honor',
@@ -1083,37 +1189,43 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Prayer is the coolness of the eyes',
   ),
   DailyVerse(
-    text: 'The first thing a servant will be asked about is prayer. If it is sound, the rest will be sound.',
+    text:
+        'The first thing a servant will be asked about is prayer. If it is sound, the rest will be sound.',
     source: 'Jami at-Tirmidhi 413',
     category: 'prayer',
     shortText: 'Prayer is the first question',
   ),
   DailyVerse(
-    text: 'The example of the one who remembers his Lord and the one who does not is like that of the living and the dead.',
+    text:
+        'The example of the one who remembers his Lord and the one who does not is like that of the living and the dead.',
     source: 'Sahih al-Bukhari 6407',
     category: 'dhikr',
     shortText: 'Dhikr is the life of the heart',
   ),
   DailyVerse(
-    text: 'When you pass by the gardens of Paradise, graze therein. The gardens of Paradise are the circles of dhikr.',
+    text:
+        'When you pass by the gardens of Paradise, graze therein. The gardens of Paradise are the circles of dhikr.',
     source: 'Jami at-Tirmidhi 3510',
     category: 'dhikr',
     shortText: 'Circles of dhikr are gardens of Jannah',
   ),
   DailyVerse(
-    text: 'No two Muslims meet and shake hands without their sins being forgiven before they part.',
+    text:
+        'No two Muslims meet and shake hands without their sins being forgiven before they part.',
     source: 'Sunan Abi Dawud 5212',
     category: 'forgiveness',
     shortText: 'Handshakes forgive sins',
   ),
   DailyVerse(
-    text: 'Kinship is suspended from the Throne. Whoever connects it, Allah connects with him.',
+    text:
+        'Kinship is suspended from the Throne. Whoever connects it, Allah connects with him.',
     source: 'Sahih al-Bukhari 5989',
     category: 'family',
     shortText: 'Connect kinship, Allah connects with you',
   ),
   DailyVerse(
-    text: 'There is no Muslim who calls upon Allah with a supplication free from sin and cutting ties, but Allah will give him one of three: His request, store it for him, or repel an evil from him.',
+    text:
+        'There is no Muslim who calls upon Allah with a supplication free from sin and cutting ties, but Allah will give him one of three: His request, store it for him, or repel an evil from him.',
     source: 'Musnad Ahmad 11133',
     category: 'dua',
     shortText: 'Every dua is answered in some way',
@@ -1125,25 +1237,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'The believer is gentle',
   ),
   DailyVerse(
-    text: 'Whoever travels a path seeking knowledge, Allah makes easy for him a path to Paradise.',
+    text:
+        'Whoever travels a path seeking knowledge, Allah makes easy for him a path to Paradise.',
     source: 'Sahih Muslim 2699',
     category: 'knowledge',
     shortText: 'Seeking knowledge leads to Jannah',
   ),
   DailyVerse(
-    text: 'None of you truly believes until he loves for his brother what he loves for himself.',
+    text:
+        'None of you truly believes until he loves for his brother what he loves for himself.',
     source: 'Sahih al-Bukhari 13',
     category: 'brotherhood',
     shortText: 'Love for your brother what you love for yourself',
   ),
   DailyVerse(
-    text: 'The best of deeds is faith in Allah and His Messenger, then prayer at its proper time, then kindness to parents.',
+    text:
+        'The best of deeds is faith in Allah and His Messenger, then prayer at its proper time, then kindness to parents.',
     source: 'Sahih al-Bukhari 527',
     category: 'deeds',
     shortText: 'Faith, prayer, and kindness to parents',
   ),
   DailyVerse(
-    text: 'Look at those below you, not above you, for it is more fitting that you not underestimate the blessings of Allah.',
+    text:
+        'Look at those below you, not above you, for it is more fitting that you not underestimate the blessings of Allah.',
     source: 'Sahih Muslim 2963',
     category: 'gratitude',
     shortText: 'Look at those below you',
@@ -1161,19 +1277,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Patience at the first shock',
   ),
   DailyVerse(
-    text: 'If you did not commit sins, Allah would wipe you out and bring people who commit sins, then ask for forgiveness, and He would forgive them.',
+    text:
+        'If you did not commit sins, Allah would wipe you out and bring people who commit sins, then ask for forgiveness, and He would forgive them.',
     source: 'Sahih Muslim 2749',
     category: 'repentance',
     shortText: 'Allah loves to forgive',
   ),
   DailyVerse(
-    text: 'Whoever says Astaghfirullah, Allah will provide a way out of every distress and ease in every hardship.',
+    text:
+        'Whoever says Astaghfirullah, Allah will provide a way out of every distress and ease in every hardship.',
     source: 'Sunan Abi Dawud 1518',
     category: 'repentance',
     shortText: 'Istighfar brings ease',
   ),
   DailyVerse(
-    text: 'The upper hand is better than the lower hand. The upper hand gives, the lower hand receives.',
+    text:
+        'The upper hand is better than the lower hand. The upper hand gives, the lower hand receives.',
     source: 'Sahih al-Bukhari 1427',
     category: 'charity',
     shortText: 'The giving hand is better',
@@ -1191,25 +1310,29 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Remove harm from the road',
   ),
   DailyVerse(
-    text: 'There is no Muslim who calls upon Allah at night but He answers him.',
+    text:
+        'There is no Muslim who calls upon Allah at night but He answers him.',
     source: 'Sunan Abi Dawud 1319',
     category: 'dua',
     shortText: 'The night is for dua',
   ),
   DailyVerse(
-    text: 'Whoever believes in Allah and the Last Day, let him honor his guest.',
+    text:
+        'Whoever believes in Allah and the Last Day, let him honor his guest.',
     source: 'Sahih al-Bukhari 6018',
     category: 'character',
     shortText: 'Honor your guest',
   ),
   DailyVerse(
-    text: 'The most beloved of people to Allah are those most beneficial to people.',
+    text:
+        'The most beloved of people to Allah are those most beneficial to people.',
     source: 'Al-Mu\'jam al-Awsat 6192',
     category: 'service',
     shortText: 'Be beneficial to others',
   ),
   DailyVerse(
-    text: 'Whoever removes a worldly grief from a believer, Allah will remove from him one of the griefs of the Day of Resurrection.',
+    text:
+        'Whoever removes a worldly grief from a believer, Allah will remove from him one of the griefs of the Day of Resurrection.',
     source: 'Sahih Muslim 2699',
     category: 'service',
     shortText: 'Remove grief, receive relief',
@@ -1221,19 +1344,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Be a mirror for your brother',
   ),
   DailyVerse(
-    text: 'Do not envy one another, do not hate one another, do not turn away from one another, and be servants of Allah as brothers.',
+    text:
+        'Do not envy one another, do not hate one another, do not turn away from one another, and be servants of Allah as brothers.',
     source: 'Sahih al-Bukhari 6065',
     category: 'brotherhood',
     shortText: 'Be servants of Allah as brothers',
   ),
   DailyVerse(
-    text: 'The strong believer is better and more beloved to Allah than the weak believer, though there is good in both.',
+    text:
+        'The strong believer is better and more beloved to Allah than the weak believer, though there is good in both.',
     source: 'Sahih Muslim 2664',
     category: 'strength',
     shortText: 'Be a strong believer',
   ),
   DailyVerse(
-    text: 'Whoever is not grateful for small things will not be grateful for large things.',
+    text:
+        'Whoever is not grateful for small things will not be grateful for large things.',
     source: 'Musnad Ahmad 2795',
     category: 'gratitude',
     shortText: 'Be grateful for the small things',
@@ -1245,19 +1371,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Be best to your family',
   ),
   DailyVerse(
-    text: 'The most complete of believers in faith are those with the best character.',
+    text:
+        'The most complete of believers in faith are those with the best character.',
     source: 'Jami at-Tirmidhi 1162',
     category: 'character',
     shortText: 'Best character, most complete faith',
   ),
   DailyVerse(
-    text: 'Whoever makes dua for his brother in his absence, the angel says: Ameen, and for you the same.',
+    text:
+        'Whoever makes dua for his brother in his absence, the angel says: Ameen, and for you the same.',
     source: 'Sahih Muslim 2732',
     category: 'dua',
     shortText: 'Dua for others returns to you',
   ),
   DailyVerse(
-    text: 'The example of the believer is like a fresh tender plant, bent by the wind — it is bent but not broken.',
+    text:
+        'The example of the believer is like a fresh tender plant, bent by the wind - it is bent but not broken.',
     source: 'Sahih Muslim 2809',
     category: 'resilience',
     shortText: 'The believer bends but never breaks',
@@ -1269,7 +1398,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Deeds matter, not lineage',
   ),
   DailyVerse(
-    text: 'The world is a prison for the believer and a paradise for the disbeliever.',
+    text:
+        'The world is a prison for the believer and a paradise for the disbeliever.',
     source: 'Sahih Muslim 2956',
     category: 'world',
     shortText: 'This world is a prison for the believer',
@@ -1281,13 +1411,15 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Love to meet Allah',
   ),
   DailyVerse(
-    text: 'The first thing to be judged among the deeds of a person on the Day of Resurrection is prayer.',
+    text:
+        'The first thing to be judged among the deeds of a person on the Day of Resurrection is prayer.',
     source: 'Jami at-Tirmidhi 413',
     category: 'prayer',
     shortText: 'Prayer is judged first',
   ),
   DailyVerse(
-    text: 'Whoever prays the two cool prayers (Fajr and Asr) will enter Paradise.',
+    text:
+        'Whoever prays the two cool prayers (Fajr and Asr) will enter Paradise.',
     source: 'Sahih al-Bukhari 574',
     category: 'prayer',
     shortText: 'Fajr and Asr lead to Jannah',
@@ -1305,19 +1437,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Never miss Asr',
   ),
   DailyVerse(
-    text: 'The angels witness the Asr prayer in shifts — morning and evening angels gather at it.',
+    text:
+        'The angels witness the Asr prayer in shifts - morning and evening angels gather at it.',
     source: 'Sahih al-Bukhari 555',
     category: 'prayer',
     shortText: 'Angels witness Asr',
   ),
   DailyVerse(
-    text: 'Whoever prays Isha in congregation, it is as if he prayed half the night.',
+    text:
+        'Whoever prays Isha in congregation, it is as if he prayed half the night.',
     source: 'Sahih Muslim 656',
     category: 'prayer',
     shortText: 'Isha in congregation is half the night',
   ),
   DailyVerse(
-    text: 'The covenant between us and them is prayer, so whoever abandons it has committed disbelief.',
+    text:
+        'The covenant between us and them is prayer, so whoever abandons it has committed disbelief.',
     source: 'Jami at-Tirmidhi 2621',
     category: 'prayer',
     shortText: 'Prayer is the covenant',
@@ -1329,7 +1464,8 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Prayer is light',
   ),
   DailyVerse(
-    text: 'The five prayers are like a river flowing at your door — if you bathe in it five times a day, no dirt remains.',
+    text:
+        'The five prayers are like a river flowing at your door - if you bathe in it five times a day, no dirt remains.',
     source: 'Sahih al-Bukhari 528',
     category: 'prayer',
     shortText: 'Five prayers purify like a river',
@@ -1360,13 +1496,15 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Two rak\'ahs before Fajr',
   ),
   DailyVerse(
-    text: 'The night prayer is the most virtuous prayer after the obligatory ones.',
+    text:
+        'The night prayer is the most virtuous prayer after the obligatory ones.',
     source: 'Sahih Muslim 1163',
     category: 'prayer',
     shortText: 'Tahajjud is the best voluntary',
   ),
   DailyVerse(
-    text: 'The righteous predecessors would divide their night between prayer, quran, and dua.',
+    text:
+        'The righteous predecessors would divide their night between prayer, quran, and dua.',
     source: 'Salaf',
     category: 'night',
     shortText: 'Divide your night with worship',
@@ -1378,19 +1516,22 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Tahajjud is intimate conversation',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ sought forgiveness from Allah more than seventy times a day.',
+    text:
+        'The Prophet ﷺ sought forgiveness from Allah more than seventy times a day.',
     source: 'Sahih al-Bukhari 6307',
     category: 'repentance',
     shortText: 'Seek forgiveness like the Prophet',
   ),
   DailyVerse(
-    text: 'The night angels take your deeds to Allah. Let your last words be dhikr.',
+    text:
+        'The night angels take your deeds to Allah. Let your last words be dhikr.',
     source: 'Salaf',
     category: 'evening',
     shortText: 'End your day with dhikr',
   ),
   DailyVerse(
-    text: 'Recite the last two ayahs of Surah al-Baqarah at night and they will suffice you.',
+    text:
+        'Recite the last two ayahs of Surah al-Baqarah at night and they will suffice you.',
     source: 'Sahih al-Bukhari 5009',
     category: 'protection',
     shortText: 'Last two ayahs of Baqarah protect you',
@@ -1402,33 +1543,70 @@ const List<DailyVerse> kDailyVerses = [
     shortText: 'Istighfar before Maghrib',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ said: The best words after the Quran are: SubhanAllah, Alhamdulillah, Allahu Akbar, La ilaha illallah.',
+    text:
+        'The Prophet ﷺ said: The best words after the Quran are: SubhanAllah, Alhamdulillah, Allahu Akbar, La ilaha illallah.',
     source: 'Sunan an-Nasa\'i 9259',
     category: 'dhikr',
     shortText: 'The best words after the Quran',
   ),
   DailyVerse(
-    text: 'Whoever says in the evening A\'udhu bi kalimatillahi\'t-tammati min sharri ma khalaq three times, nothing will harm him that night.',
+    text:
+        'Whoever says in the evening A\'udhu bi kalimatillahi\'t-tammati min sharri ma khalaq three times, nothing will harm him that night.',
     source: 'Sahih Muslim 2709',
     category: 'protection',
     shortText: 'Evening protection words',
   ),
   DailyVerse(
-    text: 'The Prophet ﷺ taught us to seek refuge with the Perfect Words of Allah in the morning — nothing will harm you after that.',
+    text:
+        'The Prophet ﷺ taught us to seek refuge with the Perfect Words of Allah in the morning - nothing will harm you after that.',
     source: 'Sahih Muslim 2708',
     category: 'protection',
     shortText: 'Morning refuge with Allah\'s words',
   ),
   DailyVerse(
-    text: 'Begin your morning with Alhamdulillah — gratitude opens the doors of more blessings.',
+    text:
+        'Begin your morning with Alhamdulillah - gratitude opens the doors of more blessings.',
     source: 'Salaf',
     category: 'gratitude',
     shortText: 'Start with Alhamdulillah',
   ),
 ];
 
-DailyVerse todaysVerse() {
-  final random = DateTime.now().millisecondsSinceEpoch;
-  final index = random % kDailyVerses.length;
-  return kDailyVerses[index];
+DailyVerse todaysVerse([DateTime? at]) =>
+    verseForTimeSlot(at ?? DateTime.now());
+
+DailyVerse verseForTimeSlot(DateTime now) {
+  final category = _preferredCategory(now);
+  final pool = kDailyVerses.where((v) => v.category == category).toList();
+  final sourcePool = pool.isNotEmpty ? pool : kDailyVerses;
+  final slot =
+      now.hour < 11
+          ? 0
+          : now.hour < 16
+          ? 1
+          : now.hour < 21
+          ? 2
+          : 3;
+  final index =
+      (now.year * 366 + now.month * 31 + now.day + slot) % sourcePool.length;
+  return sourcePool[index];
+}
+
+String _preferredCategory(DateTime now) {
+  final minuteOfDay = now.hour * 60 + now.minute;
+  const prayerWindows = [
+    5 * 60 + 15,
+    12 * 60 + 15,
+    15 * 60 + 45,
+    18 * 60 + 45,
+    20 * 60 + 15,
+  ];
+  for (final prayerMinute in prayerWindows) {
+    if ((minuteOfDay - prayerMinute).abs() <= 35) return 'prayer';
+  }
+  if (now.hour < 10) return 'remembrance';
+  if (now.weekday == DateTime.friday && now.hour < 18) return 'quran';
+  if (now.hour >= 21 || now.hour < 4) return 'protection';
+  final cycle = (now.day + (now.hour ~/ 8)) % 4;
+  return const ['peace', 'mercy', 'gratitude', 'trust'][cycle];
 }

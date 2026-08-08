@@ -64,7 +64,7 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
       );
     } catch (e) {
       // On failure, keep the user on the onboarding screen so they can
-      // retry. Do NOT mark goal setup complete or navigate away — that
+      // retry. Do NOT mark goal setup complete or navigate away - that
       // would strand the user with no goal actually created.
       if (mounted) {
         setState(() => _saving = false);

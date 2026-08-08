@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_extensions.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'sleep_adhkar_data.dart';
+import 'others_adhkar_data.dart';
 
-class SleepAdhkarList extends ConsumerStatefulWidget {
-  const SleepAdhkarList({super.key});
+class OthersAdhkarList extends ConsumerStatefulWidget {
+  const OthersAdhkarList({super.key});
 
   @override
-  ConsumerState<SleepAdhkarList> createState() => _SleepAdhkarListState();
+  ConsumerState<OthersAdhkarList> createState() => _OthersAdhkarListState();
 }
 
-class _SleepAdhkarListState extends ConsumerState<SleepAdhkarList> {
+class _OthersAdhkarListState extends ConsumerState<OthersAdhkarList> {
   final Map<int, int> _counts = {};
   bool _showTranslation = true;
   bool _showTransliteration = true;
@@ -52,16 +53,11 @@ class _SleepAdhkarListState extends ConsumerState<SleepAdhkarList> {
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
             physics: const BouncingScrollPhysics(),
-            itemCount: SleepAdhkarData.duas.length,
+            itemCount: OtherAdhkarData.duas.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
-              final dua = SleepAdhkarData.duas[index];
+              final dua = OtherAdhkarData.duas[index];
               final count = _counts[dua.id] ?? 0;
-              final hasArabic = dua.arabic.isNotEmpty;
-              final hasTranslation =
-                  _showTranslation && dua.translation.isNotEmpty;
-              final hasTransliteration =
-                  _showTransliteration && dua.transliteration.isNotEmpty;
               final tokens = context.colors;
 
               return Material(
@@ -85,18 +81,21 @@ class _SleepAdhkarListState extends ConsumerState<SleepAdhkarList> {
                         ),
                         const SizedBox(height: 8),
                       ],
-                      if (hasArabic)
-                        Text(
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
                           dua.arabic,
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.right,
+                          softWrap: true,
                           style: TextStyle(
                             color: tokens.textPrimary,
                             fontSize: 24,
                             height: 1.7,
                           ),
                         ),
-                      if (hasTransliteration) ...[
+                      ),
+                      if (_showTransliteration) ...[
                         const SizedBox(height: 10),
                         Text(
                           dua.transliteration,
@@ -109,7 +108,7 @@ class _SleepAdhkarListState extends ConsumerState<SleepAdhkarList> {
                           ),
                         ),
                       ],
-                      if (hasTranslation) ...[
+                      if (_showTranslation) ...[
                         const SizedBox(height: 6),
                         Text(
                           dua.translation,
@@ -206,15 +205,15 @@ class _SleepAdhkarListState extends ConsumerState<SleepAdhkarList> {
                               tooltip: 'Start counting',
                             ),
                           IconButton(
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Audio playback is coming soon.',
-                                  ),
-                                ),
-                              );
-                            },
+                            onPressed:
+                                () =>
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Audio playback is coming soon.',
+                                        ),
+                                      ),
+                                    ),
                             icon: const Icon(
                               Icons.volume_up_outlined,
                               color: kBronze,
@@ -298,7 +297,7 @@ class _Counter extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: value > 0 ? kSoftSage : kSoftBronze,
+          color: value > 0 ? kSoftSage : kIvory,
           borderRadius: BorderRadius.circular(99),
         ),
         child: Text(

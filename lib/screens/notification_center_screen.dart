@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
 import '../services/backend_api.dart' show BackendApi, NotificationItem;
 
@@ -11,7 +12,8 @@ class NotificationCenterScreen extends StatefulWidget {
   final ValueChanged<int>? onUnreadCountChanged;
 
   @override
-  State<NotificationCenterScreen> createState() => _NotificationCenterScreenState();
+  State<NotificationCenterScreen> createState() =>
+      _NotificationCenterScreenState();
 }
 
 class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
@@ -49,7 +51,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       _error = null;
     });
     try {
-      final page = await BackendApi.instance.getNotifications(limit: _pageSize, offset: _offset);
+      final page = await BackendApi.instance.getNotifications(
+        limit: _pageSize,
+        offset: _offset,
+      );
       if (!mounted) return;
       setState(() {
         _total = page.total;
@@ -92,7 +97,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   Future<void> _refresh() async {
     setState(() => _refreshing = true);
     try {
-      final page = await BackendApi.instance.getNotifications(limit: _pageSize, offset: 0);
+      final page = await BackendApi.instance.getNotifications(
+        limit: _pageSize,
+        offset: 0,
+      );
       if (!mounted) return;
       setState(() {
         _items
@@ -109,7 +117,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       if (!mounted) return;
       setState(() => _refreshing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not refresh: $error')),
+        const SnackBar(content: Text('Could not refresh notifications.')),
       );
     }
   }
@@ -157,7 +165,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to mark as read: $error')),
+        const SnackBar(
+          content: Text('Could not mark that notification as read.'),
+        ),
       );
     }
   }
@@ -183,7 +193,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to mark all as read: $error')),
+        const SnackBar(content: Text('Could not mark notifications as read.')),
       );
     }
   }
@@ -201,7 +211,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
           action: SnackBarAction(
             label: 'Undo',
             onPressed: () {
-              if (mounted) setState(() => _items.insert(index.clamp(0, _items.length).toInt(), item));
+              if (mounted) {
+                setState(
+                  () => _items.insert(
+                    index.clamp(0, _items.length).toInt(),
+                    item,
+                  ),
+                );
+              }
             },
           ),
         ),
@@ -209,7 +226,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not archive notification: $e')),
+        const SnackBar(content: Text('Could not archive notification.')),
       );
     }
   }
@@ -220,19 +237,20 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     final scale = (width / 390).clamp(0.90, 1.08);
     double s(double v) => (v * scale).roundToDouble();
     final unreadCount = _unreadCount;
-
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final pageBg = dark ? kScaffoldDark : kClayPale;
-    final headerBg = dark ? kSurfaceDark : kClayPale;
+    final tokens = context.colors;
     return Scaffold(
-      backgroundColor: pageBg,
+      backgroundColor: tokens.background,
       appBar: AppBar(
         title: const Text('Notifications'),
-        backgroundColor: headerBg,
+        backgroundColor: tokens.surface,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: dark ? kInkDark : kInk, size: 19),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: tokens.iconPrimary,
+            size: 19,
+          ),
           tooltip: 'Back',
         ),
         actions: [
@@ -251,100 +269,146 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             duration: MizanMotion.normal,
             switchInCurve: MizanMotion.gentle,
             switchOutCurve: MizanMotion.gentle,
-            child: _initialLoading
-                ? const Center(key: ValueKey('loading'), child: CircularProgressIndicator())
-                : _error != null && _items.isEmpty
+            child:
+                _initialLoading
+                    ? const Center(
+                      key: ValueKey('loading'),
+                      child: CircularProgressIndicator(),
+                    )
+                    : _error != null && _items.isEmpty
                     ? _StateMessage(
-                        key: const ValueKey('error'),
-                        message: 'Failed to load notifications.',
-                        detail: _error!,
-                        onRetry: _retry,
-                      )
+                      key: const ValueKey('error'),
+                      message: 'Failed to load notifications.',
+                      detail: _error!,
+                      onRetry: _retry,
+                    )
                     : _items.isEmpty
-                        ? const _StateMessage(
-                            key: ValueKey('empty'),
-                            message: 'No notifications yet.',
-                            detail: 'Gentle updates from your family space and reminders will appear here.',
-                          )
-                        : Column(
-                            key: const ValueKey('notification-list'),
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              FadeScaleTransition(
-                                beginScale: 0.97,
-                                child: Container(
-                                  width: double.infinity,
-                                  padding: EdgeInsets.all(s(16)),
+                    ? const _StateMessage(
+                      key: ValueKey('empty'),
+                      message: 'No notifications yet.',
+                      detail:
+                          'Gentle updates from your family space and reminders will appear here.',
+                    )
+                    : Column(
+                      key: const ValueKey('notification-list'),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        FadeScaleTransition(
+                          beginScale: 0.97,
+                          child: Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.all(s(16)),
+                            decoration: BoxDecoration(
+                              color: tokens.surfaceElevated,
+                              border: Border.all(color: tokens.border),
+                              borderRadius: BorderRadius.circular(s(20)),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: s(46),
+                                  height: s(46),
                                   decoration: BoxDecoration(
-                                    gradient: LinearGradient(
-                                      begin: Alignment.topLeft,
-                                      end: Alignment.bottomRight,
-                                      colors: dark ? const [kElevatedDark, kSurfaceDark] : const [kClayLight, kClayPale],
-                                    ),
-                                    border: Border.all(color: dark ? kLineDark : kLine),
-                                    borderRadius: BorderRadius.circular(s(20)),
+                                    color: tokens.primaryContainer,
+                                    borderRadius: BorderRadius.circular(s(15)),
                                   ),
+                                  child: Icon(
+                                    Icons.notifications_active_outlined,
+                                    color: tokens.primary,
+                                    size: s(22),
+                                  ),
+                                ),
+                                SizedBox(width: s(13)),
+                                Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         '$_total notification${_total == 1 ? '' : 's'}',
-                                        style: TextStyle(fontSize: s(16), fontWeight: FontWeight.w800, color: dark ? kInkDark : kInk),
+                                        style: TextStyle(
+                                          fontSize: s(16),
+                                          fontWeight: FontWeight.w800,
+                                          color: tokens.textPrimary,
+                                        ),
                                       ),
                                       SizedBox(height: s(4)),
                                       Text(
                                         unreadCount == 0
                                             ? 'You are all caught up.'
                                             : '$unreadCount unread update${unreadCount == 1 ? '' : 's'} waiting.',
-                                        style: TextStyle(fontSize: s(12.8), color: dark ? kMutedDark : kMuted, fontWeight: FontWeight.w600),
+                                        style: TextStyle(
+                                          fontSize: s(12.8),
+                                          color: tokens.textSecondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                              ),
-                              SizedBox(height: s(12)),
-                              Expanded(
-                                child: RefreshIndicator(
-                                  onRefresh: _refresh,
-                                  color: kBronze,
-                                  backgroundColor: dark ? kElevatedDark : kPaper,
-                                  child: ListView.separated(
-                                    controller: _scrollController,
-                                    physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-                                    itemCount: _items.length + (_hasMore && _error == null ? 1 : 0),
-                                    separatorBuilder: (_, __) => SizedBox(height: s(10)),
-                                    itemBuilder: (context, index) {
-                                      if (index >= _items.length) {
-                                        return Padding(
-                                          padding: EdgeInsets.symmetric(vertical: s(10)),
-                                          child: const Center(child: CircularProgressIndicator()),
-                                        );
-                                      }
-                                      final notification = _items[index];
-                                      return CardEntrance(
-                                        key: ValueKey('entrance-${notification.id}'),
-                                        index: index.clamp(0, 8),
-                                        delay: const Duration(milliseconds: 30),
-                                        child: _DismissibleNotificationCard(
-                                          scale: scale,
-                                          notification: notification,
-                                          onTap: notification.isRead ? null : () => _markRead(notification.id, index),
-                                          onArchive: () => _archive(index),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
-                              if (_error != null) ...[
-                                SizedBox(height: s(8)),
-                                TextButton(onPressed: _retry, child: const Text('Retry loading more')),
                               ],
-                              if (_refreshing) ...[
-                                SizedBox(height: s(4)),
-                              ],
-                            ],
+                            ),
                           ),
+                        ),
+                        SizedBox(height: s(12)),
+                        Expanded(
+                          child: RefreshIndicator(
+                            onRefresh: _refresh,
+                            color: tokens.primary,
+                            backgroundColor: tokens.surfaceElevated,
+                            child: ListView.separated(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(
+                                parent: BouncingScrollPhysics(),
+                              ),
+                              itemCount:
+                                  _items.length +
+                                  (_hasMore && _error == null ? 1 : 0),
+                              separatorBuilder:
+                                  (_, __) => SizedBox(height: s(10)),
+                              itemBuilder: (context, index) {
+                                if (index >= _items.length) {
+                                  return Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: s(10),
+                                    ),
+                                    child: const Center(
+                                      child: CircularProgressIndicator(),
+                                    ),
+                                  );
+                                }
+                                final notification = _items[index];
+                                return CardEntrance(
+                                  key: ValueKey('entrance-${notification.id}'),
+                                  index: index.clamp(0, 8),
+                                  delay: const Duration(milliseconds: 30),
+                                  child: _DismissibleNotificationCard(
+                                    scale: scale,
+                                    notification: notification,
+                                    onTap:
+                                        notification.isRead
+                                            ? null
+                                            : () => _markRead(
+                                              notification.id,
+                                              index,
+                                            ),
+                                    onArchive: () => _archive(index),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        if (_error != null) ...[
+                          SizedBox(height: s(8)),
+                          TextButton(
+                            onPressed: _retry,
+                            child: const Text('Retry loading more'),
+                          ),
+                        ],
+                        if (_refreshing) ...[SizedBox(height: s(4))],
+                      ],
+                    ),
           ),
         ),
       ),
@@ -384,18 +448,22 @@ class _DismissibleNotificationCard extends StatelessWidget {
             tween: Tween(begin: 0.6, end: 1),
             duration: MizanMotion.fast,
             curve: MizanMotion.gentle,
-            builder: (context, value, child) => Container(
-              alignment: Alignment.centerRight,
-              padding: EdgeInsets.only(right: scale * 22),
-              decoration: BoxDecoration(
-                color: kBronze,
-                borderRadius: BorderRadius.circular(scale * 16),
-              ),
-              child: Transform.scale(
-                scale: value,
-                child: Icon(Icons.archive_outlined, color: Theme.of(context).colorScheme.onPrimary),
-              ),
-            ),
+            builder:
+                (context, value, child) => Container(
+                  alignment: Alignment.centerRight,
+                  padding: EdgeInsets.only(right: scale * 22),
+                  decoration: BoxDecoration(
+                    color: kBronze,
+                    borderRadius: BorderRadius.circular(scale * 16),
+                  ),
+                  child: Transform.scale(
+                    scale: value,
+                    child: Icon(
+                      Icons.archive_outlined,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
           );
         },
       ),
@@ -410,7 +478,11 @@ class _DismissibleNotificationCard extends StatelessWidget {
 }
 
 class _NotificationCard extends StatelessWidget {
-  const _NotificationCard({required this.scale, required this.notification, this.onTap});
+  const _NotificationCard({
+    required this.scale,
+    required this.notification,
+    this.onTap,
+  });
 
   final double scale;
   final NotificationItem notification;
@@ -421,12 +493,15 @@ class _NotificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final presentation = _presentationFor(notification);
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final cardColor = notification.isRead
-        ? (dark ? kSurfaceDark : kPaper)
-        : (dark ? kElevatedDark : kSoftBronze);
-    final textColor = dark ? kInkDark : kInk;
-    final mutedColor = dark ? kMutedDark : kMuted;
+    final tokens = context.colors;
+    final cardColor =
+        notification.isRead ? tokens.surfaceElevated : tokens.primaryContainer;
+    final textColor =
+        notification.isRead ? tokens.textPrimary : tokens.onPrimaryContainer;
+    final mutedColor =
+        notification.isRead
+            ? tokens.textSecondary
+            : tokens.onPrimaryContainer.withValues(alpha: 0.78);
     return Semantics(
       button: true,
       label: notification.title,
@@ -441,14 +516,31 @@ class _NotificationCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (!notification.isRead)
+                  Container(
+                    width: s(4),
+                    height: s(72),
+                    margin: EdgeInsets.only(right: s(11)),
+                    decoration: BoxDecoration(
+                      color: presentation.color,
+                      borderRadius: BorderRadius.circular(s(8)),
+                    ),
+                  ),
                 Container(
                   width: s(38),
                   height: s(38),
                   decoration: BoxDecoration(
-                    color: presentation.color.withValues(alpha: 0.13),
+                    color:
+                        notification.isRead
+                            ? presentation.color.withValues(alpha: 0.13)
+                            : tokens.surfaceElevated.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(s(12)),
                   ),
-                  child: Icon(presentation.icon, color: presentation.color, size: s(20)),
+                  child: Icon(
+                    presentation.icon,
+                    color: presentation.color,
+                    size: s(20),
+                  ),
                 ),
                 SizedBox(width: s(12)),
                 Expanded(
@@ -462,7 +554,10 @@ class _NotificationCard extends StatelessWidget {
                               notification.title,
                               style: TextStyle(
                                 fontSize: s(15),
-                                fontWeight: notification.isRead ? FontWeight.w600 : FontWeight.w800,
+                                fontWeight:
+                                    notification.isRead
+                                        ? FontWeight.w600
+                                        : FontWeight.w800,
                                 color: textColor,
                               ),
                             ),
@@ -473,19 +568,54 @@ class _NotificationCard extends StatelessWidget {
                               curve: MizanMotion.gentle,
                               width: s(8),
                               height: s(8),
-                              decoration: BoxDecoration(color: presentation.color, shape: BoxShape.circle),
+                              decoration: BoxDecoration(
+                                color: presentation.color,
+                                shape: BoxShape.circle,
+                              ),
                             ),
                         ],
                       ),
                       SizedBox(height: s(4)),
                       Text(
                         notification.body,
-                        style: TextStyle(fontSize: s(13), color: mutedColor, height: 1.35, fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: s(13),
+                          color: mutedColor,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       SizedBox(height: s(8)),
-                      Text(
-                        _formatDate(notification.createdAt),
-                        style: TextStyle(fontSize: s(11.2), color: mutedColor.withValues(alpha: 0.78), fontWeight: FontWeight.w600),
+                      Row(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: s(8),
+                              vertical: s(4),
+                            ),
+                            decoration: BoxDecoration(
+                              color: tokens.surfaceContainer,
+                              borderRadius: BorderRadius.circular(s(99)),
+                            ),
+                            child: Text(
+                              _typeLabel(notification),
+                              style: TextStyle(
+                                fontSize: s(10.5),
+                                color: tokens.textSecondary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            _formatDate(notification.createdAt),
+                            style: TextStyle(
+                              fontSize: s(11.2),
+                              color: mutedColor,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -500,12 +630,36 @@ class _NotificationCard extends StatelessWidget {
 
   ({IconData icon, Color color}) _presentationFor(NotificationItem item) {
     final text = '${item.title} ${item.body}'.toLowerCase();
-    if (text.contains('prayer') || text.contains('salah')) return (icon: Icons.mosque_outlined, color: kSage);
-    if (text.contains('family') || text.contains('invite')) return (icon: Icons.groups_outlined, color: kBronze);
-    if (text.contains('goal')) return (icon: Icons.flag_outlined, color: kBronzeDark);
-    if (text.contains('reflection')) return (icon: Icons.menu_book_outlined, color: kSlate);
-    if (text.contains('achievement') || text.contains('streak')) return (icon: Icons.auto_awesome_outlined, color: kBronzeDark);
+    if (text.contains('prayer') || text.contains('salah')) {
+      return (icon: Icons.mosque_outlined, color: kSage);
+    }
+    if (text.contains('family') || text.contains('invite')) {
+      return (icon: Icons.groups_outlined, color: kBronze);
+    }
+    if (text.contains('goal')) {
+      return (icon: Icons.flag_outlined, color: kBronzeDark);
+    }
+    if (text.contains('reflection')) {
+      return (icon: Icons.menu_book_outlined, color: kSlate);
+    }
+    if (text.contains('achievement') || text.contains('streak')) {
+      return (icon: Icons.auto_awesome_outlined, color: kBronzeDark);
+    }
     return (icon: Icons.notifications_none_outlined, color: kMuted);
+  }
+
+  String _typeLabel(NotificationItem item) {
+    final raw = item.type.trim();
+    if (raw.isEmpty) return 'Update';
+    return raw
+        .replaceAll('_', ' ')
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) =>
+              '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
+        )
+        .join(' ');
   }
 
   String _formatDate(String raw) {
@@ -517,13 +671,31 @@ class _NotificationCard extends StatelessWidget {
     if (diff.inHours < 1) return '${diff.inMinutes}m ago';
     if (diff.inDays < 1) return '${diff.inHours}h ago';
     if (diff.inDays == 1) return 'Yesterday';
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${parsed.day} ${months[parsed.month - 1]} ${parsed.year}';
   }
 }
 
 class _StateMessage extends StatelessWidget {
-  const _StateMessage({super.key, required this.message, required this.detail, this.onRetry});
+  const _StateMessage({
+    super.key,
+    required this.message,
+    required this.detail,
+    this.onRetry,
+  });
 
   final String message;
   final String detail;
@@ -531,28 +703,66 @@ class _StateMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     return CardEntrance(
       index: 0,
       child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(color: kInk),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              detail,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: kInk.withValues(alpha: 0.65), fontWeight: FontWeight.w600),
-            ),
-            if (onRetry != null) ...[
-              const SizedBox(height: 12),
-              FilledButton(onPressed: onRetry, child: const Text('Retry')),
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: tokens.surfaceElevated,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: tokens.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 66,
+                height: 66,
+                decoration: BoxDecoration(
+                  color: tokens.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  onRetry == null
+                      ? Icons.notifications_none_rounded
+                      : Icons.cloud_off_outlined,
+                  color: tokens.primary,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(color: tokens.textPrimary),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                onRetry == null
+                    ? detail
+                    : 'We could not reach the notification service. Pull to refresh or try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: tokens.textSecondary,
+                  fontWeight: FontWeight.w600,
+                  height: 1.45,
+                ),
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

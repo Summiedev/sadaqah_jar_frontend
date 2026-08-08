@@ -81,7 +81,7 @@ class FamilyJar {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MOCK DATA — REMOVED
+// MOCK DATA - REMOVED
 // ─────────────────────────────────────────────────────────────
 //
 // The hardcoded _jars list was removed because it contained

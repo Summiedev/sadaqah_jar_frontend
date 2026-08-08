@@ -3,6 +3,7 @@ import 'evening_adhkar_data.dart' as evening_adhkar_data;
 import 'after_salah_adhkar_data.dart' as after_salah_adhkar_data;
 import 'sleep_adhkar_data.dart' as sleep_adhkar_data;
 import 'travel_adhkar_data.dart' as travel_adhkar_data;
+import 'others_adhkar_data.dart' as others_adhkar_data;
 
 class JourneySearchResult {
   final String category;
@@ -41,6 +42,7 @@ class JourneySearchIndex {
     _addAdhkarCategory('After Salah', after_salah_adhkar_data.AfterSalahAdhkarData.duas);
     _addAdhkarCategory('Sleep', sleep_adhkar_data.SleepAdhkarData.duas);
     _addAdhkarCategory('Travel', travel_adhkar_data.TravelAdhkarData.duas);
+    _addAdhkarCategory('Others', others_adhkar_data.OtherAdhkarData.duas);
     _addAdhkarCategory('Protection', [
       JourneySearchResult(
         category: 'Protection',

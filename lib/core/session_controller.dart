@@ -67,7 +67,7 @@ class SessionController extends ChangeNotifier {
 
   void markAuthenticated() {
     _status = SessionStatus.authenticated;
-    // A fresh session was just established via login/register — re-arm the
+    // A fresh session was just established via login/register - re-arm the
     // API's one-shot expiry guard so a later expiry can notify again.
     BackendApi.instance.resetSessionExpiredFlag();
     SharedPreferences.getInstance().then((prefs) => prefs.setBool('mizan.local.session', true));

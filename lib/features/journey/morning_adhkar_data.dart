@@ -29,7 +29,7 @@ class MorningDua {
 }
 
 class MorningAdhkarData {
-  static const source = 'Hisnul Muslim (Fortress of the Muslim) — Sa\'id bin Ali Al-Qahtani';
+  static const source = 'Hisnul Muslim (Fortress of the Muslim) - Sa\'id bin Ali Al-Qahtani';
   static const chapter = 'Remembrance said in the morning and evening';
   static const chapterNumber = 27;
   static const duaRange = '75-94';
@@ -222,7 +222,7 @@ class MorningAdhkarData {
     ),
     MorningDua(
       id: 22,
-      notes: 'Virtue narration attached to dua #20\'s dhikr (La ilaha illallah...): whoever recites it in the morning has the reward of freeing a slave, ten sins wiped away, raised ten degrees, and protection from the devil until evening — and vice versa if said in the evening.',
+      notes: 'Virtue narration attached to dua #20\'s dhikr (La ilaha illallah...): whoever recites it in the morning has the reward of freeing a slave, ten sins wiped away, raised ten degrees, and protection from the devil until evening - and vice versa if said in the evening.',
       translation: 'Whoever says (the dhikr of #20) in the morning has indeed gained the reward of freeing a slave from the children of Ismaa\'eel, and ten of his sins are wiped away, and he is raised ten degrees, and he has found a safe retreat from the devil until evening. Similarly, if he says it at evening time, he will be protected until the morning.',
       transliteration: '',
       repetition: 'See dua #20',

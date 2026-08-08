@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -18,6 +18,7 @@ import 'features/family/family_jar_screen.dart';
 import 'features/family/family_goals_screen.dart';
 import 'features/family/family_prayers_screen.dart';
 import 'features/family/family_reflections_screen.dart';
+import 'features/family/family_members_screen.dart';
 import 'features/family/family_screen.dart';
 import 'features/family/family_settings_screen.dart';
 import 'core/route_transitions.dart';
@@ -31,6 +32,7 @@ import 'features/journey/books_list_screen.dart';
 import 'features/qibla/qibla_screen.dart';
 import 'features/mode/mode_selection_screen.dart';
 import 'features/goals/goal_onboarding_screen.dart';
+import 'features/goals/edit_goal_screen.dart';
 import 'features/goals/monthly_review_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/profile/profile_screen.dart';
@@ -38,7 +40,7 @@ import 'features/shell/app_shell.dart';
 import 'features/splash/splash_screen.dart';
 import 'screens/admin/admin_route_gate.dart';
 import 'screens/notification_center_screen.dart';
-import 'screens/settings_screen.dart';
+import 'screens/settings_screen.dart' hide EditGoalScreen;
 import 'screens/charities_list_screen.dart';
 import 'services/lock_screen_widget_service.dart';
 import 'services/next_prayer_widget_service.dart';
@@ -74,14 +76,23 @@ void main() async {
       final data = initial.data;
       if (data.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('pending_notification_payload', data.entries.map((e) => '${e.key}=${e.value}').join('&'));
+        await prefs.setString(
+          'pending_notification_payload',
+          data.entries.map((e) => '${e.key}=${e.value}').join('&'),
+        );
       }
     }
   } catch (_) {}
   await OfflineActionQueue.instance.initialize();
   await LockScreenWidgetService.instance.initialize();
   await NextPrayerWidgetService.instance.start();
-  runApp(const ProviderScope(child: MizanApp()));
+  final initialThemeMode = await loadInitialThemeMode();
+  runApp(
+    ProviderScope(
+      overrides: [initialThemeModeProvider.overrideWithValue(initialThemeMode)],
+      child: const MizanApp(),
+    ),
+  );
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -117,91 +128,249 @@ final routerProvider = Provider<GoRouter>((ref) {
       return path == '/auth' ? null : '/auth';
     },
     routes: <RouteBase>[
-      GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
-      GoRoute(path: '/onboarding', pageBuilder: (context, state) => mizanPage(child: const OnboardingScreen())),
-      GoRoute(path: '/mode', pageBuilder: (context, state) => mizanPage(child: const ModeSelectionScreen())),
-      GoRoute(path: '/goal-onboarding', pageBuilder: (context, state) => mizanPage(child: const GoalOnboardingScreen())),
-      GoRoute(path: '/monthly-review', pageBuilder: (context, state) => mizanPage(child: const MonthlyReviewScreen())),
-      GoRoute(path: '/auth', pageBuilder: (context, state) => mizanPage(child: const AuthScreen())),
-      GoRoute(path: '/forgot-password', pageBuilder: (context, state) => mizanPage(child: ForgotPasswordScreen(onBack: () => context.pop()))),
-      GoRoute(path: '/reset-password', pageBuilder: (context, state) => mizanPage(child: ResetPasswordScreen(onBack: () => context.pop()))),
-      GoRoute(path: '/verification', pageBuilder: (context, state) => mizanPage(child: VerificationScreen(onContinue: () => context.go('/auth'), onLogin: () => context.go('/auth')))),
-      GoRoute(path: '/charities', pageBuilder: (context, state) => mizanPage(child: const CharitiesListScreen())),
-      GoRoute(path: '/notifications', pageBuilder: (context, state) => mizanPage(child: const NotificationCenterScreen())),
-      GoRoute(path: '/journey/adhkar/morning', pageBuilder: (context, state) => mizanPage(child: const _AdhkarStandalonePage(title: 'Morning Adhkar', child: MorningAdhkarList()))),
-      GoRoute(path: '/journey/adhkar/evening', pageBuilder: (context, state) => mizanPage(child: const _AdhkarStandalonePage(title: 'Evening Adhkar', child: EveningAdhkarList()))),
-      GoRoute(path: '/journey/adhkar/after_salah', pageBuilder: (context, state) => mizanPage(child: const _AdhkarStandalonePage(title: 'After Salah', child: AfterSalahAdhkarList()))),
+      GoRoute(
+        path: '/splash',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        pageBuilder:
+            (context, state) => mizanPage(child: const OnboardingScreen()),
+      ),
+      GoRoute(
+        path: '/mode',
+        pageBuilder:
+            (context, state) => mizanPage(child: const ModeSelectionScreen()),
+      ),
+      GoRoute(
+        path: '/goal-onboarding',
+        pageBuilder:
+            (context, state) => mizanPage(child: const GoalOnboardingScreen()),
+      ),
+      GoRoute(
+        path: '/monthly-review',
+        pageBuilder:
+            (context, state) => mizanPage(child: const MonthlyReviewScreen()),
+      ),
+      GoRoute(
+        path: '/goals/edit',
+        pageBuilder:
+            (context, state) => mizanPage(child: const EditGoalScreen()),
+      ),
+      GoRoute(
+        path: '/auth',
+        pageBuilder: (context, state) => mizanPage(child: const AuthScreen()),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: ForgotPasswordScreen(onBack: () => context.pop()),
+            ),
+      ),
+      GoRoute(
+        path: '/reset-password',
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: ResetPasswordScreen(onBack: () => context.pop()),
+            ),
+      ),
+      GoRoute(
+        path: '/verification',
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: VerificationScreen(
+                onContinue: () => context.go('/auth'),
+                onLogin: () => context.go('/auth'),
+              ),
+            ),
+      ),
+      GoRoute(
+        path: '/charities',
+        pageBuilder:
+            (context, state) => mizanPage(child: const CharitiesListScreen()),
+      ),
+      GoRoute(
+        path: '/notifications',
+        pageBuilder:
+            (context, state) =>
+                mizanPage(child: const NotificationCenterScreen()),
+      ),
+      GoRoute(
+        path: '/journey/adhkar/morning',
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: const _AdhkarStandalonePage(
+                title: 'Morning Adhkar',
+                child: MorningAdhkarList(),
+              ),
+            ),
+      ),
+      GoRoute(
+        path: '/journey/adhkar/evening',
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: const _AdhkarStandalonePage(
+                title: 'Evening Adhkar',
+                child: EveningAdhkarList(),
+              ),
+            ),
+      ),
+      GoRoute(
+        path: '/journey/adhkar/after_salah',
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: const _AdhkarStandalonePage(
+                title: 'After Salah',
+                child: AfterSalahAdhkarList(),
+              ),
+            ),
+      ),
       GoRoute(
         path: '/settings',
-        pageBuilder: (context, state) => mizanPage(child: SettingsScreen(
-          onLogout: () async {
-            await ref.read(sessionProvider).signOut();
-            if (context.mounted) context.go('/auth');
-          },
-        )),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: SettingsScreen(
+                onLogout: () async {
+                  await ref.read(sessionProvider).signOut();
+                  if (context.mounted) context.go('/auth');
+                },
+              ),
+            ),
       ),
       ShellRoute(
         builder: (context, state, child) => const AppShell(),
         routes: [
-          GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
-          GoRoute(path: '/qibla', builder: (context, state) => const QiblaScreen()),
-          GoRoute(path: '/journey', builder: (context, state) => const JourneyScreen()),
-      GoRoute(path: '/books', builder: (context, state) => const BooksListScreen()),
-          GoRoute(path: '/family', builder: (context, state) => const FamilyScreen()),
-          GoRoute(path: '/profile', builder: (context, state) => const ProfileScreen()),
+          GoRoute(
+            path: '/home',
+            builder: (context, state) => const HomeScreen(),
+          ),
+          GoRoute(
+            path: '/qibla',
+            builder: (context, state) => const QiblaScreen(),
+          ),
+          GoRoute(
+            path: '/journey',
+            builder: (context, state) {
+              final tab = state.uri.queryParameters['tab'];
+              final initialTab = tab == 'quran' ? 2 : 0;
+              final surah = int.tryParse(
+                state.uri.queryParameters['surah'] ?? '',
+              );
+              return JourneyScreen(
+                initialTab: initialTab,
+                initialQuranSurahId: surah,
+              );
+            },
+          ),
+          GoRoute(
+            path: '/books',
+            builder: (context, state) => const BooksListScreen(),
+          ),
+          GoRoute(
+            path: '/family',
+            builder: (context, state) => const FamilyScreen(),
+          ),
+          GoRoute(
+            path: '/profile',
+            builder: (context, state) => const ProfileScreen(),
+          ),
         ],
       ),
       GoRoute(
         path: '/family/jar/:id',
-        pageBuilder: (context, state) => mizanPage(child: FamilyJarScreen(id: state.pathParameters['id']!)),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: FamilyJarScreen(id: state.pathParameters['id']!),
+            ),
       ),
       GoRoute(
         path: '/family/timeline/:id',
-        pageBuilder: (context, state) => mizanPage(child: ActivityTimelineScreen(id: state.pathParameters['id']!)),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: ActivityTimelineScreen(id: state.pathParameters['id']!),
+            ),
       ),
       GoRoute(
         path: '/family/goals/:id',
-        pageBuilder: (context, state) => mizanPage(child: SharedGoalsScreen(id: state.pathParameters['id']!)),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: SharedGoalsScreen(id: state.pathParameters['id']!),
+            ),
       ),
       GoRoute(
         path: '/family/reflections/:id',
-        pageBuilder: (context, state) => mizanPage(child: FamilyReflectionsScreen(id: state.pathParameters['id']!)),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: FamilyReflectionsScreen(id: state.pathParameters['id']!),
+            ),
       ),
       GoRoute(
         path: '/family/prayers/:id',
-        pageBuilder: (context, state) => mizanPage(child: PrayerRequestsScreen(id: state.pathParameters['id']!)),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: PrayerRequestsScreen(id: state.pathParameters['id']!),
+            ),
       ),
       GoRoute(
         path: '/family/invitations',
-        pageBuilder: (context, state) => mizanPage(child: const InvitationsScreen()),
+        pageBuilder:
+            (context, state) => mizanPage(child: const InvitationsScreen()),
       ),
       GoRoute(
         path: '/family/invitations/:id',
-        pageBuilder: (context, state) => mizanPage(child: InvitationsScreen(id: state.pathParameters['id']!)),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: InvitationsScreen(id: state.pathParameters['id']!),
+            ),
+      ),
+      GoRoute(
+        path: '/family/members/:id',
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: FamilyMembersScreen(id: state.pathParameters['id']!),
+            ),
       ),
       GoRoute(
         path: '/family/settings/:id',
-        pageBuilder: (context, state) => mizanPage(child: FamilySettingsScreen(id: state.pathParameters['id']!)),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: FamilySettingsScreen(id: state.pathParameters['id']!),
+            ),
       ),
       GoRoute(
         path: '/admin',
-        pageBuilder: (context, state) => mizanPage(child: const AdminRouteGate(routeName: '/admin')),
+        pageBuilder:
+            (context, state) =>
+                mizanPage(child: const AdminRouteGate(routeName: '/admin')),
       ),
       GoRoute(
         path: '/admin/charities',
-        pageBuilder: (context, state) => mizanPage(child: const AdminRouteGate(routeName: '/admin/charities')),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: const AdminRouteGate(routeName: '/admin/charities'),
+            ),
       ),
       GoRoute(
         path: '/admin/evidence',
-        pageBuilder: (context, state) => mizanPage(child: const AdminRouteGate(routeName: '/admin/evidence')),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: const AdminRouteGate(routeName: '/admin/evidence'),
+            ),
       ),
       GoRoute(
         path: '/admin/analytics',
-        pageBuilder: (context, state) => mizanPage(child: const AdminRouteGate(routeName: '/admin/analytics')),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: const AdminRouteGate(routeName: '/admin/analytics'),
+            ),
       ),
       GoRoute(
         path: '/admin/books',
-        pageBuilder: (context, state) => mizanPage(child: const AdminRouteGate(routeName: '/admin/books')),
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: const AdminRouteGate(routeName: '/admin/books'),
+            ),
       ),
     ],
   );
@@ -236,7 +405,8 @@ class MizanApp extends ConsumerStatefulWidget {
   ConsumerState<MizanApp> createState() => _MizanAppState();
 }
 
-class _MizanAppState extends ConsumerState<MizanApp> with WidgetsBindingObserver {
+class _MizanAppState extends ConsumerState<MizanApp>
+    with WidgetsBindingObserver {
   Timer? _splashTimer;
 
   @override
@@ -251,14 +421,17 @@ class _MizanAppState extends ConsumerState<MizanApp> with WidgetsBindingObserver
     });
     // Initialize local services: reminders and location
     LocalReminderService.instance.initialize();
-    // Attempt to initialize push notification listener (no-op if Firebase not set up)
-    PushNotificationService.instance;
+    // Initialize push notifications: register token + foreground listeners
+    // if permission is already granted; otherwise prepare for opt-in later.
+    unawaited(PushNotificationService.instance.initialize());
     // Try to warm location permission state
     LocationService.instance.getStoredPosition();
     // Observe lifecycle to consume pending notifications on resume
     WidgetsBinding.instance.addObserver(this);
     // Consume any pending notification after first frame so routing/context are available
-    WidgetsBinding.instance.addPostFrameCallback((_) => _consumePendingNotification());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _consumePendingNotification(),
+    );
     // Listen for foreground messages and show an in-app banner (SnackBar)
     PushNotificationService.instance.onForegroundMessage.listen((message) {
       final notification = message.notification;
@@ -269,12 +442,19 @@ class _MizanAppState extends ConsumerState<MizanApp> with WidgetsBindingObserver
           final messenger = ScaffoldMessenger.of(context);
           messenger.showSnackBar(
             SnackBar(
-              content: Text('${notification.title ?? ''}\n${notification.body ?? ''}'),
-              action: path != null
-                  ? SnackBarAction(label: 'Open', onPressed: () {
-                      if (mounted && path.isNotEmpty) GoRouter.of(context).go(path);
-                    })
-                  : null,
+              content: Text(
+                '${notification.title ?? ''}\n${notification.body ?? ''}',
+              ),
+              action:
+                  path != null
+                      ? SnackBarAction(
+                        label: 'Open',
+                        onPressed: () {
+                          if (mounted && path.isNotEmpty)
+                            GoRouter.of(context).go(path);
+                        },
+                      )
+                      : null,
               duration: const Duration(seconds: 6),
             ),
           );

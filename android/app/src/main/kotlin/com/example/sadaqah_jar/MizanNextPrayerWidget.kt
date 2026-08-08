@@ -17,11 +17,12 @@ class MizanNextPrayerWidget : AppWidgetProvider() {
         internal fun updateAppWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int) {
             val views = RemoteViews(context.packageName, R.layout.mizan_next_prayer_widget)
             val data = HomeWidgetPlugin.getData(context)
-            val prayerName = data.getString("prayer_name", "Asr")
-            val countdown = data.getString("prayer_countdown", "45")
+            val prayerName = data.getString("prayer_name", "Prayer") ?: "Prayer"
+            val prompt = data.getString("prayer_countdown", "Prepare with presence") ?: "Prepare with presence"
+            val inline = data.getString("prayer_inline", "Next: $prayerName") ?: "Next: $prayerName"
             views.setTextViewText(R.id.prayer_name, prayerName)
-            views.setTextViewText(R.id.prayer_countdown, "in $countdown min")
-            views.setTextViewText(R.id.prayer_inline, "$prayerName in $countdown min")
+            views.setTextViewText(R.id.prayer_countdown, prompt)
+            views.setTextViewText(R.id.prayer_inline, inline)
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
     }

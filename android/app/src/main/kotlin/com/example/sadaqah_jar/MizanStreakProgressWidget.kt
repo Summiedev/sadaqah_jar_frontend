@@ -3,6 +3,7 @@ package com.example.sadaqah_jar
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.graphics.Color
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetPlugin
 
@@ -21,6 +22,32 @@ class MizanStreakProgressWidget : AppWidgetProvider() {
             val progressPct = data.getInt("goal_progress_pct", 0)
             val totalStars = data.getInt("total_stars", 0)
             val remaining = data.getInt("remaining_acts", 0)
+            val dayIds = intArrayOf(
+                R.id.day_0,
+                R.id.day_1,
+                R.id.day_2,
+                R.id.day_3,
+                R.id.day_4,
+                R.id.day_5,
+                R.id.day_6,
+            )
+            val dayLabels = arrayOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+            val doneCount = streak.coerceIn(0, dayIds.size)
+
+            views.setTextViewText(R.id.week_summary, "$doneCount/${dayIds.size}")
+            for (i in dayIds.indices) {
+                val done = i < doneCount
+                views.setTextViewText(dayIds[i], dayLabels[i])
+                views.setInt(
+                    dayIds[i],
+                    "setBackgroundResource",
+                    if (done) R.drawable.widget_day_done_bg else R.drawable.widget_day_pending_bg,
+                )
+                views.setTextColor(
+                    dayIds[i],
+                    if (done) Color.parseColor("#FF0A3B34") else Color.parseColor("#CCFFFFFF"),
+                )
+            }
 
             if (streak > 0) {
                 views.setViewVisibility(R.id.streak_value, android.view.View.VISIBLE)
@@ -34,7 +61,7 @@ class MizanStreakProgressWidget : AppWidgetProvider() {
                 views.setViewVisibility(R.id.progress_bar, android.view.View.VISIBLE)
                 views.setViewVisibility(R.id.goal_value, android.view.View.VISIBLE)
                 views.setViewVisibility(R.id.progress_label, android.view.View.VISIBLE)
-                views.setTextViewText(R.id.goal_value, "$totalStars of ${totalStars + remaining}")
+                views.setTextViewText(R.id.goal_value, "$totalStars of ${totalStars + remaining} acts")
                 views.setTextViewText(R.id.streak_label, "Monthly progress")
                 views.setTextViewText(R.id.progress_label, "$progressPct%")
                 views.setProgressBar(R.id.progress_bar, 100, progressPct, false)

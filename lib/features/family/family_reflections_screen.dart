@@ -436,7 +436,7 @@ class _EmptyReflections extends StatelessWidget {
           const SizedBox(height: 18),
           const Text('No reflections yet', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
           const SizedBox(height: 8),
-          const Text('Share your first reflection with your family. No replies — only quiet encouragement.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+          const Text('Share your first reflection with your family. No replies - only quiet encouragement.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
         ],
       ),
     );

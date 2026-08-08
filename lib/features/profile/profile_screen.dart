@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
 import '../../services/backend_api.dart';
 import '../../services/push_notification_service.dart';
@@ -22,7 +23,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<UserProfile>? _profileFuture;
   String? _profileError;
 
-  Color get _appBarColor => _scrolled ? kPaper : kClayLight;
+  Color _appBarColor(BuildContext context) =>
+      _scrolled ? context.colors.surfaceElevated : context.colors.background;
   double get _appBarElevation => _scrolled ? 2 : 0;
 
   @override
@@ -35,7 +37,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     setState(() {
       _profileError = null;
       _profileFuture = BackendApi.instance.getUserProfile().catchError((e) {
-        _profileError = e.toString();
+        _profileError = 'Could not load profile';
         throw e;
       });
     });
@@ -44,9 +46,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final selectedMode = ref.watch(modeProvider);
+    final tokens = context.colors;
 
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: tokens.background,
       body: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           final offset = notification.metrics.pixels;
@@ -65,18 +68,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               floating: false,
               toolbarHeight: 64,
               elevation: _appBarElevation,
-              backgroundColor: _appBarColor,
-              foregroundColor: kInk,
+              backgroundColor: _appBarColor(context),
+              foregroundColor: tokens.textPrimary,
               surfaceTintColor: Colors.transparent,
-              title: const Text(
+              title: Text(
                 'Profile',
-                style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontFamily: 'Georgia',
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               actions: [
                 IconButton(
                   onPressed: () => context.push('/notifications'),
                   tooltip: 'Notifications',
-                  icon: Icon(Icons.notifications_none_outlined, color: kInk),
+                  icon: Icon(
+                    Icons.notifications_none_outlined,
+                    color: tokens.iconPrimary,
+                  ),
                 ),
               ],
             ),
@@ -90,7 +100,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       future: _profileFuture,
                       builder: (context, snapshot) {
                         final profile = snapshot.data;
-                        final loading = snapshot.connectionState == ConnectionState.waiting;
+                        final loading =
+                            snapshot.connectionState == ConnectionState.waiting;
                         return AnimatedSwitcher(
                           key: const ValueKey('profile-content'),
                           duration: MizanMotion.normal,
@@ -100,50 +111,74 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             key: ValueKey(profile),
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              if (!loading && profile != null && !profile.emailVerified) ...[
+                              if (!loading &&
+                                  profile != null &&
+                                  !profile.emailVerified) ...[
                                 Container(
                                   margin: const EdgeInsets.only(bottom: 14),
                                   padding: const EdgeInsets.all(14),
                                   decoration: BoxDecoration(
-                                    color: kSuccessBg,
+                                    color: tokens.successContainer,
                                     borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: kSuccessBorder),
+                                    border: Border.all(
+                                      color: tokens.success.withValues(
+                                        alpha: 0.4,
+                                      ),
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.email_outlined, color: kDanger, size: 20),
+                                      Icon(
+                                        Icons.email_outlined,
+                                        color: tokens.error,
+                                        size: 20,
+                                      ),
                                       const SizedBox(width: 10),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
-                                            const Text(
+                                            Text(
                                               'Verify your email',
                                               style: TextStyle(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w700,
-                                                color: kDanger,
+                                                color: tokens.error,
                                               ),
                                             ),
                                             const SizedBox(height: 2),
                                             Text(
                                               'Please verify your email to access all features.',
-                                              style: TextStyle(fontSize: 12, color: kMuted, height: 1.4),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                color: tokens.textSecondary,
+                                                height: 1.4,
+                                              ),
                                             ),
                                           ],
                                         ),
                                       ),
                                       TextButton(
                                         onPressed: () async {
-                                          final messenger = ScaffoldMessenger.of(context);
+                                          final messenger =
+                                              ScaffoldMessenger.of(context);
                                           try {
-                                            await BackendApi.instance.resendVerificationEmail();
+                                            await BackendApi.instance
+                                                .resendVerificationEmail();
                                             if (mounted) {
                                               messenger.showSnackBar(
                                                 SnackBar(
-                                                  behavior: SnackBarBehavior.floating,
-                                                  margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-                                                  content: const Text('Verification email sent!'),
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  margin: const EdgeInsets.only(
+                                                    bottom: 80,
+                                                    left: 16,
+                                                    right: 16,
+                                                  ),
+                                                  content: const Text(
+                                                    'Verification email sent!',
+                                                  ),
                                                 ),
                                               );
                                             }
@@ -151,17 +186,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                             if (mounted) {
                                               messenger.showSnackBar(
                                                 SnackBar(
-                                                  behavior: SnackBarBehavior.floating,
-                                                  margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-                                                  content: const Text('Could not resend email. Please try again.'),
+                                                  behavior:
+                                                      SnackBarBehavior.floating,
+                                                  margin: const EdgeInsets.only(
+                                                    bottom: 80,
+                                                    left: 16,
+                                                    right: 16,
+                                                  ),
+                                                  content: const Text(
+                                                    'Could not resend email. Please try again.',
+                                                  ),
                                                 ),
                                               );
                                             }
                                           }
                                         },
-                                        child: const Text(
+                                        child: Text(
                                           'Resend',
-                                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: kDanger),
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w700,
+                                            color: tokens.error,
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -169,7 +215,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 ),
                               ],
                               const SizedBox(height: 15),
-                              CardEntrance(index: 0, child: _AccountCard(profile: profile, error: _profileError, onRetry: _loadProfile)),
+                              CardEntrance(
+                                index: 0,
+                                child: _AccountCard(
+                                  profile: profile,
+                                  error: _profileError,
+                                  onRetry: _loadProfile,
+                                ),
+                              ),
                               const SizedBox(height: 18),
                               CardEntrance(
                                 index: 1,
@@ -179,14 +232,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     _ModeRow(
                                       icon: Icons.spa_outlined,
                                       title: 'Personal sanctuary',
-                                      body: 'For private reflection and remembrance.',
+                                      body:
+                                          'For private reflection and remembrance.',
                                       mode: kModePersonal,
                                       isSelected: selectedMode == kModePersonal,
                                     ),
                                     _ModeRow(
                                       icon: Icons.groups_outlined,
                                       title: 'Family home',
-                                      body: 'For gentle growth with the people you love.',
+                                      body:
+                                          'For gentle growth with the people you love.',
                                       mode: kModeFamily,
                                       isSelected: selectedMode == kModeFamily,
                                     ),
@@ -209,24 +264,38 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   child: Container(
                                     padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: kPaper,
+                                      color: tokens.surfaceElevated,
                                       borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(color: kLine),
+                                      border: Border.all(
+                                        color: tokens.borderSubtle,
+                                      ),
                                     ),
                                     child: SwitchListTile.adaptive(
                                       contentPadding: EdgeInsets.zero,
                                       title: Text(
                                         'Friday reminder',
-                                        style: TextStyle(color: kInk, fontSize: 15, fontWeight: FontWeight.w700),
+                                        style: TextStyle(
+                                          color: tokens.textPrimary,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                                       subtitle: Text(
                                         loading
                                             ? 'Loading your preference...'
                                             : 'Get a gentle Friday reminder when it is enabled.',
-                                        style: TextStyle(color: kMuted, fontSize: 12.5, height: 1.4),
+                                        style: TextStyle(
+                                          color: tokens.textSecondary,
+                                          fontSize: 12.5,
+                                          height: 1.4,
+                                        ),
                                       ),
                                       value: profile?.fridayReminder ?? false,
-                                      onChanged: (value) => _toggleFridayReminder(profile, value),
+                                      onChanged:
+                                          (value) => _toggleFridayReminder(
+                                            profile,
+                                            value,
+                                          ),
                                       activeThumbColor: kBronze,
                                     ),
                                   ),
@@ -247,7 +316,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           icon: Icons.tune_outlined,
                           title: 'Settings',
                           subtitle: 'Reminders and account details',
-                          onTap: () => context.push('/settings'),
+                          onTap: () async {
+                            await context.push('/settings');
+                            _loadProfile();
+                          },
                         ),
                       ),
                     ),
@@ -259,16 +331,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       child: _Group(
                         title: 'About Mizan',
                         subtitle: 'Product information',
-                        children: const [
-                          _InfoRow(),
-                        ],
+                        children: const [_InfoRow()],
                       ),
                     ),
                     const SizedBox(height: 20),
                     const Center(
                       child: Text(
                         'MIZAN • PRIVATE JOURNAL',
-                        style: TextStyle(fontSize: 10, letterSpacing: 1.6, fontWeight: FontWeight.w700, color: kStonePale),
+                        style: TextStyle(
+                          fontSize: 10,
+                          letterSpacing: 1.6,
+                          fontWeight: FontWeight.w700,
+                          color: kStonePale,
+                        ),
                       ),
                     ),
                   ],
@@ -284,8 +359,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _toggleFridayReminder(UserProfile? profile, bool value) async {
     if (profile == null) return;
     try {
-      if (value && !await PushNotificationService.instance.enableForReminders()) {
-        throw StateError('Notification permission is required to enable reminders.');
+      if (value &&
+          !await PushNotificationService.instance.enableForReminders()) {
+        throw StateError(
+          'Notification permission is required to enable reminders.',
+        );
       }
       await BackendApi.instance.updatePreferences(fridayReminder: value);
       if (!mounted) return;
@@ -313,89 +391,135 @@ class _AccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     final p = profile;
     if (p == null && error != null && onRetry != null) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: kPaper,
+          color: tokens.surfaceElevated,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kLine),
+          border: Border.all(color: tokens.borderSubtle),
         ),
-        child: Row(children: [
-          const Icon(Icons.wifi_off_rounded, size: 28, color: kBronze),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Could not load profile', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: kInk)),
-                const SizedBox(height: 3),
-                Text('Tap retry to try again.', style: TextStyle(fontSize: 13, color: kMuted)),
-              ],
+        child: Row(
+          children: [
+            Icon(Icons.wifi_off_rounded, size: 28, color: tokens.primary),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Could not load profile',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: tokens.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Tap retry to try again.',
+                    style: TextStyle(fontSize: 13, color: tokens.textSecondary),
+                  ),
+                ],
+              ),
             ),
-          ),
-          TextButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh_rounded, size: 16, color: kBronze),
-            label: const Text('Retry', style: TextStyle(color: kBronze, fontWeight: FontWeight.w700)),
-          ),
-        ]),
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: Icon(
+                Icons.refresh_rounded,
+                size: 16,
+                color: tokens.primary,
+              ),
+              label: Text(
+                'Retry',
+                style: TextStyle(
+                  color: tokens.primary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
     if (p == null) {
       return Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: kPaper,
+          color: tokens.surfaceElevated,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: kLine),
+          border: Border.all(color: tokens.borderSubtle),
         ),
-        child: const Row(children: [
-          CircleAvatar(
-            radius: 26,
-            backgroundColor: kClayLight,
-            child: SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: kBronze),
+        child: Row(
+          children: [
+            CircleAvatar(
+              radius: 26,
+              backgroundColor: tokens.surfaceContainerHigh,
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: tokens.primary,
+                ),
+              ),
             ),
-          ),
-          SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Loading...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: kInk)),
-                SizedBox(height: 3),
-                Text('Loading...', style: TextStyle(fontSize: 13, color: kMuted)),
-              ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Loading...',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: tokens.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Loading...',
+                    style: TextStyle(fontSize: 13, color: tokens.textSecondary),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ]),
+          ],
+        ),
       );
     }
     final initial = p.username.isNotEmpty ? p.username[0].toUpperCase() : '?';
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kPaper,
+        color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kLine),
+        border: Border.all(color: tokens.borderSubtle),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 26,
-            backgroundColor: kClayLight,
+            backgroundColor: tokens.surfaceContainerHigh,
             backgroundImage:
-                p.avatarData != null && p.avatarData!.isNotEmpty ? MemoryImage(base64Decode(p.avatarData!)) : null,
-            child: p.avatarData == null || p.avatarData!.isEmpty
-                ? Text(
-                    initial,
-                    style: const TextStyle(color: kBronzeDark, fontWeight: FontWeight.w800, fontSize: 22, fontFamily: 'Georgia'),
-                  )
-                : null,
+                p.avatarData != null && p.avatarData!.isNotEmpty
+                    ? MemoryImage(base64Decode(p.avatarData!))
+                    : null,
+            child:
+                p.avatarData == null || p.avatarData!.isEmpty
+                    ? Text(
+                      initial,
+                      style: TextStyle(
+                        color: tokens.primary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                        fontFamily: 'Georgia',
+                      ),
+                    )
+                    : null,
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -404,19 +528,19 @@ class _AccountCard extends StatelessWidget {
               children: [
                 Text(
                   p.username,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: kInk,
+                    color: tokens.textPrimary,
                     height: 1.2,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   p.email,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: kMuted,
+                    color: tokens.textSecondary,
                     height: 1.35,
                   ),
                 ),
@@ -426,15 +550,15 @@ class _AccountCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: kSageSoft,
+              color: tokens.successContainer,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               p.emailVerified ? 'Verified' : 'Unverified',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: kSage,
+                color: tokens.success,
                 height: 1.3,
               ),
             ),
@@ -446,12 +570,7 @@ class _AccountCard extends StatelessWidget {
 }
 
 class _Group extends StatelessWidget {
-  const _Group({
-    required this.title,
-    this.subtitle,
-    this.child,
-    this.children,
-  });
+  const _Group({required this.title, this.subtitle, this.child, this.children});
 
   final String title;
   final String? subtitle;
@@ -460,6 +579,7 @@ class _Group extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tokens = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -467,19 +587,19 @@ class _Group extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             title.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               letterSpacing: 1.2,
               fontWeight: FontWeight.w700,
-              color: kBronze,
+              color: tokens.primary,
             ),
           ),
         ),
         Container(
           decoration: BoxDecoration(
-            color: kPaper,
+            color: tokens.surfaceElevated,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: kLine),
+            border: Border.all(color: tokens.borderSubtle),
           ),
           child: child ?? Column(children: children ?? const <Widget>[]),
         ),
@@ -505,13 +625,17 @@ class _ModeRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final tokens = context.colors;
     return InkWell(
       onTap: () => ref.read(modeProvider.notifier).setMode(mode),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           border: Border(
-            bottom: mode != kModeBoth ? const BorderSide(color: kLine) : BorderSide.none,
+            bottom:
+                mode != kModeBoth
+                    ? BorderSide(color: tokens.divider)
+                    : BorderSide.none,
           ),
         ),
         child: Row(
@@ -520,13 +644,16 @@ class _ModeRow extends ConsumerWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: isSelected ? kSoftBronze : kSurface,
+                color:
+                    isSelected
+                        ? tokens.primaryContainer
+                        : tokens.surfaceContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
                 icon,
                 size: 20,
-                color: isSelected ? kBronze : kMutedLight,
+                color: isSelected ? tokens.primary : tokens.iconSecondary,
               ),
             ),
             const SizedBox(width: 12),
@@ -538,8 +665,9 @@ class _ModeRow extends ConsumerWidget {
                     title,
                     style: TextStyle(
                       fontSize: 14,
-                      fontWeight: isSelected ? FontWeight.w800 : FontWeight.w700,
-                      color: kInk,
+                      fontWeight:
+                          isSelected ? FontWeight.w800 : FontWeight.w700,
+                      color: tokens.textPrimary,
                       height: 1.25,
                     ),
                   ),
@@ -548,14 +676,15 @@ class _ModeRow extends ConsumerWidget {
                     body,
                     style: TextStyle(
                       fontSize: 12,
-                      color: kMuted,
+                      color: tokens.textSecondary,
                       height: 1.35,
                     ),
                   ),
                 ],
               ),
             ),
-            if (isSelected) const Icon(Icons.check_circle_rounded, color: kBronze, size: 20),
+            if (isSelected)
+              Icon(Icons.check_circle_rounded, color: tokens.primary, size: 20),
           ],
         ),
       ),
@@ -568,11 +697,16 @@ class _InfoRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    final tokens = context.colors;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       child: Text(
-        'Mizan is designed to hold space for your intentions, reflections, and quiet acts of goodness — without comparison or a public feed.',
-        style: TextStyle(fontSize: 13, height: 1.55, color: kMuted),
+        'Mizan is designed to hold space for your intentions, reflections, and quiet acts of goodness - without comparison or a public feed.',
+        style: TextStyle(
+          fontSize: 13,
+          height: 1.55,
+          color: tokens.textSecondary,
+        ),
       ),
     );
   }
@@ -614,9 +748,10 @@ class _SettingsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = kBronze;
+    final tokens = context.colors;
+    final accent = tokens.primary;
     return Material(
-      color: kPaper,
+      color: tokens.surfaceElevated,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
@@ -640,8 +775,8 @@ class _SettingsCard extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: kInk,
+                      style: TextStyle(
+                        color: tokens.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                       ),
@@ -649,8 +784,8 @@ class _SettingsCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: const TextStyle(
-                        color: kMuted,
+                      style: TextStyle(
+                        color: tokens.textSecondary,
                         fontSize: 12.5,
                         height: 1.35,
                       ),
@@ -658,7 +793,11 @@ class _SettingsCard extends StatelessWidget {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: kMutedLight, size: 18),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: tokens.iconSecondary,
+                size: 18,
+              ),
             ],
           ),
         ),

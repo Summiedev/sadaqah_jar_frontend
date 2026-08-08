@@ -24,7 +24,7 @@ class SleepDua {
 }
 
 class SleepAdhkarData {
-  static const source = 'Hisnul Muslim (Fortress of the Muslim) — Sa\'id bin Ali Al-Qahtani';
+  static const source = 'Hisnul Muslim (Fortress of the Muslim) - Sa\'id bin Ali Al-Qahtani';
   static const chapter = 'Supplication before sleeping';
   static const chapterNumber = 28;
   static const duaRange = '95-110';
@@ -33,7 +33,7 @@ class SleepAdhkarData {
     SleepDua(
       id: 0,
       arabicOnly: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ لَا تَأْخُذُهُ سِنَةٌ وَلَا نَوْمٌ لَّهُ مَا فِي السَّمَاوَاتِ وَمَا فِي الْأَرْضِ مَن ذَا الَّذِي يَشْفَعُ عِندَهُ إِلَّا بِإِذْنِهِ يَعْلَمُ مَا بَيْنَ أَيْدِيهِمْ وَمَا خَلْفَهُمْ وَلَا يُحِيطُونَ بِشَيْءٍ مِّنْ عِلْمِهِ إِلَّا بِمَا شَاءَ وَسِعَ كُرْسِيُّهُ السَّمَاوَاتِ وَالْأَرْضَ وَلَا يَؤُودُهُ حِفْظُهُمَا وَهُوَ الْعَلِيُّ الْعَظِيمُ',
-      transliteration: 'Ayat al-Kursi — Allaahu laa ilaaha illaa Huwal-Hayyul-Qayyoom, laa ta\'khudhuhu sinatun wa laa nawm. Lahul-mulku wa lahul-hamdu wa Huwa \'alaa kulli shay\'in Qadeer.',
+      transliteration: 'Ayat al-Kursi - Allaahu laa ilaaha illaa Huwal-Hayyul-Qayyoom, laa ta\'khudhuhu sinatun wa laa nawm. Lahul-mulku wa lahul-hamdu wa Huwa \'alaa kulli shay\'in Qadeer.',
       translation: 'Allaah - there is no deity except Him, the Ever-Living, the Sustainer of existence. Neither drowsiness overtakes Him nor sleep. To Him belongs whatever is in the heavens and whatever is on the earth. Who is it that can intercede with Him except by His permission? He knows what is before them and what will be after them, and they encompass not a thing of His knowledge except for what He wills. His Kursi extends over the heavens and the earth, and their preservation does not burden Him. And He is the Most High, the Most Great.',
       commonName: 'Ayat al-Kursi (The Throne Verse)',
       notes: 'Whoever recites this upon lying down, an angel is appointed as a guard over him and Satan cannot approach him until morning',
@@ -89,7 +89,7 @@ class SleepAdhkarData {
       transliteration: 'Qul huwa Allaahu ahad. Allaahus-samad. Lam yalid wa lam yoolad. Wa lam yakun lahu kufuwan ahad.',
       translation: 'Say, "He is Allah, the One. Allah, the Eternal Refuge. He neither begets nor is born. Nor is there to Him any equivalent."',
       commonName: 'Surah Al-Ikhlas (The Sincerity)',
-      notes: 'Recited with the other two Quls, blown into cupped hands, then wiped over the body — repeated three times',
+      notes: 'Recited with the other two Quls, blown into cupped hands, then wiped over the body - repeated three times',
       repetition: 'Three times (with Al-Falaq and An-Nas)',
       source: 'Quran 112 (al-Bukhari)',
     ),
@@ -99,7 +99,7 @@ class SleepAdhkarData {
       transliteration: 'Qul a\'oodhu birabbil-falaq. Min sharri maa khalaq. Wa min sharri ghasiqin idha waqab. Wa min sharrin-naffaathaati fil-\'uqad. Wa min sharri hasidin idha hasad.',
       translation: 'Say, "I seek refuge in the Lord of daybreak. From the evil of that which He created. And from the evil of darkness when it settles. And from the evil of the blowers in knots. And from the evil of an envier when he envies."',
       commonName: 'Surah Al-Falaq (The Daybreak)',
-      notes: 'Recited with the other two Quls, blown into cupped hands, then wiped over the body — repeated three times',
+      notes: 'Recited with the other two Quls, blown into cupped hands, then wiped over the body - repeated three times',
       repetition: 'Three times (with Al-Ikhlas and An-Nas)',
       source: 'Quran 113 (al-Bukhari)',
     ),
@@ -109,7 +109,7 @@ class SleepAdhkarData {
       transliteration: 'Qul a\'oodhu birabbin-naas. Malikin-naas. Ilaahin-naas. Min sharril-waswaasil-khannaas. Alladhee yuwaswisu fee sudoorin-naas. Minal-jinnati wan-naas.',
       translation: 'Say, "I seek refuge in the Lord of mankind. The Sovereign of mankind. The God of mankind. From the evil of the retreating whisperer. Who whispers in the breasts of mankind. From among the jinn and mankind."',
       commonName: 'Surah An-Nas (The Mankind)',
-      notes: 'Recited with the other two Quls, blown into cupped hands, then wiped over the body — repeated three times',
+      notes: 'Recited with the other two Quls, blown into cupped hands, then wiped over the body - repeated three times',
       repetition: 'Three times (with Al-Ikhlas and Al-Falaq)',
       source: 'Quran 114 (al-Bukhari)',
     ),

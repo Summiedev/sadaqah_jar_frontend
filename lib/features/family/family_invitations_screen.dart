@@ -4,7 +4,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/backend_api.dart';
-import 'family_models.dart';
 import 'family_theme.dart';
 
 class InvitationsScreen extends StatefulWidget {
@@ -19,18 +18,50 @@ class InvitationsScreen extends StatefulWidget {
 class _InvitationsScreenState extends State<InvitationsScreen> with SingleTickerProviderStateMixin {
   late final TabController _tab;
   final List<String> _pending = [];
-  FamilyJar? _selectedJar;
+  List<Map<String, dynamic>> _families = const [];
+  Map<String, dynamic>? _selectedJar;
 
   String? _createdRoomName;
   String? _createdInviteCode;
   bool _creatingRoom = false;
+  bool _loadingRooms = true;
+  String? _roomsError;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
-    final jar = widget.id != null ? getFamilyById(widget.id!) : null;
-    if (jar != null) _selectedJar = jar;
+    _loadRooms();
+  }
+
+  Future<void> _loadRooms() async {
+    setState(() {
+      _loadingRooms = true;
+      _roomsError = null;
+    });
+    try {
+      final families = await BackendApi.instance.getFamilies();
+      if (!mounted) return;
+      setState(() {
+        _families = families;
+        _selectedJar = _findSelectedRoom(families);
+        _loadingRooms = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _roomsError = e.toString();
+        _loadingRooms = false;
+      });
+    }
+  }
+
+  Map<String, dynamic>? _findSelectedRoom(List<Map<String, dynamic>> families) {
+    if (widget.id == null) return null;
+    for (final family in families) {
+      if (family['id']?.toString() == widget.id) return family;
+    }
+    return null;
   }
 
   @override
@@ -72,10 +103,14 @@ class _InvitationsScreenState extends State<InvitationsScreen> with SingleTicker
                 controller: _tab,
                 children: [
                   _InvitePanel(
+                    families: _families,
                     selectedJar: _selectedJar,
                     createdRoomName: _createdRoomName,
                     createdInviteCode: _createdInviteCode,
                     creatingRoom: _creatingRoom,
+                    loadingRooms: _loadingRooms,
+                    roomsError: _roomsError,
+                    onReloadRooms: _loadRooms,
                     onSelectJar: (jar) => setState(() => _selectedJar = jar),
                     onCreateRoom: _createRoom,
                   ),
@@ -144,52 +179,62 @@ class _InvitationsScreenState extends State<InvitationsScreen> with SingleTicker
       final inviteCode = response['invite_code'] as String? ?? '';
       setState(() {
         _createdRoomName = name;
-        _createdInviteCode = inviteCode.isEmpty ? _fallbackInviteCode(name) : inviteCode;
+        _createdInviteCode = inviteCode;
         _selectedJar = null;
         _creatingRoom = false;
       });
+      _loadRooms();
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _createdRoomName = name;
-        _createdInviteCode = _fallbackInviteCode(name);
-        _selectedJar = null;
         _creatingRoom = false;
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not create room: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
-  }
-
-  String _fallbackInviteCode(String name) {
-    final slug = name.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]+'), '-').replaceAll(RegExp(r'^-|-$'), '');
-    final suffix = DateTime.now().millisecondsSinceEpoch.remainder(1000).toString().padLeft(3, '0');
-    return 'MIZAN-${slug.isEmpty ? 'ROOM' : slug}-$suffix';
   }
 }
 
 class _InvitePanel extends StatelessWidget {
   const _InvitePanel({
+    required this.families,
     required this.selectedJar,
     required this.createdRoomName,
     required this.createdInviteCode,
     required this.creatingRoom,
+    required this.loadingRooms,
+    required this.roomsError,
+    required this.onReloadRooms,
     required this.onSelectJar,
     required this.onCreateRoom,
   });
 
-  final FamilyJar? selectedJar;
+  final List<Map<String, dynamic>> families;
+  final Map<String, dynamic>? selectedJar;
   final String? createdRoomName;
   final String? createdInviteCode;
   final bool creatingRoom;
-  final ValueChanged<FamilyJar> onSelectJar;
+  final bool loadingRooms;
+  final String? roomsError;
+  final VoidCallback onReloadRooms;
+  final ValueChanged<Map<String, dynamic>> onSelectJar;
   final VoidCallback onCreateRoom;
 
   @override
   Widget build(BuildContext context) {
-    final roomName = createdRoomName ?? selectedJar?.name;
-    final code = createdInviteCode ?? selectedJar?.inviteCode;
+    final roomName = createdRoomName ?? selectedJar?['name']?.toString();
+    final code = createdInviteCode ?? selectedJar?['invite_code']?.toString();
     if (code == null || roomName == null) {
       return _InviteSetupPanel(
+        families: families,
         creatingRoom: creatingRoom,
+        loadingRooms: loadingRooms,
+        roomsError: roomsError,
+        onReloadRooms: onReloadRooms,
         onSelectJar: onSelectJar,
         onCreateRoom: onCreateRoom,
       );
@@ -213,7 +258,7 @@ class _InvitePanel extends StatelessWidget {
                  decoration: BoxDecoration(color: fWhite, borderRadius: BorderRadius.circular(20), border: Border.all(color: fClay)),
                  padding: const EdgeInsets.all(14),
                  child: QrImageView(
-                   data: code,
+                   data: link,
                    version: QrVersions.auto,
                    size: 152,
                    backgroundColor: fWhite,
@@ -259,18 +304,56 @@ Future<void> _launch(BuildContext context, Uri uri) async {
 }
 
 class _InviteSetupPanel extends StatelessWidget {
-  const _InviteSetupPanel({required this.creatingRoom, required this.onSelectJar, required this.onCreateRoom});
+  const _InviteSetupPanel({
+    required this.families,
+    required this.creatingRoom,
+    required this.loadingRooms,
+    required this.roomsError,
+    required this.onReloadRooms,
+    required this.onSelectJar,
+    required this.onCreateRoom,
+  });
 
+  final List<Map<String, dynamic>> families;
   final bool creatingRoom;
-  final ValueChanged<FamilyJar> onSelectJar;
+  final bool loadingRooms;
+  final String? roomsError;
+  final VoidCallback onReloadRooms;
+  final ValueChanged<Map<String, dynamic>> onSelectJar;
   final VoidCallback onCreateRoom;
 
   @override
   Widget build(BuildContext context) {
-    final jars = allFamilies();
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
       children: [
+        if (loadingRooms)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 18),
+            child: Center(child: CircularProgressIndicator(color: fBronze)),
+          )
+        else if (roomsError != null)
+          SoftCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Could not load rooms', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: fWalnut)),
+                const SizedBox(height: 6),
+                Text(roomsError!, maxLines: 3, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12, color: fStone)),
+                const SizedBox(height: 12),
+                MizanOutlineButton(label: 'Try again', onTap: onReloadRooms),
+              ],
+            ),
+          )
+        else if (families.isNotEmpty) ...[
+          const SectionLabel('Your rooms'),
+          const SizedBox(height: 10),
+          for (final jar in families) ...[
+            _RoomOption(jar: jar, onTap: () => onSelectJar(jar)),
+            const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 18),
+        ],
         SoftCard(
           padding: const EdgeInsets.all(18),
           child: Column(
@@ -283,9 +366,9 @@ class _InviteSetupPanel extends StatelessWidget {
                 child: const Icon(Icons.meeting_room_outlined, color: fBronze),
               ),
               const SizedBox(height: 14),
-              const Text('Create or choose a room first', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+              const Text('Create a new room', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
               const SizedBox(height: 8),
-              const Text('Invite links and QR codes belong to one room, so pick the room before sharing.', style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+              const Text('Start a new family jar and share its invite code and QR.', style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
               const SizedBox(height: 16),
               MizanButton(
                 label: creatingRoom ? 'Creating...' : 'Create room',
@@ -294,15 +377,6 @@ class _InviteSetupPanel extends StatelessWidget {
             ],
           ),
         ),
-        if (jars.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          const SectionLabel('Or choose an existing room'),
-          const SizedBox(height: 10),
-          for (final jar in jars) ...[
-            _RoomOption(jar: jar, onTap: () => onSelectJar(jar)),
-            const SizedBox(height: 10),
-          ],
-        ],
       ],
     );
   }
@@ -345,14 +419,16 @@ class _RoomSummary extends StatelessWidget {
 class _RoomOption extends StatelessWidget {
   const _RoomOption({required this.jar, required this.onTap});
 
-  final FamilyJar jar;
+  final Map<String, dynamic> jar;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final name = jar['name']?.toString() ?? 'Family jar';
+    final memberCount = (jar['member_count'] as num?)?.toInt() ?? 0;
     return Semantics(
       button: true,
-      label: 'Join ${jar.name}, ${jar.memberCount} members',
+      label: 'Use $name, $memberCount members',
       child: Material(
         color: fPaper,
         borderRadius: BorderRadius.circular(16),
@@ -368,16 +444,16 @@ class _RoomOption extends StatelessWidget {
                   width: 42,
                   height: 42,
                   decoration: BoxDecoration(color: fClayPale, borderRadius: BorderRadius.circular(14)),
-                  child: Icon(jar.coverIcon, color: fBronze, size: 20),
+                  child: const Icon(Icons.favorite_border_rounded, color: fBronze, size: 20),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(jar.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
+                      Text(name, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, color: fWalnut)),
                       const SizedBox(height: 2),
-                      Text('${jar.memberCount} members', style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                      Text('$memberCount members', style: const TextStyle(fontSize: 11, color: fStoneLight)),
                     ],
                   ),
                 ),
@@ -475,7 +551,7 @@ class _PendingPanel extends StatelessWidget {
       itemCount: pending.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final parts = pending[index].split(' — ');
+        final parts = pending[index].split(' - ');
         final name = parts.first;
         final by = parts.length > 1 ? parts.last : '';
         return SoftCard(

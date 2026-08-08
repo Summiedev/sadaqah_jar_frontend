@@ -57,13 +57,13 @@ class FadeScaleTransition extends StatelessWidget {
 /// Implementation note: the delay must EXTEND the timeline, not eat into a
 /// fixed-length animation. A previous version computed
 /// `adjusted = (value - delayFactor).clamp(0, 1)` inside a single fixed
-/// `MizanMotion.slow` duration — since `value` only ever reaches 1.0 at the
+/// `MizanMotion.slow` duration - since `value` only ever reaches 1.0 at the
 /// end of that same fixed window, higher-index cards could never actually
 /// reach full opacity (their ceiling was `1 - delayFactor`, which shrinks
 /// further for every subsequent index). This version runs the
 /// TweenAnimationBuilder over `delay + animation` and only starts easing in
-/// opacity once the delay portion has elapsed, so every card — regardless
-/// of index — reaches opacity 1.0, just later.
+/// opacity once the delay portion has elapsed, so every card - regardless
+/// of index - reaches opacity 1.0, just later.
 class CardEntrance extends StatelessWidget {
   const CardEntrance({
     super.key,
@@ -87,7 +87,7 @@ class CardEntrance extends StatelessWidget {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
       // Timeline covers delay + animation, so later cards simply start
-      // later — they still reach full opacity, just after a pause.
+      // later - they still reach full opacity, just after a pause.
       duration: Duration(milliseconds: totalMs),
       curve: Curves.linear,
       builder: (context, timelineValue, child) {

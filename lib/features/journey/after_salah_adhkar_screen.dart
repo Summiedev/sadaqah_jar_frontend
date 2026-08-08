@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'after_salah_adhkar_data.dart';
 
@@ -7,7 +8,8 @@ class AfterSalahAdhkarList extends ConsumerStatefulWidget {
   const AfterSalahAdhkarList({super.key});
 
   @override
-  ConsumerState<AfterSalahAdhkarList> createState() => _AfterSalahAdhkarListState();
+  ConsumerState<AfterSalahAdhkarList> createState() =>
+      _AfterSalahAdhkarListState();
 }
 
 class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
@@ -21,22 +23,30 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-          child: Row(
-            children: [
-              _ToggleChip(
-                label: 'Translation',
-                icon: Icons.translate_rounded,
-                active: _showTranslation,
-                onTap: () => setState(() => _showTranslation = !_showTranslation),
-              ),
-              const SizedBox(width: 10),
-              _ToggleChip(
-                label: 'Transliteration',
-                icon: Icons.menu_book_rounded,
-                active: _showTransliteration,
-                onTap: () => setState(() => _showTransliteration = !_showTransliteration),
-              ),
-            ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _ToggleChip(
+                  label: 'Translation',
+                  icon: Icons.translate_rounded,
+                  active: _showTranslation,
+                  onTap:
+                      () =>
+                          setState(() => _showTranslation = !_showTranslation),
+                ),
+                const SizedBox(width: 10),
+                _ToggleChip(
+                  label: 'Transliteration',
+                  icon: Icons.menu_book_rounded,
+                  active: _showTransliteration,
+                  onTap:
+                      () => setState(
+                        () => _showTransliteration = !_showTransliteration,
+                      ),
+                ),
+              ],
+            ),
           ),
         ),
         Expanded(
@@ -49,21 +59,30 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
               final dua = AfterSalahAdhkarData.duas[index];
               final count = _counts[dua.id] ?? 0;
               final hasArabic = dua.arabic.isNotEmpty;
-              final hasTranslation = _showTranslation && dua.translation.isNotEmpty;
-              final hasTransliteration = _showTransliteration && dua.transliteration.isNotEmpty;
+              final hasTranslation =
+                  _showTranslation && dua.translation.isNotEmpty;
+              final hasTransliteration =
+                  _showTransliteration && dua.transliteration.isNotEmpty;
+              final tokens = context.colors;
 
               return Material(
-                color: Theme.of(context).colorScheme.surface,
+                color: tokens.surfaceElevated,
                 borderRadius: BorderRadius.circular(22),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (dua.commonName != null && dua.commonName!.isNotEmpty) ...[
+                      if (dua.commonName != null &&
+                          dua.commonName!.isNotEmpty) ...[
                         Text(
                           dua.commonName!,
-                          style: const TextStyle(color: kBronze, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.4),
+                          style: const TextStyle(
+                            color: kBronze,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.4,
+                          ),
                         ),
                         const SizedBox(height: 8),
                       ],
@@ -72,55 +91,135 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
                           dua.arabic,
                           textDirection: TextDirection.rtl,
                           textAlign: TextAlign.right,
-                          style: const TextStyle(color: kInk, fontSize: 24, height: 1.7),
+                          style: TextStyle(
+                            color: tokens.textPrimary,
+                            fontSize: 24,
+                            height: 1.7,
+                          ),
                         ),
                       if (hasTransliteration) ...[
                         const SizedBox(height: 10),
-                        Text(dua.transliteration, style: const TextStyle(color: kBronzeLight, fontFamily: 'Georgia', fontStyle: FontStyle.italic, fontSize: 15, height: 1.5)),
+                        Text(
+                          dua.transliteration,
+                          style: const TextStyle(
+                            color: kBronzeLight,
+                            fontFamily: 'Georgia',
+                            fontStyle: FontStyle.italic,
+                            fontSize: 15,
+                            height: 1.5,
+                          ),
+                        ),
                       ],
                       if (hasTranslation) ...[
                         const SizedBox(height: 6),
-                        Text(dua.translation, style: const TextStyle(color: kMuted, height: 1.55, fontSize: 14.5)),
+                        Text(
+                          dua.translation,
+                          style: TextStyle(
+                            color: tokens.textSecondary,
+                            height: 1.55,
+                            fontSize: 14.5,
+                          ),
+                        ),
                       ],
                       if (dua.notes != null && dua.notes!.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(Icons.info_outline_rounded, size: 15, color: kBronze),
+                            const Icon(
+                              Icons.info_outline_rounded,
+                              size: 15,
+                              color: kBronze,
+                            ),
                             const SizedBox(width: 6),
-                            Expanded(child: Text(dua.notes!, style: const TextStyle(color: kBronze, fontSize: 12.5, height: 1.45))),
+                            Expanded(
+                              child: Text(
+                                dua.notes!,
+                                style: const TextStyle(
+                                  color: kBronze,
+                                  fontSize: 12.5,
+                                  height: 1.45,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ],
                       const SizedBox(height: 10),
                       Text(
                         dua.source,
-                        style: const TextStyle(color: kMutedLight, fontSize: 11, fontStyle: FontStyle.italic, height: 1.4),
+                        style: TextStyle(
+                          color: tokens.textMuted,
+                          fontSize: 11,
+                          fontStyle: FontStyle.italic,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(color: kIvory, borderRadius: BorderRadius.circular(99)),
-                              child: Text(dua.repetition, style: const TextStyle(color: kBronze, fontSize: 11.5, fontWeight: FontWeight.w700)),
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth:
+                                  (MediaQuery.sizeOf(context).width - 120)
+                                      .clamp(120.0, 420.0)
+                                      .toDouble(),
+                            ),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: tokens.primaryContainer,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                dua.repetition,
+                                softWrap: true,
+                                style: const TextStyle(
+                                  color: kBronze,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
                           ),
-                          const Spacer(),
                           if (count > 0)
-                            _Counter(value: count, onTap: () => setState(() => _counts[dua.id] = count + 1))
+                            _Counter(
+                              value: count,
+                              onTap:
+                                  () => setState(
+                                    () => _counts[dua.id] = count + 1,
+                                  ),
+                            )
                           else
                             IconButton(
-                              onPressed: () => setState(() => _counts[dua.id] = 1),
-                              icon: const Icon(Icons.add_circle_outline_rounded, color: kBronze),
+                              onPressed:
+                                  () => setState(() => _counts[dua.id] = 1),
+                              icon: const Icon(
+                                Icons.add_circle_outline_rounded,
+                                color: kBronze,
+                              ),
                               tooltip: 'Start counting',
                             ),
-                          const SizedBox(width: 6),
                           IconButton(
                             onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio playback is coming soon.')));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Audio playback is coming soon.',
+                                  ),
+                                ),
+                              );
                             },
-                            icon: const Icon(Icons.volume_up_outlined, color: kBronze),
+                            icon: const Icon(
+                              Icons.volume_up_outlined,
+                              color: kBronze,
+                            ),
                             tooltip: 'Play audio',
                           ),
                         ],
@@ -138,7 +237,12 @@ class _AfterSalahAdhkarListState extends ConsumerState<AfterSalahAdhkarList> {
 }
 
 class _ToggleChip extends StatelessWidget {
-  const _ToggleChip({required this.label, required this.icon, required this.active, required this.onTap});
+  const _ToggleChip({
+    required this.label,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
   final String label;
   final IconData icon;
   final bool active;
@@ -149,7 +253,7 @@ class _ToggleChip extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(99),
-        child: AnimatedContainer(
+      child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
@@ -159,12 +263,17 @@ class _ToggleChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: active ? Theme.of(context).colorScheme.onPrimary : kBronze),
+            Icon(
+              icon,
+              size: 16,
+              color: active ? Theme.of(context).colorScheme.onPrimary : kBronze,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: active ? Theme.of(context).colorScheme.onPrimary : kBronze,
+                color:
+                    active ? Theme.of(context).colorScheme.onPrimary : kBronze,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -186,7 +295,7 @@ class _Counter extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(99),
-        child: AnimatedContainer(
+      child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(

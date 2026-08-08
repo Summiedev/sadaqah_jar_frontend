@@ -1,188 +1,276 @@
+import 'dart:typed_data';
+
+import 'package:epub_view/epub_view.dart' hide Image;
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:http/http.dart' as http;
+import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../services/backend_api.dart';
 
 class BookReaderScreen extends StatefulWidget {
-  const BookReaderScreen({super.key, required this.book});
+  const BookReaderScreen({super.key, required this.book, this.adminPreview = false});
 
   final BookRead book;
+  final bool adminPreview;
 
   @override
   State<BookReaderScreen> createState() => _BookReaderScreenState();
 }
 
 class _BookReaderScreenState extends State<BookReaderScreen> {
-  late Future<List<BookChapterRead>> _future;
-  int _selectedIndex = 0;
-  BookChapterRead? _currentChapter;
-  bool _bookmarked = false;
+  late Future<BookDetail> _future;
+  EpubController? _epubController;
+  int _page = 0;
 
   @override
   void initState() {
     super.initState();
-    _future = BackendApi.instance.getBookChapters(widget.book.id);
-    _checkBookmark();
+    _future = widget.adminPreview ? BackendApi.instance.getAdminBook(widget.book.id) : BackendApi.instance.getBook(widget.book.id);
   }
 
-  Future<void> _checkBookmark() async {
-    try {
-      final bookmarks = await BackendApi.instance.getBookmarks();
-      final isBookmarked = bookmarks.any((b) => b['book_id'] == widget.book.id);
-      if (mounted) {
-        setState(() => _bookmarked = isBookmarked);
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _toggleBookmark() async {
-    try {
-      if (_bookmarked) {
-        await BackendApi.instance.unbookmarkBook(bookId: widget.book.id);
-        if (mounted) setState(() => _bookmarked = false);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bookmark removed'), behavior: SnackBarBehavior.floating));
-        }
-      } else {
-        final chapterNumber = _currentChapter?.chapterNumber;
-        await BackendApi.instance.bookmarkBook(bookId: widget.book.id, chapterNumber: chapterNumber);
-        if (mounted) setState(() => _bookmarked = true);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bookmark saved'), behavior: SnackBarBehavior.floating));
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not save bookmark: $e'), backgroundColor: kDanger));
-      }
-    }
+  @override
+  void dispose() {
+    _epubController?.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kIvory,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: kIvory,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
-        leading: IconButton(
-          onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: kInk),
-        ),
-        title: Text(widget.book.title, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
-        actions: [
-          IconButton(
-            onPressed: _toggleBookmark,
-            icon: Icon(
-              _bookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
-              color: kBronze,
-            ),
-            tooltip: 'Bookmark',
-          ),
-          const SizedBox(width: 8),
-        ],
+        title: Text(widget.book.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
       ),
-      body: SafeArea(
-        child: FutureBuilder<List<BookChapterRead>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator(color: kBronze));
-            }
-            if (snapshot.hasError) {
-              return Center(child: Text('Could not load chapters: ${snapshot.error}', style: const TextStyle(color: kMuted)));
-            }
-            final chapters = snapshot.data ?? [];
-            if (chapters.isEmpty) {
-              if (widget.book.fileUrl != null && widget.book.fileUrl!.isNotEmpty) {
-                return Center(child: Padding(
-                  padding: const EdgeInsets.all(28),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.picture_as_pdf_outlined, color: kBronze, size: 52),
-                    const SizedBox(height: 14),
-                    const Text('This book is available as a reading file.', style: TextStyle(color: kInk, fontSize: 16, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(onPressed: () => launchUrl(Uri.parse('${BackendApi.instance.baseUrl}${widget.book.fileUrl}'), mode: LaunchMode.externalApplication), icon: const Icon(Icons.open_in_new), label: const Text('Open book')),
-                  ]),
-                ));
-              }
-              return const Center(child: Text('No reading content is available yet.', style: TextStyle(color: kMuted)));
-            }
-            if (_currentChapter == null || _selectedIndex >= chapters.length) {
-              _currentChapter = chapters[0];
-              _selectedIndex = 0;
-            }
-            final chapter = _currentChapter!;
-            final isLast = _selectedIndex >= chapters.length - 1;
-            final isFirst = _selectedIndex <= 0;
-            return Column(
-              children: [
-                Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(chapter.title, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 26, height: 1.3, fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 8),
-                        Text('Chapter ${chapter.chapterNumber}', style: const TextStyle(color: kMuted, fontSize: 12.5, fontStyle: FontStyle.italic)),
-                        const SizedBox(height: 24),
-                        const Divider(color: kLine),
-                        const SizedBox(height: 20),
-                        Text(chapter.content ?? '', style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 19, height: 1.9)),
-                      ],
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                  decoration: BoxDecoration(color: kSurface, border: Border(top: BorderSide(color: kLine))),
-                  child: Row(
-                    children: [
-                      if (!isFirst)
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => _goTo(chapters, _selectedIndex - 1),
-                            icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                            label: const Text('Previous'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: kInk,
-                              side: BorderSide(color: kLine),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                      if (!isFirst && !isLast) const SizedBox(width: 12),
-                      if (!isLast)
-                        Expanded(
-                          child: FilledButton.icon(
-                            onPressed: () => _goTo(chapters, _selectedIndex + 1),
-                            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                            label: Text(isLast ? 'Finish' : 'Next'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: kBronze,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+      body: FutureBuilder<BookDetail>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: kBronze));
+          }
+          if (snapshot.hasError) {
+            return _ReaderState(icon: Icons.menu_book_outlined, title: 'This book is not available', body: 'It may have been unpublished or removed.');
+          }
+          final book = snapshot.data!;
+          final format = (book.fileFormat ?? widget.book.fileFormat ?? '').toLowerCase();
+          if (format == 'pdf' && (book.fileUrl ?? '').isNotEmpty) {
+            return _PdfBook(url: BackendApi.instance.absoluteApiUrl(book.fileUrl!), title: book.title);
+          }
+          if (format == 'epub' && (book.fileUrl ?? '').isNotEmpty) {
+            return _EpubBook(url: BackendApi.instance.absoluteApiUrl(book.fileUrl!), controllerBuilder: _setEpubController);
+          }
+          if (format == 'images' || book.pages.isNotEmpty) {
+            return _ImageBook(
+              pages: book.pages,
+              index: _page,
+              onChanged: (value) => setState(() => _page = value),
             );
-          },
-        ),
+          }
+          if (book.chapters.isNotEmpty) {
+            return _ChapterBook(chapters: book.chapters);
+          }
+          return const _ReaderState(icon: Icons.hourglass_empty_rounded, title: 'Reading content is not ready yet', body: 'Please check back after this book has finished processing.');
+        },
       ),
     );
   }
 
-  void _goTo(List<BookChapterRead> chapters, int index) {
-    if (index < 0 || index >= chapters.length) return;
-    setState(() {
-      _selectedIndex = index;
-      _currentChapter = chapters[index];
-    });
+  EpubController _setEpubController(Uint8List bytes) {
+    _epubController?.dispose();
+    _epubController = EpubController(document: EpubDocument.openData(bytes));
+    return _epubController!;
+  }
+}
+
+class _PdfBook extends StatelessWidget {
+  const _PdfBook({required this.url, required this.title});
+
+  final String url;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return SfPdfViewer.network(
+      url,
+      canShowScrollHead: true,
+      canShowScrollStatus: true,
+      onDocumentLoadFailed: (_) => ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open this PDF. Please try again.')),
+      ),
+    );
+  }
+}
+
+class _EpubBook extends StatefulWidget {
+  const _EpubBook({required this.url, required this.controllerBuilder});
+
+  final String url;
+  final EpubController Function(Uint8List bytes) controllerBuilder;
+
+  @override
+  State<_EpubBook> createState() => _EpubBookState();
+}
+
+class _EpubBookState extends State<_EpubBook> {
+  late Future<EpubController> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<EpubController> _load() async {
+    final response = await http.get(Uri.parse(widget.url));
+    if (response.statusCode >= 400 || response.bodyBytes.isEmpty) {
+      throw BackendApiException('Could not download EPUB', response.statusCode);
+    }
+    return widget.controllerBuilder(response.bodyBytes);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<EpubController>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: kBronze));
+        }
+        if (snapshot.hasError) {
+          return const _ReaderState(icon: Icons.error_outline_rounded, title: 'Could not open EPUB', body: 'Try again in a moment.');
+        }
+        return EpubView(controller: snapshot.data!);
+      },
+    );
+  }
+}
+
+class _ImageBook extends StatelessWidget {
+  const _ImageBook({required this.pages, required this.index, required this.onChanged});
+
+  final List<BookPageRead> pages;
+  final int index;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (pages.isEmpty) {
+      return const _ReaderState(icon: Icons.image_not_supported_outlined, title: 'No pages uploaded', body: 'This image-based book has no readable pages yet.');
+    }
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, border: Border(bottom: BorderSide(color: kLine))),
+          child: Text('Page ${index + 1} of ${pages.length}', textAlign: TextAlign.center, style: const TextStyle(color: kMuted, fontWeight: FontWeight.w700)),
+        ),
+        Expanded(
+          child: PageView.builder(
+            itemCount: pages.length,
+            onPageChanged: onChanged,
+            itemBuilder: (context, pageIndex) {
+              final page = pages[pageIndex];
+              return InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                child: Center(
+                  child: Image.network(
+                    page.imageUrl,
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, __, ___) => const _ReaderState(icon: Icons.broken_image_outlined, title: 'Page image unavailable', body: 'This page could not be loaded.'),
+                    loadingBuilder: (context, child, event) => event == null ? child : const Center(child: CircularProgressIndicator(color: kBronze)),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ChapterBook extends StatefulWidget {
+  const _ChapterBook({required this.chapters});
+
+  final List<BookChapterRead> chapters;
+
+  @override
+  State<_ChapterBook> createState() => _ChapterBookState();
+}
+
+class _ChapterBookState extends State<_ChapterBook> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final chapter = widget.chapters[_selectedIndex];
+    final isFirst = _selectedIndex == 0;
+    final isLast = _selectedIndex == widget.chapters.length - 1;
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(28, 18, 28, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(chapter.title, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 26, height: 1.3, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 8),
+                Text('Chapter ${chapter.chapterNumber}', style: const TextStyle(color: kMuted, fontSize: 12.5, fontStyle: FontStyle.italic)),
+                const SizedBox(height: 24),
+                const Divider(color: kLine),
+                const SizedBox(height: 20),
+                Text(chapter.content ?? '', style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 19, height: 1.9)),
+              ],
+            ),
+          ),
+        ),
+        SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, border: Border(top: BorderSide(color: kLine))),
+            child: Row(
+              children: [
+                Expanded(child: OutlinedButton.icon(onPressed: isFirst ? null : () => setState(() => _selectedIndex--), icon: const Icon(Icons.arrow_back_rounded, size: 18), label: const Text('Previous'))),
+                const SizedBox(width: 12),
+                Expanded(child: FilledButton.icon(onPressed: isLast ? null : () => setState(() => _selectedIndex++), icon: const Icon(Icons.arrow_forward_rounded, size: 18), label: const Text('Next'), style: FilledButton.styleFrom(backgroundColor: kBronze))),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ReaderState extends StatelessWidget {
+  const _ReaderState({required this.icon, required this.title, required this.body});
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: kBronze, size: 48),
+            const SizedBox(height: 14),
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
+            Text(body, textAlign: TextAlign.center, style: const TextStyle(color: kMuted, height: 1.45)),
+          ],
+        ),
+      ),
+    );
   }
 }

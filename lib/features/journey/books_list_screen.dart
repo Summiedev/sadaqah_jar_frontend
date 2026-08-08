@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -67,6 +66,14 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
               final book = books[index];
+              final format = (book.fileFormat ?? '').toUpperCase();
+              final meta = book.pageCount > 0
+                  ? '${book.pageCount} pages'
+                  : (book.chapterCount ?? 0) > 0
+                      ? '${book.chapterCount} chapters'
+                      : format.isNotEmpty
+                          ? format
+                          : 'Preparing';
               return Material(
                 color: kPaper,
                 borderRadius: BorderRadius.circular(20),
@@ -112,10 +119,10 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(color: kSoftSage, borderRadius: BorderRadius.circular(8)),
-                                    child: Text('${book.chapterCount ?? 0} chapters', style: const TextStyle(color: kSage, fontSize: 11, fontWeight: FontWeight.w700)),
+                                    child: Text(meta, style: const TextStyle(color: kSage, fontSize: 11, fontWeight: FontWeight.w700)),
                                   ),
                                   const SizedBox(width: 8),
-                                  Text('${book.totalReadingTime ?? 0} min', style: const TextStyle(color: kMuted, fontSize: 11.5)),
+                                  if ((book.totalReadingTime ?? 0) > 0) Text('${book.totalReadingTime ?? 0} min', style: const TextStyle(color: kMuted, fontSize: 11.5)),
                                 ],
                               ),
                             ],

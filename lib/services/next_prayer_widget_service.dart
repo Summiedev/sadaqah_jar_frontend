@@ -29,12 +29,21 @@ class NextPrayerWidgetService {
   Future<void> update() async {
     final now = DateTime.now();
     final prayer = await PrayerCountdownService.instance.nextPrayer(now);
-    final minutes = await PrayerCountdownService.instance.minutesUntilNextPrayer(now);
+    final minutes = await PrayerCountdownService.instance
+        .minutesUntilNextPrayer(now);
+    final name = prayer?.name ?? 'Prayer';
+    final prompt =
+        minutes <= 5 ? 'Time to pause and pray' : 'Prepare with presence';
+    final inline = minutes <= 0 ? 'Salah now' : 'Next: $name';
 
     try {
-      await HomeWidget.saveWidgetData<String>('prayer_name', prayer?.name ?? '');
-      await HomeWidget.saveWidgetData<String>('prayer_countdown', '$minutes');
-      await HomeWidget.saveWidgetData<String>('updated_at', now.toIso8601String());
+      await HomeWidget.saveWidgetData<String>('prayer_name', name);
+      await HomeWidget.saveWidgetData<String>('prayer_countdown', prompt);
+      await HomeWidget.saveWidgetData<String>('prayer_inline', inline);
+      await HomeWidget.saveWidgetData<String>(
+        'updated_at',
+        now.toIso8601String(),
+      );
 
       await HomeWidget.updateWidget(
         name: _widgetName,

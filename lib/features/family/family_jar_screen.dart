@@ -26,6 +26,7 @@ class _FamilyJarScreenState extends State<FamilyJarScreen> with WidgetsBindingOb
   bool _notFound = false;
 
   int _optimisticActsDone = 0;
+  int? _lastKnownServerActsDone;
 
   Timer? _refreshTimer;
   VoidCallback? _wsListener;
@@ -97,9 +98,14 @@ class _FamilyJarScreenState extends State<FamilyJarScreen> with WidgetsBindingOb
       }
       final detail = await BackendApi.instance.getFamilyDetail(familyId);
       if (!mounted) return;
+      final goals = (detail['goals'] as List?) ?? const [];
+      final serverActsDone = goals.isNotEmpty ? (goals.first['acts_done'] as num?)?.toInt() ?? 0 : 0;
+      if (_lastKnownServerActsDone != null && serverActsDone > _lastKnownServerActsDone! && _optimisticActsDone > 0) {
+        _optimisticActsDone = (_optimisticActsDone - (serverActsDone - _lastKnownServerActsDone!)).clamp(0, 1 << 30);
+      }
+      _lastKnownServerActsDone = serverActsDone;
       setState(() {
         _family = detail;
-        _optimisticActsDone = 0;
         _loading = false;
         _refreshing = false;
         _notFound = false;
@@ -133,7 +139,6 @@ class _FamilyJarScreenState extends State<FamilyJarScreen> with WidgetsBindingOb
     final parsedFamilyId = int.tryParse(familyIdStr);
     if (parsedFamilyId == null) return;
 
-    /// Show the contribution options (share with family or keep private).
     final choice = await showModalBottomSheet<String?>(
       context: context,
       backgroundColor: fIvory,
@@ -155,19 +160,15 @@ class _FamilyJarScreenState extends State<FamilyJarScreen> with WidgetsBindingOb
     );
     if (choice == null || !mounted) return;
 
-    // Optimistic-update + reconciliation pattern: immediately increment
-    // the local acts_done count in state before the network call resolves.
     final previousDone = _optimisticActsDone;
     setState(() => _optimisticActsDone = previousDone + 1);
 
     final success = await AddActScreen.show(context, familyId: parsedFamilyId);
     if (!mounted) return;
     if (success) {
-      _loadFamily();
       return;
     }
 
-    // Rollback: restore the previous count on failure.
     setState(() => _optimisticActsDone = previousDone);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -212,7 +213,7 @@ class _FamilyJarScreenState extends State<FamilyJarScreen> with WidgetsBindingOb
         body: Column(children: [
           if (_refreshing)
             const LinearProgressIndicator(minHeight: 2, color: fBronze, backgroundColor: Colors.transparent),
-          Expanded(child: _JarBody(family: _family!, onAddAct: _onAddAct)),
+          Expanded(child: _JarBody(family: _family!, onAddAct: _onAddAct, optimisticActsDone: _optimisticActsDone)),
         ]),
       ),
     );
@@ -220,9 +221,10 @@ class _FamilyJarScreenState extends State<FamilyJarScreen> with WidgetsBindingOb
 }
 
 class _JarBody extends StatelessWidget {
-  const _JarBody({required this.family, required this.onAddAct});
+  const _JarBody({required this.family, required this.onAddAct, required this.optimisticActsDone});
   final Map<String, dynamic> family;
   final VoidCallback onAddAct;
+  final int optimisticActsDone;
 
   @override
   Widget build(BuildContext context) {
@@ -248,7 +250,7 @@ class _JarBody extends StatelessWidget {
           ),
         ),
         Expanded(child: TabBarView(children: [
-          _JarHome(family: family, goals: goals, members: members, onAddAct: onAddAct, optimisticActsDone: 0),
+          _JarHome(family: family, goals: goals, members: members, onAddAct: onAddAct, optimisticActsDone: optimisticActsDone),
           _Activity(family: family),
           _Together(family: family, members: members),
         ])),
@@ -324,36 +326,64 @@ class _GoalHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = goals.isEmpty ? 0.0 : (goals.first['progress'] as num?)?.toDouble() ?? 0.0;
-    final percentage = (progress * 100).round();
     final actsTarget = goals.isEmpty ? 0 : (goals.first['acts_target'] as num?)?.toInt() ?? 0;
     final serverActsDone = goals.isEmpty ? 0 : (goals.first['acts_done'] as num?)?.toInt() ?? 0;
     final actsDone = serverActsDone + optimisticActsDone;
+    final progress = actsTarget == 0 ? 0.0 : (actsDone / actsTarget).clamp(0.0, 1.0);
+    final percentage = (progress * 100).round();
     final remaining = (actsTarget - actsDone).clamp(0, actsTarget);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
-      decoration: BoxDecoration(color: fWalnut, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: fShadowWarm, blurRadius: 22, offset: Offset(0, 10))]),
-      child: Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 340;
+        final compactCopyWidth = constraints.maxWidth > 44 ? constraints.maxWidth - 44 : constraints.maxWidth;
+        final jar = ExcludeSemantics(
+          child: SizedBox(
+            width: compact ? 96 : 120,
+            height: compact ? 118 : 160,
+            child: Center(child: FamilyJarView(fill: progress, size: compact ? 86 : 110, glow: .7)),
+          ),
+        );
+        final copy = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('OUR INTENTION', style: TextStyle(color: kBronzeLight, fontSize: 11, letterSpacing: 1.2, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
-          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('$percentage%', style: TextStyle(fontFamily: 'Georgia', color: fWhite, fontSize: 36, height: 1.0, fontWeight: FontWeight.w800)),
-            const SizedBox(width: 12),
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('$actsDone of $actsTarget acts', style: TextStyle(color: kClayLight, fontSize: 13, fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              Text('$remaining left to reach this month\'s goal', style: TextStyle(color: kClayLight.withValues(alpha: 0.95), fontSize: 12)),
-            ]),
-          ]),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.end,
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Text('$percentage%', style: TextStyle(fontFamily: 'Georgia', color: fWhite, fontSize: compact ? 32 : 36, height: 1.0, fontWeight: FontWeight.w800)),
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: compact ? compactCopyWidth : 180),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
+                  Text('$actsDone of $actsTarget acts', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: kClayLight, fontSize: 13, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Text('$remaining left to reach this month\'s goal', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: kClayLight.withValues(alpha: 0.95), fontSize: 12)),
+                ]),
+              ),
+            ],
+          ),
           const SizedBox(height: 14),
           ProgressTrack(value: progress, height: 10, color: kBronze),
           const SizedBox(height: 10),
-          Row(children: [Icon(Icons.group_outlined, size: 14, color: kClayLight), const SizedBox(width: 6), Text('Growing together', style: TextStyle(color: kClayLight, fontSize: 12))]),
-        ])),
-        const SizedBox(width: 4),
-        ExcludeSemantics(child: SizedBox(width: 120, height: 160, child: FamilyJarView(fill: progress, size: 110, glow: .7))),
-      ]),
+          Row(children: [Icon(Icons.group_outlined, size: 14, color: kClayLight), const SizedBox(width: 6), Flexible(child: Text('Growing together', overflow: TextOverflow.ellipsis, style: TextStyle(color: kClayLight, fontSize: 12)))]),
+        ]);
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(22, 22, 18, 20),
+          decoration: BoxDecoration(color: fWalnut, borderRadius: BorderRadius.circular(28), boxShadow: const [BoxShadow(color: fShadowWarm, blurRadius: 22, offset: Offset(0, 10))]),
+          child: compact
+              ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  copy,
+                  const SizedBox(height: 10),
+                  Align(alignment: Alignment.centerRight, child: jar),
+                ])
+              : Row(children: [
+                  Expanded(child: copy),
+                  const SizedBox(width: 4),
+                  jar,
+                ]),
+        );
+      },
     );
   }
 }
@@ -363,7 +393,7 @@ class _PendingSyncIndicator extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Intentionally invisible — acts count locally the instant they're added,
+    // Intentionally invisible - acts count locally the instant they're added,
     // and the durable queue syncs to the server silently in the background.
     // There's no user-facing "pending sync" state.
     return const SizedBox.shrink();
