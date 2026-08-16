@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -6,37 +7,60 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'backend_api.dart';
+import 'device_timezone.dart';
 import 'location_service.dart';
 import 'local_reminder_service.dart';
 
-/// Background handler for Firebase messages. This runs in the background
-/// isolate and persists the payload so the app can route to it when opened.
-/// Keep this minimal: avoid UI-only plugins here.
+const _kPendingPayloadKey = 'pending_notification_payload';
+
+/// Persists an FCM data map as structured JSON. Never loses `=`, `&`, URLs,
+/// or Unicode. Malformed/legacy payloads are ignored safely.
+Future<void> persistFcmPayload(Map<String, dynamic> data) async {
+  if (data.isEmpty) return;
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kPendingPayloadKey, jsonEncode(data));
+  } catch (_) {
+    // Corrupt/malformed local storage must never crash the handler.
+  }
+}
+
+/// Background handler for Firebase messages. Runs in the background isolate.
+///
+/// [H2] Display policy:
+/// * Message with a system `notification` payload  -> FCM/OS already displays
+///   it. We only persist the routing payload; we MUST NOT show a duplicate
+///   local notification.
+/// * Data-only push  -> we intentionally display a local notification because
+///   the OS will not show anything otherwise.
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
-    final data = message.data;
-    final payload =
-        data.isNotEmpty
-            ? data.entries.map((e) => '${e.key}=${e.value}').join('&')
-            : '';
-    if (payload.isNotEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('pending_notification_payload', payload);
-    }
+    final data = Map<String, dynamic>.from(message.data);
+    await persistFcmPayload(data);
+
     final notification = message.notification;
-    final title = notification?.title ?? data['title']?.toString();
-    final body = notification?.body ?? data['body']?.toString();
-    if (title != null && title.isNotEmpty && body != null && body.isNotEmpty) {
-      await LocalReminderService.instance.showNow(
-        id:
-            message.messageId?.hashCode ??
-            DateTime.now().millisecondsSinceEpoch,
-        title: title,
-        body: body,
-        payload: payload.isEmpty ? null : payload,
-      );
+    if (notification != null) {
+      // System notification: let FCM/OS display it. Never duplicate.
+      return;
     }
-  } catch (_) {}
+
+    final title = data['title']?.toString();
+    final body = data['body']?.toString();
+    if (title == null || title.isEmpty || body == null || body.isEmpty) {
+      // payload-only push: routing is persisted; nothing to display.
+      return;
+    }
+
+    // Data-only push requiring local display.
+    await LocalReminderService.instance.showNow(
+      id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
+      title: title,
+      body: body,
+      payload: jsonEncode(data),
+    );
+  } catch (_) {
+    // Background handler must never throw into the framework.
+  }
 }
 
 /// Opt-in push setup. Call only from an explicit reminder-enable action.
@@ -46,7 +70,10 @@ class PushNotificationService {
   static final instance = PushNotificationService._();
   static const _deviceIdKey = 'push_device_id';
   bool _configured = false;
+  bool _tokenRegistrationInFlight = false;
   StreamSubscription<String>? _tokenRefreshSubscription;
+  StreamSubscription<RemoteMessage>? _foregroundSubscription;
+  StreamSubscription<RemoteMessage>? _openedAppSubscription;
   final StreamController<RemoteMessage> _foregroundController =
       StreamController<RemoteMessage>.broadcast();
 
@@ -69,17 +96,34 @@ class PushNotificationService {
       return false;
     }
     await _configureForegroundNotifications();
-    await _registerCurrentToken();
+    // A device can keep an FCM token that Google has already invalidated.
+    // Refresh it during explicit opt-in so scheduled reminders can recover
+    // without requiring a reinstall.
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_deviceIdKey);
+    } catch (_) {}
+    final registered = await _registerCurrentToken();
+    if (!registered) return false;
+    await BackendApi.instance.updateNotificationPreferences(allEnabled: true);
     _listenForTokenRefresh();
     return true;
   }
 
   /// Initialize push notifications on app startup.
-  ///
-  /// If permission is already granted, registers the current token and sets
-  /// up foreground listeners immediately. If not, sets up a minimal state
-  /// ready for when the user opts in later via Settings/Profile.
   Future<void> initialize() async {
+    if (kIsWeb) return;
+    try {
+      await syncAfterAuthentication();
+    } catch (e) {
+      // Firebase may not be initialized in some environments.
+    }
+  }
+
+  /// Retry token registration after login. Startup can run before the
+  /// authenticated session exists, so the first registration may receive 401.
+  Future<void> syncAfterAuthentication() async {
     if (kIsWeb) return;
     try {
       final settings =
@@ -90,18 +134,29 @@ class PushNotificationService {
         await _registerCurrentToken();
         _listenForTokenRefresh();
       }
-    } catch (e) {
-      // Firebase may not be initialized in some environments.
+    } catch (_) {
+      // Permission or Firebase failures must not block authentication.
     }
+  }
+
+  /// [Phase 7] Must be called on logout/account switch. Cancels the token
+  /// refresh subscription so the previous user's device token is never
+  /// re-registered, and clears the device ID so the next account starts fresh.
+  Future<void> resetForLogout() async {
+    await _tokenRefreshSubscription?.cancel();
+    _tokenRefreshSubscription = null;
+    await _foregroundSubscription?.cancel();
+    await _openedAppSubscription?.cancel();
+    _foregroundSubscription = null;
+    _openedAppSubscription = null;
+    _configured = false;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_deviceIdKey);
   }
 
   Future<void> _configureForegroundNotifications() async {
     if (_configured) return;
     try {
-      // Ask the OS to present system notifications while app is foregrounded
-      // where supported (iOS). On Android the OS won't auto-display
-      // notification payloads when the app is foregrounded, so we expose an
-      // in-app stream for UI banners.
       await FirebaseMessaging.instance
           .setForegroundNotificationPresentationOptions(
             alert: true,
@@ -109,26 +164,41 @@ class PushNotificationService {
             sound: true,
           );
 
-      // Foreground messages: broadcast to UI for an in-app banner/toast.
-      FirebaseMessaging.onMessage.listen((message) async {
-        await _showForegroundNotification(message);
+      _foregroundSubscription = FirebaseMessaging.onMessage.listen((
+        message,
+      ) async {
+        final data = Map<String, dynamic>.from(message.data);
+        await persistFcmPayload(data);
+        // Android does not present FCM notification payloads while the app is
+        // in the foreground. Mirror the message through the local channel so
+        // foreground delivery is visible too. iOS uses its foreground
+        // presentation options and must not receive a duplicate local alert.
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          final notification = message.notification;
+          final title = notification?.title ?? data['title']?.toString();
+          final body = notification?.body ?? data['body']?.toString();
+          if (title != null &&
+              title.isNotEmpty &&
+              body != null &&
+              body.isNotEmpty) {
+            await LocalReminderService.instance.showNow(
+              id:
+                  message.messageId?.hashCode ??
+                  DateTime.now().millisecondsSinceEpoch,
+              title: title,
+              body: body,
+              payload: jsonEncode(data),
+            );
+          }
+        }
         _foregroundController.add(message);
       });
 
-      // When the user taps a system notification from the tray, Firebase
-      // delivers it here. Persist the data for later routing via
-      // `pending_notification_payload` so the existing startup logic can
-      // route once the app is resumed.
-      FirebaseMessaging.onMessageOpenedApp.listen((message) async {
+      _openedAppSubscription = FirebaseMessaging.onMessageOpenedApp.listen((
+        message,
+      ) async {
         try {
-          final data = message.data;
-          if (data.isNotEmpty) {
-            final prefs = await SharedPreferences.getInstance();
-            await prefs.setString(
-              'pending_notification_payload',
-              data.entries.map((e) => '${e.key}=${e.value}').join('&'),
-            );
-          }
+          await persistFcmPayload(Map<String, dynamic>.from(message.data));
         } catch (_) {}
       });
     } catch (e) {
@@ -137,61 +207,43 @@ class PushNotificationService {
     _configured = true;
   }
 
-  Future<void> _showForegroundNotification(RemoteMessage message) async {
-    final notification = message.notification;
-    final data = message.data;
-    final title = notification?.title ?? data['title']?.toString();
-    final body = notification?.body ?? data['body']?.toString();
-    if (title == null || title.isEmpty || body == null || body.isEmpty) return;
-    final payload =
-        data.isEmpty
-            ? null
-            : data.entries.map((e) => '${e.key}=${e.value}').join('&');
-    await LocalReminderService.instance.showNow(
-      id: message.messageId?.hashCode ?? DateTime.now().millisecondsSinceEpoch,
-      title: title,
-      body: body,
-      payload: payload,
-    );
-  }
-
   void _listenForTokenRefresh() {
     _tokenRefreshSubscription ??= FirebaseMessaging.instance.onTokenRefresh
         .listen((_) => _registerCurrentToken());
   }
 
-  Future<void> _registerCurrentToken() async {
-    final token = await FirebaseMessaging.instance.getToken();
-    if (token == null) return;
-    final preferences = await SharedPreferences.getInstance();
-    var deviceId = preferences.getString(_deviceIdKey);
-    if (deviceId == null) {
-      deviceId =
-          '${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
-      await preferences.setString(_deviceIdKey, deviceId);
-    }
-    // Attempt to include device timezone and last-known coordinates so the
-    // backend can respect user timezone and saved location when scheduling
-    // or filtering notifications (e.g., prayer times).
-    String? tzName;
+  /// [Phase 7] Single-flight token registration. Prevents duplicate backend
+  /// token records when app opens repeatedly or parent rebuilds.
+  Future<bool> _registerCurrentToken() async {
+    if (_tokenRegistrationInFlight) return false;
+    _tokenRegistrationInFlight = true;
     try {
-      tzName = DateTime.now().timeZoneName;
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null) return false;
+      final preferences = await SharedPreferences.getInstance();
+      var deviceId = preferences.getString(_deviceIdKey);
+      if (deviceId == null) {
+        deviceId =
+            '${DateTime.now().microsecondsSinceEpoch}-${Random.secure().nextInt(1 << 32)}';
+        await preferences.setString(_deviceIdKey, deviceId);
+      }
+      // Keep the token, timezone, and coordinates together so the backend can
+      // schedule reminders at the user's local prayer times.
+      await BackendApi.instance.registerPushToken(
+        deviceId: deviceId,
+        platform: _platformName(),
+        pushToken: token,
+        timeZone: await DeviceTimezone.instance.resolveIanaTimezone(),
+        coords: await _storedCoordinates(),
+      );
+      return true;
     } catch (_) {
-      tzName = null;
+      // Registration may retry on next refresh. Explicit opt-in callers get
+      // a failure result so the UI does not claim reminders are enabled.
+      return false;
+    } finally {
+      _tokenRegistrationInFlight = false;
     }
-    Map<String, double>? coords;
-    try {
-      coords = await LocationService.instance.getStoredPosition();
-    } catch (_) {
-      coords = null;
-    }
-    await BackendApi.instance.registerPushToken(
-      deviceId: deviceId,
-      platform: _platformName(),
-      pushToken: token,
-      timeZone: tzName,
-      coords: coords,
-    );
   }
 
   String _platformName() => switch (defaultTargetPlatform) {
@@ -199,4 +251,13 @@ class PushNotificationService {
     TargetPlatform.android => 'android',
     _ => 'web',
   };
+
+  Future<Map<String, double>?> _storedCoordinates() async {
+    final stored = await LocationService.instance.getStoredPosition();
+    if (stored == null) return null;
+    final latitude = stored['lat'];
+    final longitude = stored['lon'];
+    if (latitude == null || longitude == null) return null;
+    return {'latitude': latitude, 'longitude': longitude};
+  }
 }

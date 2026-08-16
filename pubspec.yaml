@@ -64,6 +64,11 @@ dependencies:
   syncfusion_flutter_pdfviewer: ^33.2.13
   epub_view: ^3.2.0
 
+# path_provider_android 2.3.x introduced a JNI/CMake build that currently
+# races while AGP writes native timing metadata on Windows.
+dependency_overrides:
+  path_provider_android: 2.2.23
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

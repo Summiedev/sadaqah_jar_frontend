@@ -17,7 +17,7 @@ class InvitationsScreen extends StatefulWidget {
 
 class _InvitationsScreenState extends State<InvitationsScreen> with SingleTickerProviderStateMixin {
   late final TabController _tab;
-  final List<String> _pending = [];
+  final List<Map<String, dynamic>> _pending = [];
   List<Map<String, dynamic>> _families = const [];
   Map<String, dynamic>? _selectedJar;
 
@@ -26,12 +26,28 @@ class _InvitationsScreenState extends State<InvitationsScreen> with SingleTicker
   bool _creatingRoom = false;
   bool _loadingRooms = true;
   String? _roomsError;
+  bool _loadingPending = true;
+  String? _pendingError;
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
     _loadRooms();
+    _loadPending();
+  }
+
+  Future<void> _loadPending() async {
+    if (!mounted) return;
+    setState(() { _loadingPending = true; _pendingError = null; });
+    try {
+      final pending = await BackendApi.instance.getPendingInvitations();
+      if (!mounted) return;
+      setState(() { _pending..clear()..addAll(pending); _loadingPending = false; });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() { _pendingError = error.toString(); _loadingPending = false; });
+    }
   }
 
   Future<void> _loadRooms() async {
@@ -93,7 +109,7 @@ class _InvitationsScreenState extends State<InvitationsScreen> with SingleTicker
                   labelColor: fWalnut,
                   unselectedLabelColor: fStoneLight,
                   dividerColor: Colors.transparent,
-                  tabs: const [Tab(text: 'Invite'), Tab(text: 'Pending')],
+                  tabs: const [Tab(text: 'Invite'), Tab(text: 'Active invites')],
                 ),
               ),
             ),
@@ -114,7 +130,13 @@ class _InvitationsScreenState extends State<InvitationsScreen> with SingleTicker
                     onSelectJar: (jar) => setState(() => _selectedJar = jar),
                     onCreateRoom: _createRoom,
                   ),
-                  _PendingPanel(pending: _pending, onRemove: (i) => setState(() => _pending.removeAt(i))),
+                  _PendingPanel(
+                    pending: _pending,
+                    loading: _loadingPending,
+                    error: _pendingError,
+                    onRetry: _loadPending,
+                    onCancel: _cancelPending,
+                  ),
                 ],
               ),
             ),
@@ -195,6 +217,24 @@ class _InvitationsScreenState extends State<InvitationsScreen> with SingleTicker
           behavior: SnackBarBehavior.floating,
         ),
       );
+    }
+  }
+
+  Future<void> _cancelPending(Map<String, dynamic> invitation) async {
+    final familyId = (invitation['family_id'] as num?)?.toInt();
+    final invitationId = (invitation['id'] as num?)?.toInt();
+    if (familyId == null || invitationId == null) return;
+    try {
+      await BackendApi.instance.cancelFamilyInvitation(
+        familyId: familyId,
+        invitationId: invitationId,
+      );
+      if (!mounted) return;
+      setState(() => _pending.removeWhere((item) => item['id'] == invitationId));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invitation cancelled')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not cancel invitation: $error')));
     }
   }
 }
@@ -519,13 +559,26 @@ class _InviteOption extends StatelessWidget {
 }
 
 class _PendingPanel extends StatelessWidget {
-  const _PendingPanel({required this.pending, required this.onRemove});
+  const _PendingPanel({required this.pending, required this.loading, required this.error, required this.onRetry, required this.onCancel});
 
-  final List<String> pending;
-  final ValueChanged<int> onRemove;
+  final List<Map<String, dynamic>> pending;
+  final bool loading;
+  final String? error;
+  final VoidCallback onRetry;
+  final ValueChanged<Map<String, dynamic>> onCancel;
 
   @override
   Widget build(BuildContext context) {
+    if (loading) return const Center(child: CircularProgressIndicator(color: fBronze));
+    if (error != null) {
+      return Center(child: Padding(padding: const EdgeInsets.all(24), child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Icon(Icons.cloud_off_outlined, size: 42, color: fBronze),
+        const SizedBox(height: 12),
+        const Text('Could not load pending invitations', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.w700, color: fWalnut)),
+        const SizedBox(height: 12),
+        MizanOutlineButton(label: 'Try again', onTap: onRetry),
+      ])));
+    }
     if (pending.isEmpty) {
       return Padding(
         padding: const EdgeInsets.all(28),
@@ -539,9 +592,9 @@ class _PendingPanel extends StatelessWidget {
               child: const Center(child: Icon(Icons.mark_email_read_outlined, size: 36, color: fBronze)),
             ),
             const SizedBox(height: 18),
-            const Text('No pending requests', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+            const Text('No active invites', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
             const SizedBox(height: 8),
-            const Text('When someone asks to join, their request will appear here for you to welcome.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+            const Text('Invites you create remain here until they expire or you cancel them.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
           ],
         ),
       );
@@ -551,9 +604,10 @@ class _PendingPanel extends StatelessWidget {
       itemCount: pending.length,
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        final parts = pending[index].split(' - ');
-        final name = parts.first;
-        final by = parts.length > 1 ? parts.last : '';
+        final invitation = pending[index];
+        final name = invitation['family_name']?.toString() ?? 'Family jar';
+        final code = invitation['invite_code']?.toString() ?? '';
+        final expires = invitation['expires_at']?.toString() ?? '';
         return SoftCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -567,8 +621,9 @@ class _PendingPanel extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: fWalnut)),
-                        if (by.isNotEmpty)
-                          Text(by, style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                        Text('Invite code: $code', style: const TextStyle(fontSize: 11, color: fStoneLight)),
+                        if (expires.isNotEmpty)
+                          Text('Expires ${_shortDate(expires)}', style: const TextStyle(fontSize: 11, color: fStoneLight)),
                       ],
                     ),
                   ),
@@ -579,16 +634,8 @@ class _PendingPanel extends StatelessWidget {
                 children: [
                   Expanded(
                     child: MizanButton(
-                      label: 'Welcome',
-                      onTap: () => onRemove(index),
-                      fullWidth: false,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: MizanOutlineButton(
-                      label: 'Decline',
-                      onTap: () => onRemove(index),
+                    label: 'Cancel invite',
+                      onTap: () => onCancel(invitation),
                       fullWidth: false,
                     ),
                   ),
@@ -599,5 +646,11 @@ class _PendingPanel extends StatelessWidget {
         );
       },
     );
+  }
+
+  String _shortDate(String value) {
+    final date = DateTime.tryParse(value);
+    if (date == null) return value;
+    return '${date.day}/${date.month}/${date.year}';
   }
 }

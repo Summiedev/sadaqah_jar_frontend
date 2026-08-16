@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
@@ -16,15 +17,16 @@ class FamilyReflectionsScreen extends StatefulWidget {
 }
 
 class _FReflection {
-  const _FReflection(this.author, this.authorAccent, this.text, this.time, {this.id, this.encouragement = const {}});
+  const _FReflection(this.author, this.authorAccent, this.text, this.time, {this.id, this.encouragement = const {}, this.commentCount = 0});
   final String? id;
   final String author;
   final Color authorAccent;
   final String text;
   final String time;
   final Map<String, int> encouragement;
+  final int commentCount;
 
-  _FReflection copyWith({String? id, String? author, Color? authorAccent, String? text, String? time, Map<String, int>? encouragement}) {
+  _FReflection copyWith({String? id, String? author, Color? authorAccent, String? text, String? time, Map<String, int>? encouragement, int? commentCount}) {
     return _FReflection(
       author ?? this.author,
       authorAccent ?? this.authorAccent,
@@ -32,6 +34,7 @@ class _FReflection {
       time ?? this.time,
       id: id ?? this.id,
       encouragement: encouragement ?? this.encouragement,
+      commentCount: commentCount ?? this.commentCount,
     );
   }
 }
@@ -89,6 +92,7 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
           'just now',
           id: r['id']?.toString(),
           encouragement: r['encouragement_counts'] != null ? Map<String, int>.from(r['encouragement_counts'] as Map) : const {},
+          commentCount: (((r['comment_counts'] as Map?)?['total']) as num?)?.toInt() ?? 0,
         )));
         _loading = false;
       });
@@ -204,6 +208,19 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     }
   }
 
+  Future<void> _openComments(int index) async {
+    final familyId = int.tryParse(widget.id);
+    final reflectionId = int.tryParse(_reflections[index].id ?? '');
+    if (familyId == null || reflectionId == null) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: fIvory,
+      builder: (_) => _FamilyReflectionCommentsSheet(familyId: familyId, reflectionId: reflectionId, text: _reflections[index].text),
+    );
+    if (mounted) _loadReflections(showSpinner: false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final jar = _jar;
@@ -260,29 +277,58 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     }
     return RefreshIndicator(
       onRefresh: () => _loadReflections(showSpinner: false),
-      child: ListView.separated(
+      child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-        itemCount: _reflections.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) => _ReflectionCard(
-          r: _reflections[index],
-          onPick: (k) => _encourage(index, k),
-          onEdit: () => _edit(index),
-        ),
+        children: _buildJournalBoard(),
       ),
     );
 
   }
+
+  List<Widget> _buildJournalBoard() {
+    final board = <Widget>[];
+    for (var index = 0; index < _reflections.length;) {
+      final cardIndex = index;
+      final current = _reflections[index];
+      final currentCard = _ReflectionCard(r: current, onPick: (k) => _encourage(cardIndex, k), onEdit: () => _edit(cardIndex), onComments: () => _openComments(cardIndex));
+      if (current.text.length > 180 || index == _reflections.length - 1) {
+        board.add(currentCard);
+        board.add(const SizedBox(height: 12));
+        index++;
+        continue;
+      }
+      final next = _reflections[index + 1];
+      if (next.text.length > 180) {
+        board.add(currentCard);
+        board.add(const SizedBox(height: 12));
+        index++;
+        continue;
+      }
+      final left = index;
+      final right = index + 1;
+      board.add(Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(child: _ReflectionCard(r: _reflections[left], onPick: (k) => _encourage(left, k), onEdit: () => _edit(left), onComments: () => _openComments(left))),
+        const SizedBox(width: 12),
+        Expanded(child: _ReflectionCard(r: _reflections[right], onPick: (k) => _encourage(right, k), onEdit: () => _edit(right), onComments: () => _openComments(right))),
+      ]));
+      board.add(const SizedBox(height: 12));
+      index += 2;
+    }
+    return board;
+  }
 }
 
-const List<String> _encourageOptions = <String>['May Allah accept', 'Ameen', 'Barakallahu feek', 'May Allah increase you'];
+const List<String> _encourageOptions = <String>['barakallahu_feek', 'may_allah_accept'];
+
+String _encourageLabel(String value) => value == 'barakallahu_feek' ? 'Barakallahu feek' : 'May Allah accept it';
 
 class _ReflectionCard extends StatelessWidget {
-  const _ReflectionCard({required this.r, required this.onPick, this.onEdit});
+  const _ReflectionCard({required this.r, required this.onPick, required this.onComments, this.onEdit});
 
   final _FReflection r;
   final ValueChanged<String> onPick;
+  final VoidCallback onComments;
   final VoidCallback? onEdit;
 
   @override
@@ -329,7 +375,7 @@ class _ReflectionCard extends StatelessWidget {
               final count = r.encouragement[k] ?? 0;
               return Semantics(
                 button: true,
-                label: '$k, $count encouragements',
+                label: '${_encourageLabel(k)}, $count encouragements',
                 child: Material(
                   color: count > 0 ? r.authorAccent.withValues(alpha: 0.12) : fWhite,
                   borderRadius: BorderRadius.circular(999),
@@ -346,7 +392,7 @@ class _ReflectionCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Flexible(
-                            child: Text(k, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: count > 0 ? r.authorAccent : fStone)),
+                    child: Text(_encourageLabel(k), overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, color: count > 0 ? r.authorAccent : fStone)),
                           ),
                           if (count > 0) ...<Widget>[
                             const SizedBox(width: 6),
@@ -364,6 +410,8 @@ class _ReflectionCard extends StatelessWidget {
               );
             }).toList(),
           ),
+          const SizedBox(height: 10),
+          InkWell(onTap: onComments, child: Row(children: [const Icon(Icons.chat_bubble_outline_rounded, size: 15, color: fBronze), const SizedBox(width: 6), Text('${r.commentCount} comments', style: const TextStyle(fontSize: 11.5, color: fBronze, fontWeight: FontWeight.w700))])),
         ],
       ),
     );
@@ -440,5 +488,85 @@ class _EmptyReflections extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _FamilyReflectionCommentsSheet extends StatefulWidget {
+  const _FamilyReflectionCommentsSheet({required this.familyId, required this.reflectionId, required this.text});
+  final int familyId;
+  final int reflectionId;
+  final String text;
+
+  @override
+  State<_FamilyReflectionCommentsSheet> createState() => _FamilyReflectionCommentsSheetState();
+}
+
+class _FamilyReflectionCommentsSheetState extends State<_FamilyReflectionCommentsSheet> {
+  final _controller = TextEditingController();
+  List<Map<String, dynamic>> _comments = const [];
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final comments = await BackendApi.instance.getFamilyReflectionComments(widget.familyId, widget.reflectionId);
+      if (mounted) setState(() { _comments = comments; _loading = false; });
+    } catch (error) {
+      if (mounted) setState(() { _loading = false; _error = 'Could not load comments.'; });
+    }
+  }
+
+  Future<void> _send() async {
+    final text = _controller.text.trim();
+    if (text.isEmpty || _saving) return;
+    setState(() => _saving = true);
+    try {
+      final comment = await BackendApi.instance.createFamilyReflectionComment(widget.familyId, widget.reflectionId, text: text);
+      if (mounted) setState(() { _comments = [..._comments, comment]; _controller.clear(); _saving = false; });
+    } catch (error) {
+      if (mounted) setState(() { _saving = false; _error = error is BackendApiException ? error.message : 'Could not add comment.'; });
+    }
+  }
+
+  Future<void> _delete(int id) async {
+    try {
+      await BackendApi.instance.deleteFamilyReflectionComment(widget.familyId, widget.reflectionId, id);
+      if (mounted) setState(() => _comments = _comments.where((comment) => comment['id']?.toString() != id.toString()).toList());
+    } catch (error) {
+      if (mounted) setState(() => _error = error is BackendApiException ? error.message : 'Could not delete comment.');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SafeArea(child: Padding(
+      padding: EdgeInsets.fromLTRB(20, 18, 20, 16 + MediaQuery.viewInsetsOf(context).bottom),
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('Comments', style: TextStyle(fontFamily: 'Georgia', fontSize: 22, fontWeight: FontWeight.w700, color: colors.textPrimary)),
+        const SizedBox(height: 10),
+        Text(widget.text, style: TextStyle(color: colors.textPrimary, fontFamily: 'Georgia', fontSize: 17, height: 1.55)),
+        if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: colors.error))),
+        const SizedBox(height: 12),
+        if (_loading) const LinearProgressIndicator()
+        else if (_comments.isEmpty) Padding(padding: const EdgeInsets.symmetric(vertical: 14), child: Text('No comments yet. Be the first to respond.', style: TextStyle(color: colors.textSecondary)))
+        else ConstrainedBox(constraints: const BoxConstraints(maxHeight: 280), child: ListView.separated(shrinkWrap: true, itemCount: _comments.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (_, index) { final comment = _comments[index]; return Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: colors.surfaceContainer, borderRadius: BorderRadius.circular(14)), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(comment['author_name']?.toString() ?? 'Family member', style: TextStyle(color: colors.primary, fontWeight: FontWeight.w700, fontSize: 12)), const SizedBox(height: 4), Text(comment['text']?.toString() ?? '', style: TextStyle(color: colors.textPrimary, height: 1.45))])), IconButton(onPressed: () => _delete(int.tryParse(comment['id']?.toString() ?? '') ?? 0), tooltip: 'Delete comment', icon: Icon(Icons.delete_outline, size: 18, color: colors.error))])); })) ,
+        const SizedBox(height: 12),
+        TextField(controller: _controller, minLines: 2, maxLines: 5, decoration: InputDecoration(labelText: 'Write a comment', suffixIcon: IconButton(onPressed: _saving ? null : _send, icon: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.send_rounded)))),
+      ]),
+    ));
   }
 }

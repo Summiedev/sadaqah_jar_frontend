@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/act_store.dart';
-import '../../core/animations.dart';
 import '../../core/theme/app_theme.dart';
 
 class EditGoalScreen extends ConsumerStatefulWidget {
@@ -48,7 +47,8 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
     });
     try {
       await ref.read(actStoreProvider).updateGoal(title: _title.text.trim(), subtitle: _subtitle.text.trim().isEmpty ? null : _subtitle.text.trim(), actsTarget: parsed);
-      if (context.mounted) Navigator.of(context).pop();
+      if (!mounted) return;
+      Navigator.of(context).pop();
     } catch (e) {
       if (mounted) setState(() => _error = 'Could not save changes: $e');
     } finally {

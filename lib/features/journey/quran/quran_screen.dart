@@ -6,6 +6,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../services/backend_api.dart';
 import 'quran_data.dart';
 
 class QuranTab extends StatefulWidget {
@@ -29,6 +30,7 @@ class _QuranTabState extends State<QuranTab>
   bool _offlineReady = false;
   bool _downloadStarted = false;
   bool _openedInitialSurah = false;
+  String? _loadError;
   late Future<List<QuranSurah>> _surahsFuture;
 
   @override
@@ -57,15 +59,24 @@ class _QuranTabState extends State<QuranTab>
   }
 
   Future<void> _restore() async {
-    final progress = await _repo.loadProgress();
-    final ready = await _repo.isOfflineReady();
-    if (!mounted) return;
-    setState(() {
-      _progress = progress;
-      _offlineReady = ready;
-    });
-    _openInitialSurahIfNeeded();
-    if (!ready) _startDownload();
+    try {
+      final progress = await _repo.loadProgress();
+      final ready = await _repo.isOfflineReady();
+      if (!mounted) return;
+      setState(() {
+        _progress = progress;
+        _offlineReady = ready;
+      });
+      _openInitialSurahIfNeeded();
+      if (!ready) _startDownload();
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _loadError =
+              'Quran data could not be loaded yet. Check your connection and try again.';
+        });
+      }
+    }
   }
 
   void _openInitialSurahIfNeeded() {
@@ -134,6 +145,18 @@ class _QuranTabState extends State<QuranTab>
     return FutureBuilder<List<QuranSurah>>(
       future: _surahsFuture,
       builder: (context, snapshot) {
+        if (snapshot.hasError || _loadError != null) {
+          return _QuranUnavailableState(
+            message: _loadError ?? 'Quran data could not be loaded yet.',
+            onRetry: () {
+              setState(() {
+                _loadError = null;
+                _surahsFuture = _repo.surahs();
+              });
+              _restore();
+            },
+          );
+        }
         final surahs = snapshot.data ?? const <QuranSurah>[];
         final currentMatches = surahs.where(
           (surah) => surah.id == _progress.surahId,
@@ -212,6 +235,51 @@ class _QuranTabState extends State<QuranTab>
   }
 }
 
+class _QuranUnavailableState extends StatelessWidget {
+  const _QuranUnavailableState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.menu_book_outlined, size: 44, color: colors.primary),
+            const SizedBox(height: 14),
+            Text(
+              'Your Quran is safe',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontFamily: 'Georgia',
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: colors.textSecondary, height: 1.45),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _DownloadProgressCard extends StatelessWidget {
   const _DownloadProgressCard({
     required this.offlineReady,
@@ -237,8 +305,8 @@ class _DownloadProgressCard extends StatelessWidget {
             onTap: offlineReady || downloading ? null : onDownload,
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              constraints: const BoxConstraints(minHeight: 104),
-              padding: const EdgeInsets.all(11),
+              constraints: const BoxConstraints(minHeight: 92),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated,
                 borderRadius: BorderRadius.circular(16),
@@ -261,7 +329,7 @@ class _DownloadProgressCard extends StatelessWidget {
                     color: failed ? tokens.warning : tokens.primary,
                     size: 19,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 5),
                   Text(
                     offlineReady
                         ? 'Offline ready'
@@ -286,7 +354,7 @@ class _DownloadProgressCard extends StatelessWidget {
                       color: failed ? tokens.warning : tokens.primary,
                       backgroundColor: tokens.surfaceContainerHigh,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     Text(
                       failed ? 'Tap to resume' : '${status.percent}% complete',
                       maxLines: 1,
@@ -334,8 +402,8 @@ class _ContinueCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.colors;
-    return SizedBox(
-      height: 104,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 92),
       child: Material(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
@@ -343,13 +411,13 @@ class _ContinueCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.all(11),
+            padding: const EdgeInsets.all(9),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 1),
                 Icon(Icons.menu_book_rounded, color: tokens.primary, size: 19),
-                const SizedBox(height: 8),
+                const SizedBox(height: 5),
                 Text(
                   'Continue',
                   maxLines: 1,
@@ -695,16 +763,8 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
                 child:
                     verses.isEmpty
                         ? const _UnavailableReader()
-                        : _settings.readingMode == QuranReadingMode.verses
-                        ? _VerseReadingMode(
-                          verses: verses,
-                          settings: _settings,
-                          playingVerse: _playingVerse,
-                          onPlay: _playVerse,
-                          onReflect: _reflect,
-                          onWord: _showWordMeaning,
-                        )
-                        : _MushafPageMode(
+                        : _settings.readingMode == QuranReadingMode.mushaf
+                        ? _MushafPageMode(
                           page: _page,
                           settings: _settings,
                           playingVerse: _playingVerse,
@@ -720,6 +780,14 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
                                 _page = page;
                                 _translationRevealed = false;
                               }),
+                        )
+                        : _VerseReadingMode(
+                          verses: verses,
+                          settings: _settings,
+                          playingVerse: _playingVerse,
+                          onPlay: _playVerse,
+                          onReflect: _reflect,
+                          onWord: _showWordMeaning,
                         ),
               ),
               _MiniPlayer(
@@ -745,12 +813,12 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
   );
 
   Future<void> _toggleMode() async {
-    final next = _settings.copyWith(
-      readingMode:
-          _settings.readingMode == QuranReadingMode.verses
-              ? QuranReadingMode.page
-              : QuranReadingMode.verses,
-    );
+    final nextMode = switch (_settings.readingMode) {
+      QuranReadingMode.mushaf => QuranReadingMode.continuous,
+      QuranReadingMode.continuous => QuranReadingMode.ayah,
+      QuranReadingMode.ayah => QuranReadingMode.mushaf,
+    };
+    final next = _settings.copyWith(readingMode: nextMode);
     setState(() => _settings = next);
     await _repo.saveSettings(next);
   }
@@ -759,7 +827,7 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
     final next = await showModalBottomSheet<QuranSettings>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: kPaper,
+      backgroundColor: context.colors.surfaceElevated,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -925,10 +993,11 @@ class _ReaderTopBar extends StatelessWidget {
             ),
           ),
           _CircleButton(
-            icon:
-                mode == QuranReadingMode.verses
-                    ? Icons.chrome_reader_mode_outlined
-                    : Icons.format_align_right_rounded,
+            icon: switch (mode) {
+              QuranReadingMode.mushaf => Icons.view_stream_outlined,
+              QuranReadingMode.continuous => Icons.format_list_numbered_rtl,
+              QuranReadingMode.ayah => Icons.menu_book_outlined,
+            },
             tooltip: 'Switch reading mode',
             onTap: onMode,
           ),
@@ -1160,25 +1229,21 @@ class _MushafPageMode extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 112),
               children: [
-                Center(
-                  child: Container(
-                    constraints: const BoxConstraints(maxWidth: 560),
-                    padding: const EdgeInsets.all(10),
+                Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
                     decoration: BoxDecoration(
-                      color: kPaper,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: kBronzeLight),
+                      color: context.colors.surfaceElevated,
+                      border: Border.symmetric(horizontal: BorderSide(color: context.colors.borderSubtle)),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 16,
-                          offset: const Offset(0, 8),
+                          color: Colors.black.withValues(alpha: 0.06),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
                         ),
                       ],
                     ),
-                    child: AspectRatio(
-                      aspectRatio: 0.68,
-                      child:
+                    child:
                           file == null
                               ? const Center(
                                 child: Text(
@@ -1187,19 +1252,20 @@ class _MushafPageMode extends StatelessWidget {
                                   style: TextStyle(color: kMuted),
                                 ),
                               )
-                              : SvgPicture.file(
-                                file,
-                                fit: BoxFit.contain,
-                                placeholderBuilder:
-                                    (_) => const Center(
-                                      child: CircularProgressIndicator(
-                                        color: kBronze,
-                                      ),
-                                    ),
+                              : InteractiveViewer(
+                                minScale: 1,
+                                maxScale: 2.6,
+                                boundaryMargin: const EdgeInsets.symmetric(
+                                  vertical: 24,
+                                  horizontal: 12,
+                                ),
+                                panEnabled: true,
+                                scaleEnabled: true,
+                                child: file.path.toLowerCase().endsWith('.svg')
+                                    ? SvgPicture.file(file, fit: BoxFit.contain)
+                                    : Image.file(file, fit: BoxFit.contain),
                               ),
-                    ),
                   ),
-                ),
                 const SizedBox(height: 12),
                 Center(
                   child: TextButton.icon(
@@ -1411,14 +1477,19 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
           SegmentedButton<QuranReadingMode>(
             segments: const [
               ButtonSegment(
-                value: QuranReadingMode.verses,
-                icon: Icon(Icons.format_align_right_rounded),
-                label: Text('Verses'),
+                value: QuranReadingMode.mushaf,
+                icon: Icon(Icons.menu_book_outlined),
+                label: Text('Mushaf'),
               ),
               ButtonSegment(
-                value: QuranReadingMode.page,
-                icon: Icon(Icons.chrome_reader_mode_outlined),
-                label: Text('Page'),
+                value: QuranReadingMode.continuous,
+                icon: Icon(Icons.format_align_right_rounded),
+                label: Text('Flow'),
+              ),
+              ButtonSegment(
+                value: QuranReadingMode.ayah,
+                icon: Icon(Icons.format_list_numbered_rtl),
+                label: Text('Ayah'),
               ),
             ],
             selected: {_settings.readingMode},
@@ -1462,9 +1533,50 @@ class _SettingSwitch extends StatelessWidget {
   );
 }
 
-class _ReflectionSheet extends StatelessWidget {
+class _ReflectionSheet extends StatefulWidget {
   const _ReflectionSheet({required this.verse});
   final QuranVerse verse;
+
+  @override
+  State<_ReflectionSheet> createState() => _ReflectionSheetState();
+}
+
+class _ReflectionSheetState extends State<_ReflectionSheet> {
+  late final TextEditingController _controller = TextEditingController();
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final body = _controller.text.trim();
+    if (body.isEmpty || _saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await BackendApi.instance.createReflection(
+        title: widget.verse.key,
+        body: body,
+        mood: 'Quran',
+        isPrivate: true,
+        requestId:
+            'quran_${widget.verse.key}_${DateTime.now().microsecondsSinceEpoch}',
+      );
+      if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _saving = false;
+        _error = 'Could not save. Your reflection is still here; please retry.';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -1479,16 +1591,17 @@ class _ReflectionSheet extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Reflect on ${verse.key}',
-          style: const TextStyle(
-            color: kInk,
+          'Reflect on ${widget.verse.key}',
+          style: TextStyle(
+            color: context.colors.textPrimary,
             fontFamily: 'Georgia',
             fontSize: 23,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 14),
-        const TextField(
+        TextField(
+          controller: _controller,
           minLines: 4,
           maxLines: 7,
           decoration: InputDecoration(
@@ -1497,11 +1610,22 @@ class _ReflectionSheet extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
+        if (_error != null) ...[
+          const SizedBox(height: 10),
+          Text(_error!, style: TextStyle(color: context.colors.error)),
+        ],
         Align(
           alignment: Alignment.centerRight,
           child: FilledButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Save reflection'),
+            onPressed: _saving ? null : _save,
+            child:
+                _saving
+                    ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Text('Save reflection'),
           ),
         ),
       ],

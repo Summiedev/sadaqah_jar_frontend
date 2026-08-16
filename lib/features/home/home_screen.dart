@@ -16,7 +16,9 @@ import '../../widgets/prayer_tracker_card.dart';
 import '../../widgets/notification_action_button.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.openSadaqah = false});
+
+  final bool openSadaqah;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -24,6 +26,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
+  bool _openedSadaqah = false;
   late final AnimationController _entrance = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 650),
@@ -33,6 +36,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void dispose() {
     _entrance.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!widget.openSadaqah || _openedSadaqah) return;
+    _openedSadaqah = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) AddActScreen.show(context);
+    });
   }
 
   @override
@@ -1046,19 +1059,19 @@ const _homeReflectionSources = [
     kind: 'Quran',
     title: 'Hearts find rest',
     arabic:
-        '\u{623}\u{644}\u{627} \u{628}\u{630}\u{643}\u{631} \u{627}\u{644}\u{644}\u{647} \u{62a}\u{637}\u{645}\u{626}\u{646} \u{627}\u{644}\u{642}\u{644}\u{648}\u{628}',
+        '\u{671}\u{644}\u{651}\u{64e}\u{630}\u{650}\u{64a}\u{646}\u{64e} \u{621}\u{64e}\u{627}\u{645}\u{64e}\u{646}\u{64f}\u{648}\u{627}\u{6df} \u{648}\u{64e}\u{62a}\u{64e}\u{637}\u{652}\u{645}\u{64e}\u{626}\u{650}\u{646}\u{651}\u{64f} \u{642}\u{64f}\u{644}\u{64f}\u{648}\u{628}\u{64f}\u{647}\u{64f}\u{645} \u{628}\u{650}\u{630}\u{650}\u{643}\u{652}\u{631}\u{650} \u{671}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{650} \u{6d7} \u{623}\u{64e}\u{644}\u{64e}\u{627} \u{628}\u{650}\u{630}\u{650}\u{643}\u{652}\u{631}\u{650} \u{671}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{650} \u{62a}\u{64e}\u{637}\u{652}\u{645}\u{64e}\u{626}\u{650}\u{646}\u{651}\u{64f} \u{671}\u{644}\u{652}\u{642}\u{64f}\u{644}\u{64f}\u{648}\u{628}\u{64f}',
     body:
-        'Those who believe and whose hearts find rest in the remembrance of Allah. Surely in the remembrance of Allah do hearts find rest.',
-    source: 'Quran 13:28',
+        'Those who believe and whose hearts find comfort in the remembrance of Allah. Surely in the remembrance of Allah do hearts find comfort.',
+    source: 'Quran 13:28 - Quran.com',
     prompt: 'Where is your heart asking for rest today?',
   ),
   _HomeSource(
     kind: 'Hadith',
     title: 'Begin with intention',
     arabic:
-        '\u{625}\u{646}\u{645}\u{627} \u{627}\u{644}\u{623}\u{639}\u{645}\u{627}\u{644} \u{628}\u{627}\u{644}\u{646}\u{64a}\u{627}\u{62a}',
+        '\u{625}\u{650}\u{646}\u{651}\u{64e}\u{645}\u{64e}\u{627} \u{627}\u{644}\u{652}\u{623}\u{64e}\u{639}\u{652}\u{645}\u{64e}\u{627}\u{644}\u{64f} \u{628}\u{650}\u{627}\u{644}\u{646}\u{651}\u{650}\u{64a}\u{651}\u{64e}\u{627}\u{62a}\u{650}\u{60c} \u{648}\u{64e}\u{625}\u{650}\u{646}\u{651}\u{64e}\u{645}\u{64e}\u{627} \u{644}\u{650}\u{643}\u{64f}\u{644}\u{651}\u{650} \u{627}\u{645}\u{652}\u{631}\u{650}\u{626}\u{64d} \u{645}\u{64e}\u{627} \u{646}\u{64e}\u{648}\u{64e}\u{649}',
     body:
-        'Actions are only by intentions, and every person will have only what they intended. So the direction of the heart matters before the size of the deed.',
+        'The reward of deeds depends upon the intentions, and every person will get the reward according to what he has intended.',
     source: 'Sahih al-Bukhari 1',
     prompt: 'What intention do you want to renew before the day continues?',
   ),
@@ -1066,19 +1079,19 @@ const _homeReflectionSources = [
     kind: 'Quran',
     title: 'Ease follows hardship',
     arabic:
-        '\u{641}\u{625}\u{646} \u{645}\u{639} \u{627}\u{644}\u{639}\u{633}\u{631} \u{64a}\u{633}\u{631}\u{627} \u{625}\u{646} \u{645}\u{639} \u{627}\u{644}\u{639}\u{633}\u{631} \u{64a}\u{633}\u{631}\u{627}',
+        '\u{641}\u{64e}\u{625}\u{650}\u{646}\u{651}\u{64e} \u{645}\u{64e}\u{639}\u{64e} \u{627}\u{644}\u{652}\u{639}\u{64f}\u{633}\u{652}\u{631}\u{650} \u{64a}\u{64f}\u{633}\u{652}\u{631}\u{64b}\u{627} \u{6dd} \u{625}\u{650}\u{646}\u{651}\u{64e} \u{645}\u{64e}\u{639}\u{64e} \u{627}\u{644}\u{652}\u{639}\u{64f}\u{633}\u{652}\u{631}\u{650} \u{64a}\u{64f}\u{633}\u{652}\u{631}\u{64b}\u{627}',
     body:
-        'For indeed, with hardship comes ease. Indeed, with hardship comes ease. Allah repeats the promise so the heart can hold it firmly.',
-    source: 'Quran 94:5-6',
+        'So, surely with hardship comes ease. Surely with that hardship comes more ease.',
+    source: 'Quran 94:5-6 - Quran.com',
     prompt: 'Where do you need to trust Allah through difficulty?',
   ),
   _HomeSource(
     kind: 'Hadith',
     title: 'Steady deeds',
     arabic:
-        '\u{623}\u{62d}\u{628} \u{627}\u{644}\u{623}\u{639}\u{645}\u{627}\u{644} \u{625}\u{644}\u{649} \u{627}\u{644}\u{644}\u{647} \u{623}\u{62f}\u{648}\u{645}\u{647}\u{627} \u{648}\u{625}\u{646} \u{642}\u{644}',
+        '\u{648}\u{64e}\u{623}\u{64e}\u{646}\u{651}\u{64e} \u{623}\u{64e}\u{62d}\u{64e}\u{628}\u{651}\u{64e} \u{627}\u{644}\u{623}\u{64e}\u{639}\u{652}\u{645}\u{64e}\u{627}\u{644}\u{650} \u{623}\u{64e}\u{62f}\u{652}\u{648}\u{64e}\u{645}\u{64f}\u{647}\u{64e}\u{627} \u{625}\u{650}\u{644}\u{64e}\u{649} \u{627}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{650}\u{60c} \u{648}\u{64e}\u{625}\u{650}\u{646}\u{652} \u{642}\u{64e}\u{644}\u{651}\u{64e}',
     body:
-        'The most beloved deeds to Allah are those done consistently, even if they are small. A small act kept alive can become a mercy that shapes the whole day.',
+        'Do good deeds properly, sincerely and moderately, and know that the most beloved deed to Allah is the most regular and constant even if it were little.',
     source: 'Sahih al-Bukhari 6464',
     prompt: 'What small act can you keep returning to?',
   ),
@@ -1086,19 +1099,18 @@ const _homeReflectionSources = [
     kind: 'Quran',
     title: 'Allah is near',
     arabic:
-        '\u{641}\u{625}\u{646}\u{64a} \u{642}\u{631}\u{64a}\u{628} \u{623}\u{62c}\u{64a}\u{628} \u{62f}\u{639}\u{648}\u{629} \u{627}\u{644}\u{62f}\u{627}\u{639} \u{625}\u{630}\u{627} \u{62f}\u{639}\u{627}\u{646}',
+        '\u{648}\u{64e}\u{625}\u{650}\u{630}\u{64e}\u{627} \u{633}\u{64e}\u{623}\u{64e}\u{644}\u{64e}\u{643}\u{64e} \u{639}\u{650}\u{628}\u{64e}\u{627}\u{62f}\u{650}\u{64a} \u{639}\u{64e}\u{646}\u{651}\u{650}\u{64a} \u{641}\u{64e}\u{625}\u{650}\u{646}\u{651}\u{650}\u{64a} \u{642}\u{64e}\u{631}\u{650}\u{64a}\u{628}\u{64c} \u{6d6} \u{623}\u{64f}\u{62c}\u{650}\u{64a}\u{628}\u{64f} \u{62f}\u{64e}\u{639}\u{652}\u{648}\u{64e}\u{629}\u{64e} \u{627}\u{644}\u{62f}\u{651}\u{64e}\u{627}\u{639}\u{650} \u{625}\u{650}\u{630}\u{64e}\u{627} \u{62f}\u{64e}\u{639}\u{64e}\u{627}\u{646}\u{650} \u{6d6} \u{641}\u{64e}\u{644}\u{652}\u{64a}\u{64e}\u{633}\u{652}\u{62a}\u{64e}\u{62c}\u{650}\u{64a}\u{628}\u{64f}\u{648}\u{627} \u{644}\u{650}\u{64a} \u{648}\u{64e}\u{644}\u{652}\u{64a}\u{64f}\u{624}\u{652}\u{645}\u{650}\u{646}\u{64f}\u{648}\u{627} \u{628}\u{650}\u{64a} \u{644}\u{64e}\u{639}\u{64e}\u{644}\u{651}\u{64e}\u{647}\u{64f}\u{645}\u{652} \u{64a}\u{64e}\u{631}\u{652}\u{634}\u{64f}\u{62f}\u{64f}\u{648}\u{646}\u{64e}',
     body:
-        'Indeed, I am near. I respond to the call of the caller when he calls upon Me. So let them respond to Me and believe in Me that they may be guided.',
-    source: 'Quran 2:186',
+        'When My servants ask you about Me: I am truly near. I respond to one\'s prayer when they call upon Me. So let them respond to Me and believe in Me, perhaps they will be guided.',
+    source: 'Quran 2:186 - Quran.com',
     prompt: 'What dua has been waiting quietly inside you?',
   ),
   _HomeSource(
     kind: 'Hadith',
     title: 'Learn and teach',
     arabic:
-        '\u{62e}\u{64a}\u{631}\u{643}\u{645} \u{645}\u{646} \u{62a}\u{639}\u{644}\u{645} \u{627}\u{644}\u{642}\u{631}\u{622}\u{646} \u{648}\u{639}\u{644}\u{645}\u{647}',
-    body:
-        'The best of you are those who learn the Quran and teach it. Learning can begin with one ayah read carefully, carried gently, and shared beautifully.',
+        '\u{62e}\u{64e}\u{64a}\u{652}\u{631}\u{64f}\u{643}\u{64f}\u{645}\u{652} \u{645}\u{64e}\u{646}\u{652} \u{62a}\u{64e}\u{639}\u{64e}\u{644}\u{651}\u{64e}\u{645}\u{64e} \u{627}\u{644}\u{652}\u{642}\u{64f}\u{631}\u{652}\u{622}\u{646}\u{64e} \u{648}\u{64e}\u{639}\u{64e}\u{644}\u{651}\u{64e}\u{645}\u{64e}\u{647}\u{64f}',
+    body: 'The best among you are those who learn the Quran and teach it.',
     source: 'Sahih al-Bukhari 5027',
     prompt: 'What is one thing from the Quran you want to live or share today?',
   ),
@@ -1106,19 +1118,19 @@ const _homeReflectionSources = [
     kind: 'Quran',
     title: 'Do not despair',
     arabic:
-        '\u{644}\u{627} \u{62a}\u{642}\u{646}\u{637}\u{648}\u{627} \u{645}\u{646} \u{631}\u{62d}\u{645}\u{629} \u{627}\u{644}\u{644}\u{647}',
+        '\u{642}\u{64f}\u{644}\u{652} \u{64a}\u{64e}\u{627} \u{639}\u{650}\u{628}\u{64e}\u{627}\u{62f}\u{650}\u{64a}\u{64e} \u{627}\u{644}\u{651}\u{64e}\u{630}\u{650}\u{64a}\u{646}\u{64e} \u{623}\u{64e}\u{633}\u{652}\u{631}\u{64e}\u{641}\u{64f}\u{648}\u{627} \u{639}\u{64e}\u{644}\u{64e}\u{649}\u{670} \u{623}\u{64e}\u{646}\u{652}\u{641}\u{64f}\u{633}\u{650}\u{647}\u{650}\u{645}\u{652} \u{644}\u{64e}\u{627} \u{62a}\u{64e}\u{642}\u{652}\u{646}\u{64e}\u{637}\u{64f}\u{648}\u{627} \u{645}\u{650}\u{646}\u{652} \u{631}\u{64e}\u{62d}\u{652}\u{645}\u{64e}\u{629}\u{650} \u{627}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{650} \u{6da} \u{625}\u{650}\u{646}\u{651}\u{64e} \u{627}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{64e} \u{64a}\u{64e}\u{63a}\u{652}\u{641}\u{650}\u{631}\u{64f} \u{627}\u{644}\u{630}\u{651}\u{64f}\u{646}\u{64f}\u{648}\u{628}\u{64e} \u{62c}\u{64e}\u{645}\u{650}\u{64a}\u{639}\u{64b}\u{627} \u{6da} \u{625}\u{650}\u{646}\u{651}\u{64e}\u{647}\u{64f} \u{647}\u{64f}\u{648}\u{64e} \u{627}\u{644}\u{652}\u{63a}\u{64e}\u{641}\u{64f}\u{648}\u{631}\u{64f} \u{627}\u{644}\u{631}\u{651}\u{64e}\u{62d}\u{650}\u{64a}\u{645}\u{64f}',
     body:
-        'Say, O My servants who have transgressed against themselves, do not despair of the mercy of Allah. Indeed, Allah forgives all sins.',
-    source: 'Quran 39:53',
+        'Say, O My servants who have transgressed against themselves, do not despair of the mercy of Allah. Indeed, Allah forgives all sins. Indeed, it is He who is the Forgiving, the Merciful.',
+    source: 'Quran 39:53 - Sahih International',
     prompt: 'Where do you need to receive mercy instead of carrying shame?',
   ),
   _HomeSource(
     kind: 'Hadith',
     title: 'Good character',
     arabic:
-        '\u{625}\u{646} \u{645}\u{646} \u{62e}\u{64a}\u{627}\u{631}\u{643}\u{645} \u{623}\u{62d}\u{633}\u{646}\u{643}\u{645} \u{623}\u{62e}\u{644}\u{627}\u{642}\u{627}',
+        '\u{625}\u{650}\u{646}\u{651}\u{64e} \u{645}\u{650}\u{646}\u{652} \u{62e}\u{650}\u{64a}\u{64e}\u{627}\u{631}\u{650}\u{643}\u{64f}\u{645}\u{652} \u{623}\u{64e}\u{62d}\u{652}\u{633}\u{64e}\u{646}\u{64e}\u{643}\u{64f}\u{645}\u{652} \u{623}\u{64e}\u{62e}\u{652}\u{644}\u{64e}\u{627}\u{642}\u{64b}\u{627}',
     body:
-        'Indeed, among the best of you are those with the best character. Faith becomes visible in gentleness, restraint, truthfulness, and mercy with people.',
+        'The Prophet never used bad language. He used to say: The best amongst you are those who have the best manners and character.',
     source: 'Sahih al-Bukhari 3559',
     prompt: 'What would good character look like in your next conversation?',
   ),
@@ -1126,10 +1138,10 @@ const _homeReflectionSources = [
     kind: 'Quran',
     title: 'Gratitude increases',
     arabic:
-        '\u{644}\u{626}\u{646} \u{634}\u{643}\u{631}\u{62a}\u{645} \u{644}\u{623}\u{632}\u{64a}\u{62f}\u{646}\u{643}\u{645}',
+        '\u{648}\u{64e}\u{625}\u{650}\u{630}\u{652} \u{62a}\u{64e}\u{623}\u{64e}\u{630}\u{651}\u{64e}\u{646}\u{64e} \u{631}\u{64e}\u{628}\u{651}\u{64f}\u{643}\u{64f}\u{645}\u{652} \u{644}\u{64e}\u{626}\u{650}\u{646}\u{652} \u{634}\u{64e}\u{643}\u{64e}\u{631}\u{652}\u{62a}\u{64f}\u{645}\u{652} \u{644}\u{64e}\u{623}\u{64e}\u{632}\u{650}\u{64a}\u{62f}\u{64e}\u{646}\u{651}\u{64e}\u{643}\u{64f}\u{645}\u{652} \u{6d6} \u{648}\u{64e}\u{644}\u{64e}\u{626}\u{650}\u{646}\u{652} \u{643}\u{64e}\u{641}\u{64e}\u{631}\u{652}\u{62a}\u{64f}\u{645}\u{652} \u{625}\u{650}\u{646}\u{651}\u{64e} \u{639}\u{64e}\u{630}\u{64e}\u{627}\u{628}\u{650}\u{64a} \u{644}\u{64e}\u{634}\u{64e}\u{62f}\u{650}\u{64a}\u{62f}\u{64c}',
     body:
-        'And remember when your Lord proclaimed: If you are grateful, I will surely increase you. Gratitude opens the heart before it opens the hand.',
-    source: 'Quran 14:7',
+        'And remember when your Lord proclaimed, If you are grateful, I will certainly give you more. But if you are ungrateful, surely My punishment is severe.',
+    source: 'Quran 14:7 - Quran.com',
     prompt: 'What blessing can you name before asking for more?',
   ),
 ];
@@ -1945,19 +1957,27 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
     });
     try {
       final localId =
-          'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000).toString().padLeft(3, '0')}';
-      final queueItem = OfflineQueueItem(
-        id: localId,
-        actionType: ActionType.createReflection,
-        payload: {
-          'title': widget.verse.source,
-          'body':
-              '${widget.verse.arabic}\n\n${widget.verse.body}\n\n${widget.prompt}\n\n$body',
-          'mood': 'Reflective',
-        },
-        createdAt: DateTime.now(),
-      );
-      await QueueSyncService.instance.enqueueAndSync(queueItem);
+        'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000).toString().padLeft(3, '0')}';
+      final title = widget.verse.source;
+      final reflectionBody =
+          '${widget.verse.arabic}\n\n${widget.verse.body}\n\n${widget.prompt}\n\n$body';
+      try {
+        await BackendApi.instance.createReflection(
+          title: title,
+          body: reflectionBody,
+          mood: 'Reflective',
+          requestId: localId,
+        );
+      } catch (_) {
+        // Preserve the entry offline; the queue uses the same request ID so a
+        // retry cannot create a duplicate once connectivity returns.
+        await QueueSyncService.instance.enqueueAndSync(OfflineQueueItem(
+          id: localId,
+          actionType: ActionType.createReflection,
+          payload: {'title': title, 'body': reflectionBody, 'mood': 'Reflective', 'request_id': localId},
+          createdAt: DateTime.now(),
+        ));
+      }
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {

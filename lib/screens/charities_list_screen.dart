@@ -62,7 +62,7 @@ class DonationDetailsScreen extends StatefulWidget {
 }
 
 class _DonationDetailsScreenState extends State<DonationDetailsScreen> {
-  late Future<CharityDetail> _future = BackendApi.instance.getCharity(widget.donationId);
+  late final Future<CharityDetail> _future = BackendApi.instance.getCharity(widget.donationId);
 
   Future<void> _openExternal(CharityDetail donation) async {
     final raw = (donation.externalUrl?.isNotEmpty == true ? donation.externalUrl : donation.websiteUrl) ?? '';
@@ -258,14 +258,14 @@ class _EmptyState extends StatelessWidget {
 
 extension _DonationItemText on CharityItem {
   String get displayTitle => (title?.trim().isNotEmpty == true ? title!.trim() : name);
-  String get currencySymbol => currency.toUpperCase() == 'NGN' ? '₦' : '$currency ';
+  String get currencySymbol => currency.toUpperCase() == 'NGN' ? '\u20A6' : '$currency ';
 }
 
 extension _DonationDetailText on CharityDetail {
   String get displayTitle => (title?.trim().isNotEmpty == true ? title!.trim() : name);
   String get statusLabel => status.replaceAll('_', ' ');
   Color get statusColor => status == 'active' ? kSage : status == 'goal_reached' ? kBronze : status == 'completed' ? kBronzeLight : kDanger;
-  String get currencySymbol => currency.toUpperCase() == 'NGN' ? '₦' : '$currency ';
+  String get currencySymbol => currency.toUpperCase() == 'NGN' ? '\u20A6' : '$currency ';
 }
 
 extension on CharityItem {

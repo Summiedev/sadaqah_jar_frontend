@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
+import 'theme/theme_extensions.dart';
 
 /// Canonical motion tokens for Mizan.
 class MizanMotion {
@@ -179,8 +180,22 @@ class ShimmerLoading extends StatefulWidget {
 }
 
 class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
   late final Animation<double> _shimmer = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  bool _isRunning = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final shouldAnimate = MizanMotion.enabled(context);
+    if (shouldAnimate && !_isRunning) {
+      _controller.repeat();
+      _isRunning = true;
+    } else if (!shouldAnimate && _isRunning) {
+      _controller.stop();
+      _isRunning = false;
+    }
+  }
 
   @override
   void dispose() {
@@ -193,6 +208,17 @@ class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProvid
     return AnimatedBuilder(
       animation: _shimmer,
       builder: (context, child) {
+        final colors = context.colors;
+        if (!MizanMotion.enabled(context)) {
+          return Container(
+            width: widget.width,
+            height: widget.height,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(widget.radius),
+              color: colors.surfaceContainerHigh,
+            ),
+          );
+        }
         return Container(
           width: widget.width,
           height: widget.height,
@@ -201,7 +227,11 @@ class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProvid
               gradient: LinearGradient(
               begin: Alignment(_shimmer.value - 1, 0),
               end: Alignment(_shimmer.value, 0),
-              colors: const [kClayPale, kPaper, kClayPale],
+              colors: [
+                colors.surfaceContainerHigh,
+                colors.surfaceElevated,
+                colors.surfaceContainerHigh,
+              ],
             ),
           ),
         );

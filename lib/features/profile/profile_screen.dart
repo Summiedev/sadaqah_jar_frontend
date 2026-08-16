@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool _remindersBusy = false;
   bool _scrolled = false;
   Future<UserProfile>? _profileFuture;
   String? _profileError;
@@ -273,7 +275,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     child: SwitchListTile.adaptive(
                                       contentPadding: EdgeInsets.zero,
                                       title: Text(
-                                        'Friday reminder',
+                                        'Daily rhythm reminders',
                                         style: TextStyle(
                                           color: tokens.textPrimary,
                                           fontSize: 15,
@@ -283,7 +285,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                       subtitle: Text(
                                         loading
                                             ? 'Loading your preference...'
-                                            : 'Get a gentle Friday reminder when it is enabled.',
+                                            : 'Prayer-aware reminders for adhkar, Quran, sadaqah, and Fridays.',
                                         style: TextStyle(
                                           color: tokens.textSecondary,
                                           fontSize: 12.5,
@@ -291,11 +293,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         ),
                                       ),
                                       value: profile?.fridayReminder ?? false,
-                                      onChanged:
-                                          (value) => _toggleFridayReminder(
-                                            profile,
-                                            value,
-                                          ),
+                                      onChanged: _remindersBusy
+                                          ? null
+                                          : (value) {
+                                              unawaited(
+                                                _toggleFridayReminder(
+                                                  profile,
+                                                  value,
+                                                ),
+                                              );
+                                            },
                                       activeThumbColor: kBronze,
                                     ),
                                   ),
@@ -358,6 +365,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _toggleFridayReminder(UserProfile? profile, bool value) async {
     if (profile == null) return;
+    if (mounted) setState(() => _remindersBusy = true);
     try {
       if (value &&
           !await PushNotificationService.instance.enableForReminders()) {
@@ -366,10 +374,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         );
       }
       await BackendApi.instance.updatePreferences(fridayReminder: value);
+      await BackendApi.instance.updateNotificationPreferences(
+        allEnabled: value,
+      );
       if (!mounted) return;
-      setState(() {});
+      setState(() => _remindersBusy = false);
     } catch (error) {
       if (mounted) {
+        setState(() => _remindersBusy = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             behavior: SnackBarBehavior.floating,

@@ -105,6 +105,35 @@ void cacheFamilies(List<FamilyJar> families) {
   _familyCache.addAll(families);
 }
 
+/// Keeps the older family sub-screens backed by the same server response as
+/// the current family hub. This is intentionally tolerant of partial list
+/// responses; detail screens fetch authoritative members and goals again.
+void cacheFamiliesFromApi(List<Map<String, dynamic>> rows) {
+  cacheFamilies(rows.map((row) {
+    final goals = (row['goals'] as List?)?.whereType<Map>().map((g) => FamilyGoal(
+      id: '${g['id'] ?? ''}',
+      title: g['title']?.toString() ?? 'Family goal',
+      subtitle: g['subtitle']?.toString() ?? '',
+      progress: ((g['progress'] as num?)?.toDouble() ?? 0).clamp(0, 1),
+      actsDone: (g['acts_done'] as num?)?.toInt() ?? 0,
+      actsTarget: (g['acts_target'] as num?)?.toInt() ?? 0,
+    )).toList() ?? const <FamilyGoal>[];
+    return FamilyJar(
+      id: '${row['id'] ?? ''}',
+      name: row['name']?.toString() ?? 'Family',
+      coverIcon: Icons.favorite_border_rounded,
+      memberCount: (row['member_count'] as num?)?.toInt() ?? 0,
+      progress: ((row['progress'] as num?)?.toDouble() ?? 0).clamp(0, 1),
+      lastActivity: row['last_activity']?.toString() ?? '',
+      daysRemaining: (row['days_remaining'] as num?)?.toInt() ?? 0,
+      goalLabel: row['goal_label']?.toString() ?? '',
+      members: const [],
+      goals: goals,
+      inviteCode: row['invite_code']?.toString() ?? '',
+    );
+  }).where((family) => family.id.isNotEmpty).toList());
+}
+
 List<String> get pendingRequests => _pendingRequests;
 
 FamilyJar? getFamilyById(String id) {

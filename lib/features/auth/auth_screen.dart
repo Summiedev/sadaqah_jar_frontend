@@ -10,6 +10,27 @@ import '../../core/animations.dart';
 import '../../services/backend_api.dart';
 import 'verification_screen.dart';
 
+String _authErrorMessage(Object error, {required bool signingIn}) {
+  if (error is BackendApiException) {
+    if (error.statusCode == 401) {
+      return signingIn
+          ? 'Your email or password is incorrect. Check both and try again.'
+          : 'We could not create your account with those details.';
+    }
+    if (error.statusCode == 409) {
+      return 'An account with this email already exists. Try signing in instead.';
+    }
+    if (error.statusCode >= 500) {
+      return 'Mizan is having trouble right now. Please try again in a moment.';
+    }
+    if (error.statusCode == 429) {
+      return 'Too many attempts. Please wait a moment and try again.';
+    }
+    if (error.message.isNotEmpty) return error.message;
+  }
+  return 'Something went wrong. Please check your connection and try again.';
+}
+
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
 
@@ -24,6 +45,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -35,7 +57,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               Row(
                 children: [
                   TextButton.icon(
-                    onPressed: () => context.pop(),
+                    onPressed: () {
+                      // [M9] Do not blindly pop when there may be no route
+                      // below (e.g. cold-start deep link into auth). Fall back
+                      // to onboarding/welcome when the stack cannot pop.
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/onboarding');
+                      }
+                    },
                     style: TextButton.styleFrom(
                       alignment: Alignment.centerLeft,
                       padding: EdgeInsets.zero,
@@ -47,65 +78,58 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ],
               ),
 
-              const SizedBox(height: 10),
-
-              const Text(
-                'Create your quiet gateway',
-                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: kInk),
+              const SizedBox(height: 42),
+              Text(
+                _register ? 'Create your first gateway' : 'Welcome back',
+                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: colors.onSurface),
               ),
-
-              const SizedBox(height: 15),
-              FadeScaleTransition(
-                beginScale: 0.98,
-                child: Container(
+              const SizedBox(height: 8),
+              Text(
+                _register
+                    ? 'A private place for your worship, reflection, and good deeds.'
+                    : 'Continue your quiet rhythm, one good step at a time.',
+                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13, height: 1.45),
+              ),
+              const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(color: colors.outlineVariant),
+                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.18 : 0.05), blurRadius: 18, offset: const Offset(0, 8))],
+                ),
+                child: Column(
+                  children: [
+                    Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: kPaper,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: kLine),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: Offset(0, 2))],
+                      decoration: BoxDecoration(color: colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
+                      child: Row(
+                        children: [
+                          Expanded(child: _SegmentButton(selected: _register, label: 'Create account', onTap: () => setState(() => _register = true))),
+                          Expanded(child: _SegmentButton(selected: !_register, label: 'Sign in', onTap: () => setState(() => _register = false))),
+                        ],
                       ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _SegmentButton(
-                          selected: _register,
-                          label: 'Create account',
-                          onTap: () => setState(() => _register = true),
-                        ),
-                      ),
-                      Expanded(
-                        child: _SegmentButton(
-                          selected: !_register,
-                          label: 'Sign in',
-                          onTap: () => setState(() => _register = false),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 18),
+                    AnimatedSwitcher(
+                      duration: MizanMotion.normal,
+                      switchInCurve: MizanMotion.gentle,
+                      switchOutCurve: MizanMotion.gentle,
+                      child: _register ? _RegisterForm(onDone: _onAuthSuccess) : _SigninForm(onSuccess: _onAuthSuccess),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 16),
-              AnimatedSwitcher(
-                duration: MizanMotion.normal,
-                switchInCurve: MizanMotion.gentle,
-                switchOutCurve: MizanMotion.gentle,
-                child: _register
-                    ? _RegisterForm(onDone: _onAuthSuccess)
-                    : _SigninForm(onSuccess: _onAuthSuccess),
-              ),
-              const SizedBox(height: 12),
-              const Row(
+              const SizedBox(height: 20),
+              Row(
                 children: [
-                  Expanded(child: Divider(color: kClay)),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('or', style: TextStyle(fontSize: 10, letterSpacing: 2.5, color: kBronze, fontWeight: FontWeight.w700)),
-                  ),
-                  Expanded(child: Divider(color: kClay)),
+                  Expanded(child: Divider(color: colors.outlineVariant)),
+                  Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text('OR', style: TextStyle(fontSize: 10, letterSpacing: 2.5, color: colors.primary, fontWeight: FontWeight.w800))),
+                  Expanded(child: Divider(color: colors.outlineVariant)),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               if (_googleError != null)
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -122,7 +146,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               _GoogleButton(onTap: _continueWithGoogle, isLoading: _loading),
               const SizedBox(height: 10),
               const Text(
-                'Data is stored locally and privately on this device.',
+                'Your account keeps your progress available across your devices.',
                 textAlign: TextAlign.center,
                  style: TextStyle(fontSize: 11, color: kMuted, height: 1.4),
               ),
@@ -134,8 +158,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   }
 
   Future<void> _onAuthSuccess() async {
+    // [H5] Authentication success and role resolution are SEPARATE concerns.
+    // The user is logged in the moment markAuthenticated() runs. A role
+    // lookup that fails (offline, 5xx, timeout) must NOT turn a successful
+    // login into a fake login failure, nor block navigation to the standard
+    // home experience.
     ref.read(sessionProvider).markAuthenticated();
-    final isAdmin = await BackendApi.instance.isCurrentUserAdmin();
+
+    // Default unknown role to a standard user. Never default unknown -> admin.
+    var isAdmin = false;
+    try {
+      isAdmin = await BackendApi.instance.isCurrentUserAdmin();
+    } catch (_) {
+      // Role resolution failed (offline/server issue). Safely fall back to a
+      // normal user experience. Admin navigation only happens after positive
+      // verification of the admin role.
+      isAdmin = false;
+    }
     if (!mounted) return;
     context.go(isAdmin ? '/admin' : '/home');
   }
@@ -146,8 +185,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _googleError = null;
     });
     try {
+      final serverClientId = const String.fromEnvironment(
+        'GOOGLE_SERVER_CLIENT_ID',
+        defaultValue: '',
+      );
       final googleSignIn = GoogleSignIn(
-        clientId: const String.fromEnvironment('GOOGLE_CLIENT_ID', defaultValue: ''),
+        serverClientId: serverClientId.isEmpty ? null : serverClientId,
       );
       final account = await googleSignIn.signIn();
       if (account == null) {
@@ -162,10 +205,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await _onAuthSuccess();
     } on BackendApiException catch (e) {
       if (!mounted) return;
-      setState(() => _googleError = e.message);
+      setState(() => _googleError = _authErrorMessage(e, signingIn: true));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _googleError = e.toString());
+      setState(() => _googleError =
+          'Google sign-in could not be completed. Please try again.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -181,13 +225,14 @@ class _SegmentButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       child: TextButton(
         onPressed: onTap,
         style: TextButton.styleFrom(
-          backgroundColor: selected ? Theme.of(context).colorScheme.surface : Colors.transparent,
-          foregroundColor: kInk,
+          backgroundColor: selected ? colors.surface : Colors.transparent,
+          foregroundColor: colors.onSurface,
           minimumSize: const Size.fromHeight(36),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -292,7 +337,7 @@ class _RegisterFormState extends State<_RegisterForm> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
+        _errorMessage = _authErrorMessage(error, signingIn: false);
       });
     } finally {
       if (mounted) {
@@ -449,7 +494,7 @@ class _SigninFormState extends State<_SigninForm> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
+        _errorMessage = _authErrorMessage(error, signingIn: true);
       });
     } finally {
       if (mounted) {
@@ -573,11 +618,12 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     final showToggle = onToggleVisibility != null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 2, color: kMuted, fontWeight: FontWeight.w700)),
+        Text(label.toUpperCase(), style: TextStyle(fontSize: 10, letterSpacing: 2, color: colors.onSurfaceVariant, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -586,17 +632,17 @@ class _Field extends StatelessWidget {
           textInputAction: textInputAction,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(fontSize: 12, color: kClay),
+            hintStyle: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
             filled: true,
-            fillColor: kClayPale,
+            fillColor: colors.surfaceContainerHighest,
             contentPadding: EdgeInsets.symmetric(horizontal: showToggle ? 14 : 14, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kBronzeLight)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.outlineVariant)),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.outlineVariant)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.primary, width: 1.5)),
             suffixIcon: showToggle
                 ? IconButton(
                     onPressed: onToggleVisibility,
-                    icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: kBronze),
+                    icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: colors.primary),
                     tooltip: obscureText ? 'Show password' : 'Hide password',
                   )
                 : null,
@@ -615,14 +661,15 @@ class _GoogleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
     return OutlinedButton(
       onPressed: isLoading ? null : onTap,
       style: OutlinedButton.styleFrom(
-        foregroundColor: kInk,
-        side: const BorderSide(color: kLine),
+        foregroundColor: colors.onSurface,
+        side: BorderSide(color: colors.outlineVariant),
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        backgroundColor: kPaper,
+        backgroundColor: colors.surface,
         textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
       ),
       child: Row(

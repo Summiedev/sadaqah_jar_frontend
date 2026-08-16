@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -48,6 +49,7 @@ import 'services/offline_action_queue.dart';
 import 'services/push_notification_service.dart';
 import 'services/local_reminder_service.dart';
 import 'services/location_service.dart';
+import 'services/notification_route_resolver.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
@@ -61,8 +63,45 @@ const splashMinDuration = Duration(milliseconds: 1800);
 /// Flips to true once [splashMinDuration] has elapsed since app start.
 final splashMinElapsedProvider = StateProvider<bool>((ref) => false);
 
+/// Validates that a route path parameter is a proper integer string.
+/// Returns the id string if valid, or null if missing/non-numeric so callers
+/// can fall back to a safe error/not-found state instead of crashing on `!`.
+String? _requireValidIntId(String? raw) {
+  final trimmed = raw?.trim() ?? '';
+  if (trimmed.isEmpty) return null;
+  return int.tryParse(trimmed) != null ? trimmed : null;
+}
+
+/// Safe top-level error handler.
+///
+/// Debug: preserves the default Flutter behavior for useful introspection.
+///
+/// Release: captures the error via debugPrint (no secrets - never include
+/// tokens, passwords, OTPs, or private payloads) and falls back to a graceful
+/// error screen instead of a red/blank screen.
+void _reportError(Object error, StackTrace stack) {
+  // Never include secrets in logging. Only log the exception type and message,
+  // which may contain a user-visible API error message.
+  final safeMessage = error.toString().length > 500
+      ? '${error.toString().substring(0, 500)}...'
+      : error.toString();
+  debugPrint('Mizan error: $safeMessage');
+  if (kDebugMode) {
+    debugPrintStack(stackTrace: stack, label: 'Mizan error stack');
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // C7: production-safe top-level exception handling.
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    _reportError(details.exception, details.stack ?? StackTrace.current);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    _reportError(error, stack);
+    return true; // handled - don't crash the isolate
+  };
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // Register background message handler so data-only messages are
   // persisted while the app is backgrounded/terminated.
@@ -76,9 +115,10 @@ void main() async {
       final data = initial.data;
       if (data.isNotEmpty) {
         final prefs = await SharedPreferences.getInstance();
+        // H1: store structured JSON, not key=value&key=value.
         await prefs.setString(
           'pending_notification_payload',
-          data.entries.map((e) => '${e.key}=${e.value}').join('&'),
+          encodeNotificationPayload(data),
         );
       }
     }
@@ -243,7 +283,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/home',
-            builder: (context, state) => const HomeScreen(),
+            builder: (context, state) => HomeScreen(
+              openSadaqah: state.uri.queryParameters['open'] == 'sadaqah',
+            ),
           ),
           GoRoute(
             path: '/qibla',
@@ -281,35 +323,45 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/family/jar/:id',
         pageBuilder:
             (context, state) => mizanPage(
-              child: FamilyJarScreen(id: state.pathParameters['id']!),
+              child: FamilyJarScreen(
+                id: _requireValidIntId(state.pathParameters['id']) ?? '',
+              ),
             ),
       ),
       GoRoute(
         path: '/family/timeline/:id',
         pageBuilder:
             (context, state) => mizanPage(
-              child: ActivityTimelineScreen(id: state.pathParameters['id']!),
+              child: ActivityTimelineScreen(
+                id: _requireValidIntId(state.pathParameters['id']) ?? '',
+              ),
             ),
       ),
       GoRoute(
         path: '/family/goals/:id',
         pageBuilder:
             (context, state) => mizanPage(
-              child: SharedGoalsScreen(id: state.pathParameters['id']!),
+              child: SharedGoalsScreen(
+                id: _requireValidIntId(state.pathParameters['id']) ?? '',
+              ),
             ),
       ),
       GoRoute(
         path: '/family/reflections/:id',
         pageBuilder:
             (context, state) => mizanPage(
-              child: FamilyReflectionsScreen(id: state.pathParameters['id']!),
+              child: FamilyReflectionsScreen(
+                id: _requireValidIntId(state.pathParameters['id']) ?? '',
+              ),
             ),
       ),
       GoRoute(
         path: '/family/prayers/:id',
         pageBuilder:
             (context, state) => mizanPage(
-              child: PrayerRequestsScreen(id: state.pathParameters['id']!),
+              child: PrayerRequestsScreen(
+                id: _requireValidIntId(state.pathParameters['id']) ?? '',
+              ),
             ),
       ),
       GoRoute(
@@ -321,21 +373,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/family/invitations/:id',
         pageBuilder:
             (context, state) => mizanPage(
-              child: InvitationsScreen(id: state.pathParameters['id']!),
+              child: InvitationsScreen(
+                id: _requireValidIntId(state.pathParameters['id']) ?? '',
+              ),
             ),
       ),
       GoRoute(
         path: '/family/members/:id',
         pageBuilder:
             (context, state) => mizanPage(
-              child: FamilyMembersScreen(id: state.pathParameters['id']!),
+              child: FamilyMembersScreen(
+                id: _requireValidIntId(state.pathParameters['id']) ?? '',
+              ),
             ),
       ),
       GoRoute(
         path: '/family/settings/:id',
         pageBuilder:
             (context, state) => mizanPage(
-              child: FamilySettingsScreen(id: state.pathParameters['id']!),
+              child: FamilySettingsScreen(
+                id: _requireValidIntId(state.pathParameters['id']) ?? '',
+              ),
             ),
       ),
       GoRoute(
@@ -450,8 +508,9 @@ class _MizanAppState extends ConsumerState<MizanApp>
                       ? SnackBarAction(
                         label: 'Open',
                         onPressed: () {
-                          if (mounted && path.isNotEmpty)
+                          if (mounted && path.isNotEmpty) {
                             GoRouter.of(context).go(path);
+                          }
                         },
                       )
                       : null,
@@ -488,6 +547,23 @@ class _MizanAppState extends ConsumerState<MizanApp>
       darkTheme: buildDarkTheme(),
       themeMode: ref.watch(themeModeProvider),
       routerConfig: router,
+      builder: (context, child) {
+        return PopScope(
+          // Android back should always return to a safe app destination,
+          // rather than closing the process from a deep link or detail page.
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            final path = router.routeInformationProvider.value.uri.path;
+            if (ref.read(sessionProvider).isAuthenticated) {
+              if (path != '/home') router.go('/home');
+            } else if (path != '/onboarding') {
+              router.go('/onboarding');
+            }
+          },
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
     );
   }
 
@@ -498,20 +574,12 @@ class _MizanAppState extends ConsumerState<MizanApp>
       if (payload != null && payload.isNotEmpty) {
         // Clear it so we don't process twice
         await prefs.remove('pending_notification_payload');
-        // Basic parsing: support payloads like "path=/family/jar/1" or key=val&key2=val2
-        final parts = <String, String>{};
-        if (payload.contains('&') || payload.contains('=')) {
-          for (final pair in payload.split('&')) {
-            final kv = pair.split('=');
-            if (kv.length == 2) parts[kv[0]] = kv[1];
-          }
-        } else if (payload.startsWith('/')) {
-          parts['path'] = payload;
-        }
-        final path = parts['path'] ?? parts['url'] ?? parts['link'];
-        if (path != null && path.isNotEmpty && mounted) {
-          // Use GoRouter to navigate now that the first frame has rendered
-          if (mounted) GoRouter.of(context).go(path);
+        // H1: decode structured JSON payload and resolve to a safe destination.
+        final decoded = decodeNotificationPayload(payload);
+        final resolved = resolveNotificationDestination(decoded);
+        if (resolved != null && mounted) {
+          // Use GoRouter to navigate now that the first frame has rendered.
+          GoRouter.of(context).go(resolved.route);
         }
       }
     } catch (_) {}

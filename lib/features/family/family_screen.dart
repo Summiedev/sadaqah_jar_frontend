@@ -44,6 +44,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     try {
       final families = await BackendApi.instance.getFamilies();
       if (!mounted) return;
+      cacheFamiliesFromApi(families);
       setState(() {
         _families = families;
         _loading = false;

@@ -291,7 +291,7 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
           _Field(controller: _evidence, label: 'Evidence or supporting info', icon: Icons.verified_outlined, maxLines: 3),
           _Field(controller: _contact, label: 'Contact or relevant info', icon: Icons.contact_mail_outlined, maxLines: 3),
           DropdownButtonFormField<String>(
-            value: _status,
+            initialValue: _status,
             decoration: const InputDecoration(labelText: 'Status', prefixIcon: Icon(Icons.tune_rounded, color: kBronze)),
             items: const [
               DropdownMenuItem(value: 'active', child: Text('Active')),

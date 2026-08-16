@@ -20,6 +20,28 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
   int _selectedIndex = -1;
   bool _saving = false;
   bool _skipped = false;
+  bool _checkingExistingGoal = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _skipIfAlreadySetUp());
+  }
+
+  Future<void> _skipIfAlreadySetUp() async {
+    try {
+      final goals = await BackendApi.instance.getGoals(status: 'active');
+      final items = goals['goals'];
+      if (items is List && items.isNotEmpty) {
+        await ref.read(sessionProvider).completeGoalSetup();
+        if (mounted) context.go('/home');
+        return;
+      }
+    } catch (_) {
+      // Keep the form available when the account is temporarily offline.
+    }
+    if (mounted) setState(() => _checkingExistingGoal = false);
+  }
 
   List<Map<String, dynamic>> get _suggestions {
     final mode = ref.read(modeProvider);
@@ -113,6 +135,9 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_checkingExistingGoal) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return Scaffold(
       backgroundColor: kSurface,
       body: SafeArea(

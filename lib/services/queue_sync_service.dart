@@ -54,7 +54,6 @@ class QueueSyncService {
       return;
     }
 
-
     _syncing = true;
     try {
       final pending = await OfflineActionQueue.instance.getPending();
@@ -69,7 +68,10 @@ class QueueSyncService {
           break;
         }
 
-        await OfflineActionQueue.instance.updateStatus(item.id, QueueStatus.syncing);
+        await OfflineActionQueue.instance.updateStatus(
+          item.id,
+          QueueStatus.syncing,
+        );
         try {
           await _execute(item);
           await OfflineActionQueue.instance.remove(item.id);
@@ -114,7 +116,14 @@ class QueueSyncService {
         return;
       case ActionType.addFamilyAct:
         final familyId = (item.payload['family_id'] as num).toInt();
-        await _api.addFamilyAct(familyId, requestId: requestId);
+        final type = item.payload['type'] as String?;
+        final note = item.payload['note'] as String?;
+        await _api.addFamilyAct(
+          familyId,
+          type: type,
+          note: note,
+          requestId: requestId,
+        );
         return;
       case ActionType.createReflection:
         final title = item.payload['title'] as String;
@@ -136,7 +145,6 @@ class QueueSyncService {
       _attemptSync();
     });
   }
-
 
   void dispose() {
     _retryTimer?.cancel();

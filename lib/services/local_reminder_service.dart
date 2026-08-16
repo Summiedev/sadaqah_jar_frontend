@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
+
+import 'device_timezone.dart';
 
 class LocalReminderService {
   LocalReminderService._();
@@ -11,7 +12,9 @@ class LocalReminderService {
   final FlutterLocalNotificationsPlugin _local =
       FlutterLocalNotificationsPlugin();
   static const _fridayId = 1001;
-  static const _channelId = 'mizan_reminders';
+  // A new channel ensures devices that muted the old channel receive the
+  // current reminder configuration and importance level.
+  static const _channelId = 'mizan_reminders_v2';
   static const _channelName = 'Mizan reminders';
   static const _channelDescription =
       'Prayer, adhkar, family, and journey reminders from Mizan.';
@@ -19,10 +22,9 @@ class LocalReminderService {
 
   Future<void> initialize() async {
     if (_initialized) return;
-    tzdata.initializeTimeZones();
-    try {
-      tz.setLocalLocation(tz.getLocation(DateTime.now().timeZoneName));
-    } catch (_) {}
+    // [M4] Use a proper IANA timezone (e.g. "Africa/Lagos") resolved from the
+    // platform, NOT the ambiguous abbreviation from DateTime.now().timeZoneName.
+    await DeviceTimezone.instance.ensureTimezoneInitialized();
     const android = AndroidInitializationSettings('@mipmap/ic_launcher');
     const ios = DarwinInitializationSettings();
     await _local.initialize(
@@ -115,6 +117,36 @@ class LocalReminderService {
 
   Future<void> cancel(int id) async => await _local.cancel(id);
 
+  /// [Phase 4] Upsert a daily reminder using a deterministic ID derived from
+  /// its logical identity (type + date). Cancels any existing scheduled
+  /// notification with the same ID BEFORE scheduling, so opening the app
+  /// repeatedly for the same date replaces rather than duplicates the
+  /// reminder (no Fajr #1, Fajr #2, Fajr #3).
+  Future<void> upsertDailyAt(
+    String reminderType, {
+    String? dateKey,
+    required String title,
+    required String body,
+    required TimeOfDay time,
+  }) async {
+    final id = reminderScheduleId(reminderType, dateKey: dateKey);
+    await cancel(id);
+    await scheduleDailyAt(id, title, body, time);
+  }
+
+  /// [Phase 4] Upsert a weekly reminder with a deterministic ID.
+  Future<void> upsertWeeklyAt(
+    String reminderType, {
+    required String title,
+    required String body,
+    required int weekday,
+    required TimeOfDay time,
+  }) async {
+    final id = reminderScheduleId(reminderType);
+    await cancel(id);
+    await scheduleWeeklyAt(id, title, body, weekday: weekday, time: time);
+  }
+
   Future<void> scheduleWeeklyAt(
     int id,
     String title,
@@ -180,7 +212,7 @@ class LocalReminderService {
         importance: Importance.high,
         priority: Priority.high,
         category: AndroidNotificationCategory.reminder,
-        icon: '@mipmap/ic_launcher',
+        icon: '@drawable/ic_stat_mizan',
       ),
       iOS: DarwinNotificationDetails(
         presentAlert: true,

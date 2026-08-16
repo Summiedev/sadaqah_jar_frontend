@@ -163,6 +163,21 @@ class JourneySearchIndex {
     return results;
   }
 
+  /// Resolves the stable adhkar id stored by the favorites API back to the
+  /// bundled content used by the reader. Favorites intentionally store only
+  /// ids, so the Saved tab must not render a bare "Adhkar #..." label.
+  static JourneySearchResult? findAdhkarById(int id) {
+    if (_index.isEmpty) build();
+    for (final item in _index) {
+      if (item.category != 'Reflection' &&
+          item.category != 'Reading' &&
+          item.id == id) {
+        return item;
+      }
+    }
+    return null;
+  }
+
   static double _score(JourneySearchResult item, List<String> words, String fullQuery) {
     double score = 0;
     final titleN = normalize(item.title);

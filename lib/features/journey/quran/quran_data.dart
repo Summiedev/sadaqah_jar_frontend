@@ -10,7 +10,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../../../services/backend_api.dart';
 
-enum QuranReadingMode { verses, page }
+enum QuranReadingMode { mushaf, continuous, ayah }
 
 enum QuranDownloadState { idle, downloading, complete, failed }
 
@@ -147,7 +147,7 @@ class QuranSettings {
     showTafsir: false,
     reciter: 'Mishary Rashid Alafasy',
     arabicSize: 30,
-    readingMode: QuranReadingMode.verses,
+    readingMode: QuranReadingMode.mushaf,
   );
 
   final bool showPronunciation;
@@ -198,11 +198,18 @@ class QuranSettings {
     showTafsir: json['showTafsir'] as bool? ?? defaults.showTafsir,
     reciter: json['reciter'] as String? ?? defaults.reciter,
     arabicSize: (json['arabicSize'] as num?)?.toDouble() ?? defaults.arabicSize,
-    readingMode: QuranReadingMode.values.firstWhere(
-      (mode) => mode.name == json['readingMode'],
-      orElse: () => defaults.readingMode,
-    ),
+    readingMode: _readingModeFromJson(json['readingMode']),
   );
+
+  static QuranReadingMode _readingModeFromJson(Object? value) {
+    final name = value?.toString();
+    if (name == 'page') return QuranReadingMode.mushaf;
+    if (name == 'verses') return QuranReadingMode.continuous;
+    return QuranReadingMode.values.firstWhere(
+      (mode) => mode.name == name,
+      orElse: () => defaults.readingMode,
+    );
+  }
 }
 
 class QuranProgress {
@@ -222,11 +229,8 @@ class QuranRepository {
 
   static final instance = QuranRepository._();
 
-  static const baseApi = 'https://api.quran.com/api/v4';
-  static const pageImageBase = 'https://api.islamic.app/v1/mushaf/page';
   static const sourcePlan =
-      'Quran.Foundation Content API v4 for text, words, Hilali & Khan translation, Ibn Kathir tafsir, and verse audio. Islamic.app standard Madinah Mushaf SVG pages for the 604 page images.';
-  static const tafsirIbnKathirId = 169;
+      'Mizan backend imports Quran.Foundation Content API data into PostgreSQL. Flutter syncs only from Mizan and stores the Quran locally for offline reading.';
   static const hilaliKhanTranslationId = 203;
   static const reciters = <String, int>{
     'Mishary Rashid Alafasy': 7,
@@ -237,9 +241,11 @@ class QuranRepository {
 
   static const _settingsKey = 'mizan.quran.settings';
   static const _progressKey = 'mizan.quran.progress';
-  static const _offlineReadyKey = 'mizan.quran.offline.ready.v2';
+  static const _offlineReadyKey = 'mizan.quran.offline.ready.v3';
   static const _translationIdKey = 'mizan.quran.translation.hilali_khan.id';
-  static const _datasetVersion = 2;
+  // Bump this whenever the bundled/backend contract changes. Older local
+  // content must never be presented as the current Mushaf dataset.
+  static const _datasetVersion = 3;
   static const _downloadTotal = 114 + 604;
 
   final _statusController = StreamController<QuranDownloadStatus>.broadcast();
@@ -300,12 +306,16 @@ class QuranRepository {
     if (verseCount != 6236) return false;
     final pageDir = Directory(p.join((await filesDir).path, 'pages'));
     for (var page = 1; page <= 604; page++) {
-      if (!await File(p.join(pageDir.path, '$page.svg')).exists()) return false;
+      final exists = ['png', 'jpg', 'jpeg', 'svg'].any(
+        (extension) => File(p.join(pageDir.path, '$page.$extension')).existsSync(),
+      );
+      if (!exists) return false;
     }
     return true;
   }
 
   Future<void> ensureOfflineDataset() async {
+    await _resetStaleDatasetIfNeeded();
     if (await isOfflineReady()) {
       _statusController.add(
         const QuranDownloadStatus(
@@ -382,6 +392,33 @@ class QuranRepository {
     }
   }
 
+  Future<void> _resetStaleDatasetIfNeeded() async {
+    final db = await database;
+    final rows = await db.query(
+      'metadata',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: ['dataset_version'],
+      limit: 1,
+    );
+    final storedValue = rows.isEmpty ? null : rows.first['value'];
+    final version = int.tryParse(storedValue?.toString() ?? '');
+    if (version == _datasetVersion) return;
+
+    await db.transaction((txn) async {
+      await txn.delete('words');
+      await txn.delete('verses');
+      await txn.delete('surahs');
+      await txn.delete('metadata');
+    });
+    final pages = Directory(p.join((await filesDir).path, 'pages'));
+    if (await pages.exists()) {
+      await for (final entity in pages.list()) {
+        if (entity is File) await entity.delete();
+      }
+    }
+  }
+
   Future<int> _downloadedUnitCount() async {
     var count = 0;
     try {
@@ -397,7 +434,9 @@ class QuranRepository {
         count += pageDir
             .listSync()
             .whereType<File>()
-            .where((file) => file.path.toLowerCase().endsWith('.svg'))
+            .where((file) => ['.svg', '.png', '.jpg', '.jpeg'].any(
+              (extension) => file.path.toLowerCase().endsWith(extension),
+            ))
             .length
             .clamp(0, 604);
       }
@@ -575,35 +614,21 @@ class QuranRepository {
   }
 
   Future<File?> localPageImage(int page) async {
-    final file = File(p.join((await filesDir).path, 'pages', '$page.svg'));
-    return file.existsSync() ? file : null;
+    final directory = (await filesDir).path;
+    for (final extension in ['png', 'jpg', 'jpeg', 'svg']) {
+      final file = File(p.join(directory, 'pages', '$page.$extension'));
+      if (file.existsSync()) return file;
+    }
+    return null;
   }
 
-  Uri pageImageUri(int page) =>
-      Uri.parse('$pageImageBase/$page.svg?font=uthmani&theme=light&width=900');
-
-  Future<Uri> audioUriFor(QuranVerse verse, QuranSettings settings) async {
-    final reciter = reciters[settings.reciter] ?? reciters.values.first;
-    if (reciter == reciters.values.first &&
-        verse.audioUrl != null &&
-        verse.audioUrl!.startsWith('http')) {
+  Future<Uri> audioUriFor(QuranVerse verse, QuranSettings _) async {
+    if (verse.audioUrl != null && verse.audioUrl!.startsWith('http')) {
       return Uri.parse(verse.audioUrl!);
     }
-    final uri = Uri.parse('$baseApi/verses/by_key/${verse.key}?audio=$reciter');
-    final response = await http.get(uri).timeout(const Duration(seconds: 15));
-    if (response.statusCode != 200) {
-      throw Exception('Could not load recitation audio for ${verse.key}');
-    }
-    final decoded = jsonDecode(response.body) as Map<String, dynamic>;
-    final verseJson = Map<String, dynamic>.from(
-      (decoded['verse'] as Map?) ?? {},
+    throw Exception(
+      'Recitation audio for ${verse.key} is not available offline yet.',
     );
-    final audio = Map<String, dynamic>.from((verseJson['audio'] as Map?) ?? {});
-    final url = audio['url']?.toString();
-    if (url == null || url.isEmpty) {
-      throw Exception('No recitation audio URL found for ${verse.key}');
-    }
-    return Uri.parse(_absoluteAudioUrl(url));
   }
 
   Future<int> downloadSurahAudio(int surahId, QuranSettings settings) async {
@@ -741,44 +766,44 @@ class QuranRepository {
     return hilaliKhanTranslationId;
   }
 
-  Future<int> verifyHilaliKhanTranslationId() async {
-    final response = await http
-        .get(Uri.parse('$baseApi/resources/translations?language=en'))
-        .timeout(const Duration(seconds: 20));
-    if (response.statusCode != 200) {
-      throw Exception(
-        'Could not load Quran translation resources (${response.statusCode})',
-      );
-    }
-    final resources = _mapList(
-      (jsonDecode(response.body) as Map<String, dynamic>)['translations'],
-    );
-    final resource = resources.firstWhere(
-      (item) {
-        final haystack =
-            '${item['name']} ${item['author_name']} ${item['slug']}'
-                .toLowerCase();
-        return haystack.contains('hilali') && haystack.contains('khan');
-      },
+  Future<void> _downloadChapter(int chapter, int _) async {
+    final db = await database;
+    final surahs = await BackendApi.instance.getQuranSurahs();
+    final surahInfo = surahs.firstWhere(
+      (surah) => _asInt(surah['id'], fallback: 0) == chapter,
       orElse:
           () =>
               throw Exception(
-                'Hilali & Khan translation is not available from Quran.Foundation resources',
+                'Mizan Quran dataset is not seeded for surah $chapter',
               ),
     );
-    final id = _asInt(resource['id'], fallback: hilaliKhanTranslationId);
-    if (id != hilaliKhanTranslationId) {
+    final ayahs = await BackendApi.instance.getQuranSurahAyahs(chapter);
+    if (ayahs.isEmpty) {
       throw Exception(
-        'Expected Hilali & Khan resource $hilaliKhanTranslationId but API returned $id',
+        'Mizan Quran dataset is not seeded for surah $chapter. Run the backend Quran import first.',
       );
     }
-    return id;
-  }
-
-  Future<void> _downloadChapter(int chapter, int translationId) async {
-    final db = await database;
-    final firstPage = await _fetchChapterPage(chapter, translationId);
-    final chapterInfo = firstPage.chapterInfo;
+    final chapterInfo = {
+      'id': chapter,
+      'name_arabic': (surahInfo['name_ar'] ?? '').toString(),
+      'name_transliterated':
+          (surahInfo['name_transliteration'] ?? 'Surah $chapter').toString(),
+      'name_english': (surahInfo['name_en'] ?? '').toString(),
+      'revelation_place': (surahInfo['revelation_type'] ?? '').toString(),
+      'verses_count': _asInt(surahInfo['ayah_count'], fallback: ayahs.length),
+      'first_page': _asInt(
+        surahInfo['first_page'],
+        fallback: _pageFromBackendAyah(ayahs.first),
+      ),
+      'last_page': _asInt(
+        surahInfo['last_page'],
+        fallback: _pageFromBackendAyah(ayahs.last),
+      ),
+      'first_juz': _asInt(
+        surahInfo['first_juz'],
+        fallback: _metaInt(ayahs.first, 'juz', fallback: 1),
+      ),
+    };
     await db.transaction((txn) async {
       await txn.insert(
         'surahs',
@@ -792,196 +817,66 @@ class QuranRepository {
         whereArgs: ['$chapter:%'],
       );
     });
-    var page = 1;
-    ChapterPayload payload = firstPage;
-    final tafsirs = await _fetchChapterTafsirs(chapter);
-    while (true) {
-      await _persistVerses(payload.verses, tafsirs);
-      final nextPage = payload.nextPage;
-      if (nextPage == null) {
-        break;
-      }
-      page = nextPage;
-      payload = await _fetchChapterPage(chapter, translationId, page: page);
-    }
+    await _persistBackendAyahs(ayahs);
   }
 
-  Future<ChapterPayload> _fetchChapterPage(
-    int chapter,
-    int translationId, {
-    int page = 1,
-  }) async {
-    final reciter = reciters.values.first;
-    final uri = Uri.parse('$baseApi/verses/by_chapter/$chapter').replace(
-      queryParameters: {
-        'words': 'true',
-        'translations': '$translationId',
-        'audio': '$reciter',
-        'fields': 'text_uthmani',
-        'word_fields': 'text_uthmani',
-        'translation_fields':
-            'resource_name,verse_key,chapter_id,verse_number,juz_number,hizb_number,page_number',
-        'per_page': '50',
-        'page': '$page',
-      },
-    );
-    final response = await http.get(uri).timeout(const Duration(seconds: 30));
-    if (response.statusCode != 200) {
-      throw Exception(
-        'Could not download surah $chapter (${response.statusCode})',
-      );
-    }
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    final verses = _mapList(body['verses']);
-    if (verses.isEmpty) {
-      throw Exception('Quran data for surah $chapter arrived empty');
-    }
-    final pagination = Map<String, dynamic>.from(
-      (body['pagination'] as Map?) ?? {},
-    );
-    final next = _asNullableInt(pagination['next_page']);
-    final chapterInfo = await _chapterInfo(chapter, verses);
-    return ChapterPayload(
-      chapterInfo: chapterInfo,
-      verses: verses,
-      nextPage: next,
-    );
-  }
-
-  Future<Map<String, Object>> _chapterInfo(
-    int chapter,
-    List<Map<String, dynamic>> verses,
-  ) async {
-    final response = await http
-        .get(Uri.parse('$baseApi/chapters/$chapter?language=en'))
-        .timeout(const Duration(seconds: 20));
-    if (response.statusCode != 200) {
-      throw Exception('Could not download surah metadata $chapter');
-    }
-    final ch = Map<String, dynamic>.from(
-      (jsonDecode(response.body)['chapter'] as Map?) ?? {},
-    );
-    return {
-      'id': chapter,
-      'name_arabic': (ch['name_arabic'] ?? '').toString(),
-      'name_transliterated': (ch['name_simple'] ?? 'Surah $chapter').toString(),
-      'name_english':
-          ((ch['translated_name'] as Map?)?['name'] ?? '').toString(),
-      'revelation_place': (ch['revelation_place'] ?? '').toString(),
-      'verses_count': _asInt(ch['verses_count'], fallback: verses.length),
-      'first_page': _asInt(verses.first['page_number'], fallback: 1),
-      'last_page': _asInt(verses.last['page_number'], fallback: 1),
-      'first_juz': _asInt(verses.first['juz_number'], fallback: 1),
-    };
-  }
-
-  Future<Map<String, String>> _fetchChapterTafsirs(int chapter) async {
-    final tafsirs = <String, String>{};
-    var page = 1;
-    while (true) {
-      final uri = Uri.parse(
-        '$baseApi/tafsirs/$tafsirIbnKathirId/by_chapter/$chapter',
-      ).replace(
-        queryParameters: {
-          'fields':
-              'verse_key,chapter_id,verse_number,juz_number,hizb_number,page_number,resource_name,language_name',
-          'per_page': '50',
-          'page': '$page',
-        },
-      );
-      final response = await http.get(uri).timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) {
-        throw Exception(
-          'Could not download Ibn Kathir tafsir for surah $chapter (${response.statusCode})',
-        );
-      }
-      final body = jsonDecode(response.body) as Map<String, dynamic>;
-      for (final item in _mapList(body['tafsirs'])) {
-        final verseKey = item['verse_key']?.toString();
-        if (verseKey == null || verseKey.isEmpty) continue;
-        tafsirs[verseKey] = _stripHtml(item['text']?.toString() ?? '');
-      }
-      final nextPage = _asNullableInt(
-        ((body['pagination'] as Map?) ?? {})['next_page'],
-      );
-      if (nextPage == null) break;
-      page = nextPage;
-    }
-    return tafsirs;
-  }
-
-  Future<void> _persistVerses(
-    List<Map<String, dynamic>> verses,
-    Map<String, String> tafsirsByVerseKey,
-  ) async {
+  Future<void> _persistBackendAyahs(List<Map<String, dynamic>> ayahs) async {
     final db = await database;
     await db.transaction((txn) async {
-      for (final verse in verses) {
-        final translations = _mapList(verse['translations']);
-        final words = _mapList(verse['words']);
-        final verseKey = (verse['verse_key'] ?? '').toString();
+      for (final ayah in ayahs) {
+        final verseKey = (ayah['verse_key'] ?? '').toString();
         if (verseKey.isEmpty) continue;
+        final arabic = Map<String, dynamic>.from(
+          (ayah['arabic'] as Map?) ?? {},
+        );
+        final translation = Map<String, dynamic>.from(
+          (ayah['translation'] as Map?) ?? {},
+        );
+        final audio = _mapList(ayah['audio']);
         await txn.insert('verses', {
           'verse_key': verseKey,
           'surah_id': _asInt(
-            verse['chapter_id'],
+            ayah['surah_id'],
             fallback: _surahFromVerseKey(verseKey),
           ),
           'ayah': _asInt(
-            verse['verse_number'],
+            ayah['ayah_number'],
             fallback: _ayahFromVerseKey(verseKey),
           ),
-          'juz': _asInt(verse['juz_number'], fallback: 1),
-          'hizb': _asInt(verse['hizb_number'], fallback: 1),
-          'page': _asInt(verse['page_number'], fallback: 1),
-          'arabic': (verse['text_uthmani'] ?? '').toString(),
-          'transliteration': words
-              .map(
-                (word) =>
-                    ((word['transliteration'] as Map?)?['text'] ?? '')
-                        .toString(),
-              )
-              .where((text) => text.isNotEmpty)
-              .join(' '),
-          'translation': _stripHtml(
-            translations.isEmpty
-                ? ''
-                : (translations.first['text'] ?? '').toString(),
-          ),
-          'tafsir': tafsirsByVerseKey[verseKey] ?? '',
-          'audio_url': _absoluteAudioUrl(
-            ((verse['audio'] as Map?)?['url'] ?? '').toString(),
-          ),
+          'juz': _metaInt(ayah, 'juz', fallback: 1),
+          'hizb': _metaInt(ayah, 'hizb', fallback: 1),
+          'page': _pageFromBackendAyah(ayah),
+          'arabic': (arabic['uthmani'] ?? '').toString(),
+          'transliteration': (ayah['transliteration'] ?? '').toString(),
+          'translation': _stripHtml((translation['text'] ?? '').toString()),
+          'tafsir': '',
+          'audio_url':
+              audio.isEmpty ? null : (audio.first['url'] ?? '').toString(),
         }, conflictAlgorithm: ConflictAlgorithm.replace);
-        for (final word in words) {
-          if (word['char_type_name'] != 'word') continue;
-          await txn.insert('words', {
-            'verse_key': verseKey,
-            'position': _asInt(word['position'], fallback: 0),
-            'text': (word['text_uthmani'] ?? '').toString(),
-            'meaning':
-                ((word['translation'] as Map?)?['text'] ?? '').toString(),
-            'transliteration':
-                ((word['transliteration'] as Map?)?['text'] ?? '').toString(),
-          });
-        }
       }
     });
   }
 
   Future<void> _downloadPageImage(int page) async {
-    final file = File(p.join((await filesDir).path, 'pages', '$page.svg'));
-    if (await file.exists()) {
-      return;
+    final pageData = await BackendApi.instance.getQuranPage(page);
+    final imageUrl = pageData['image_url']?.toString();
+    if (imageUrl == null || imageUrl.isEmpty) {
+      throw Exception(
+        'Mizan Quran dataset is missing the Mushaf page $page asset. Run the backend Quran import first.',
+      );
     }
+    final uri = Uri.parse(imageUrl);
     final response = await http
-        .get(pageImageUri(page))
+        .get(uri)
         .timeout(const Duration(seconds: 20));
     if (response.statusCode != 200) {
       throw Exception(
         'Could not download mushaf page $page (${response.statusCode})',
       );
     }
+    final pathExtension = p.extension(uri.path).toLowerCase();
+    final extension = pathExtension == '.svg' ? 'svg' : 'png';
+    final file = File(p.join((await filesDir).path, 'pages', '$page.$extension'));
     await file.writeAsBytes(response.bodyBytes, flush: true);
   }
 
@@ -995,12 +890,6 @@ class QuranRepository {
           .replaceAll('&lt;', '<')
           .replaceAll('&gt;', '>')
           .trim();
-
-  static String _absoluteAudioUrl(String url) {
-    if (url.isEmpty) return '';
-    if (url.startsWith('http')) return url;
-    return 'https://audio.qurancdn.com/$url';
-  }
 
   static List<Map<String, dynamic>> _mapList(Object? value) {
     if (value is! List) return const [];
@@ -1017,13 +906,17 @@ class QuranRepository {
     return fallback;
   }
 
-  static int? _asNullableInt(Object? value) {
-    if (value == null) return null;
-    if (value is int) return value;
-    if (value is num) return value.toInt();
-    if (value is String) return int.tryParse(value);
-    return null;
+  static int _metaInt(
+    Map<String, dynamic> ayah,
+    String key, {
+    required int fallback,
+  }) {
+    final meta = Map<String, dynamic>.from((ayah['meta'] as Map?) ?? {});
+    return _asInt(meta[key], fallback: fallback);
   }
+
+  static int _pageFromBackendAyah(Map<String, dynamic> ayah) =>
+      _metaInt(ayah, 'page', fallback: 1);
 
   static int _surahFromVerseKey(String key) =>
       int.tryParse(key.split(':').first) ?? 1;
@@ -1043,16 +936,4 @@ class QuranRepository {
     }
     return text.replaceFirst('Exception: ', '');
   }
-}
-
-class ChapterPayload {
-  const ChapterPayload({
-    required this.chapterInfo,
-    required this.verses,
-    required this.nextPage,
-  });
-
-  final Map<String, Object> chapterInfo;
-  final List<Map<String, dynamic>> verses;
-  final int? nextPage;
 }

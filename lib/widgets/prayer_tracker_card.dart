@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/prayer_countdown_service.dart';
-import '../core/theme/theme_extensions.dart';
+import '../core/theme/app_theme.dart';
 
 class PrayerTrackerCard extends StatefulWidget {
   const PrayerTrackerCard({super.key});
@@ -24,16 +24,13 @@ class _PrayerTrackerCardState extends State<PrayerTrackerCard> {
   void initState() {
     super.initState();
     _today = DateTime.now();
-    _storageKey =
-        'prayer_completion_${_today.year}-${_today.month}-${_today.day}';
+    _storageKey = 'prayer_completion_${_today.year}-${_today.month}-${_today.day}';
     _load();
     _loadTimes();
   }
 
   Future<void> _loadTimes() async {
-    final times = await PrayerCountdownService.instance.getTimingsForDate(
-      DateTime.now(),
-    );
+    final times = await PrayerCountdownService.instance.getTimingsForDate(DateTime.now());
     if (!mounted) return;
     setState(() => _times = times);
   }
@@ -120,16 +117,12 @@ class _PrayerTrackerCardState extends State<PrayerTrackerCard> {
     final times = _times;
     final completedCount = _completed.length;
     final totalCount = times.length;
-    final tokens = context.colors;
 
     // Auto-detect day rollover: if the date changed while the widget stayed
     // alive, reset the storage key and state.
-    if (now.year != _today.year ||
-        now.month != _today.month ||
-        now.day != _today.day) {
+    if (now.year != _today.year || now.month != _today.month || now.day != _today.day) {
       _today = DateTime(now.year, now.month, now.day);
-      _storageKey =
-          'prayer_completion_${_today.year}-${_today.month}-${_today.day}';
+      _storageKey = 'prayer_completion_${_today.year}-${_today.month}-${_today.day}';
       _completed = <String>{};
       // Don't call setState during build; schedule it.
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -141,121 +134,70 @@ class _PrayerTrackerCardState extends State<PrayerTrackerCard> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
+        color: kPaper,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: tokens.borderSubtle),
+        border: Border.all(color: kLine),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Today\'s Salah',
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontFamily: 'Georgia',
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const Text('Today\'s Salah', style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700, fontSize: 16)),
+          Row(children: [
+            FutureBuilder<int>(
+              future: PrayerCountdownService.instance.minutesUntilNextPrayer(now),
+              builder: (c, s) {
+                final minutes = s.data ?? 0;
+                final countdown = PrayerCountdownService.instance.formatCountdown(minutes);
+                return Row(children: [
+                  Text('Next in $countdown', style: TextStyle(color: kMuted, fontSize: 13)),
+                  const SizedBox(width: 8),
+                  Text('$completedCount/$totalCount', style: TextStyle(color: kBronze, fontWeight: FontWeight.w700)),
+                ]);
+              },
+            ),
+          ]),
+        ]),
+        const SizedBox(height: 12),
+        Row(
+          children: times.map((p) {
+            final done = _completed.contains(p.name);
+            final available = _isAvailable(p.name, p, now);
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: _PrayerPill(
+                  name: p.name,
+                  done: done,
+                  available: available,
+                  onTap: () => _toggle(p.name),
+                  onLongPress: available ? () => _showOptions(p) : null,
                 ),
               ),
-              Row(
-                children: [
-                  FutureBuilder<int>(
-                    future: PrayerCountdownService.instance
-                        .minutesUntilNextPrayer(now),
-                    builder: (c, s) {
-                      final minutes = s.data ?? 0;
-                      final countdown = PrayerCountdownService.instance
-                          .formatCountdown(minutes);
-                      return Row(
-                        children: [
-                          Text(
-                            'Next in $countdown',
-                            style: TextStyle(
-                              color: tokens.textSecondary,
-                              fontSize: 13,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '$completedCount/$totalCount',
-                            style: TextStyle(
-                              color: tokens.primary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children:
-                times.map((p) {
-                  final done = _completed.contains(p.name);
-                  final available = _isAvailable(p.name, p, now);
-                  return Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      child: _PrayerPill(
-                        name: p.name,
-                        done: done,
-                        available: available,
-                        onTap: () => _toggle(p.name),
-                        onLongPress: available ? () => _showOptions(p) : null,
-                      ),
-                    ),
-                  );
-                }).toList(),
-          ),
-        ],
-      ),
+            );
+          }).toList(),
+        ),
+      ]),
     );
   }
 
   void _showOptions(PrayerTime p) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) {
-        final tokens = ctx.colors;
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: Text(
-                  '${p.name} details',
-                  style: TextStyle(color: tokens.textPrimary),
-                ),
-                subtitle: Text(
-                  'Time: ${_formatTime(p)}',
-                  style: TextStyle(color: tokens.textSecondary),
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.undo),
-                title: const Text('Undo completion'),
-                onTap: () async {
-                  Navigator.of(ctx).pop();
-                  await _undo(p.name);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.menu_book_outlined),
-                title: const Text('Add reflection'),
-                onTap: () => Navigator.of(ctx).pop(),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    showModalBottomSheet(context: context, builder: (ctx) {
+      return SafeArea(child: Column(mainAxisSize: MainAxisSize.min, children: [
+        ListTile(title: Text('${p.name} details'), subtitle: Text('Time: ${_formatTime(p)}')),
+        ListTile(
+          leading: const Icon(Icons.undo),
+          title: const Text('Undo completion'),
+          onTap: () async {
+            Navigator.of(ctx).pop();
+            await _undo(p.name);
+          },
+        ),
+        ListTile(
+          leading: const Icon(Icons.menu_book_outlined),
+          title: const Text('Add reflection'),
+          onTap: () => Navigator.of(ctx).pop(),
+        ),
+      ]));
+    });
   }
 
   String _formatTime(PrayerTime p) {
@@ -293,10 +235,6 @@ class _PrayerPill extends StatelessWidget {
   Widget build(BuildContext context) {
     // Semi-transparent when prayer time hasn't arrived yet.
     final opacity = available ? 1.0 : 0.45;
-    final tokens = context.colors;
-    final fill = done ? tokens.primary : tokens.surfaceContainer;
-    final border = done ? tokens.primary : tokens.borderSubtle;
-    final content = done ? tokens.onPrimary : tokens.textPrimary;
 
     return Semantics(
       button: true,
@@ -312,23 +250,23 @@ class _PrayerPill extends StatelessWidget {
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: fill,
+              color: done ? kBronze : kClayPale,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: border),
+              border: Border.all(color: done ? kBronzeDark : kLine),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   done ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: done ? content : tokens.primary,
+                  color: done ? kWhite : kBronze,
                   size: 18,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   name,
                   style: TextStyle(
-                    color: content,
+                    color: done ? kWhite : kInk,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),

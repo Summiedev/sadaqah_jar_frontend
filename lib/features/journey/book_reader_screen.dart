@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:epub_view/epub_view.dart' hide Image;
@@ -22,11 +23,40 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
   late Future<BookDetail> _future;
   EpubController? _epubController;
   int _page = 0;
+  bool _bookmarked = false;
+  bool _bookmarkBusy = false;
 
   @override
   void initState() {
     super.initState();
     _future = widget.adminPreview ? BackendApi.instance.getAdminBook(widget.book.id) : BackendApi.instance.getBook(widget.book.id);
+    if (!widget.adminPreview) _loadBookmark();
+  }
+
+  Future<void> _loadBookmark() async {
+    try {
+      final rows = await BackendApi.instance.getBookmarks();
+      if (!mounted) return;
+      setState(() => _bookmarked = rows.any((row) => (row['book_id'] as num?)?.toInt() == widget.book.id));
+    } catch (_) {}
+  }
+
+  Future<void> _toggleBookmark() async {
+    if (_bookmarkBusy || widget.adminPreview) return;
+    final previous = _bookmarked;
+    setState(() { _bookmarkBusy = true; _bookmarked = !previous; });
+    try {
+      if (_bookmarked) {
+        await BackendApi.instance.bookmarkBook(bookId: widget.book.id);
+      } else {
+        await BackendApi.instance.unbookmarkBook(bookId: widget.book.id);
+      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_bookmarked ? 'Book saved' : 'Book removed from saved')));
+    } catch (_) {
+      if (mounted) setState(() => _bookmarked = previous);
+    } finally {
+      if (mounted) setState(() => _bookmarkBusy = false);
+    }
   }
 
   @override
@@ -43,6 +73,14 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
         title: Text(widget.book.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
+        actions: [
+          if (!widget.adminPreview)
+            IconButton(
+              onPressed: _bookmarkBusy ? null : _toggleBookmark,
+              tooltip: _bookmarked ? 'Remove bookmark' : 'Save bookmark',
+              icon: Icon(_bookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
+            ),
+        ],
       ),
       body: FutureBuilder<BookDetail>(
         future: _future,
@@ -56,6 +94,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
           final book = snapshot.data!;
           final format = (book.fileFormat ?? widget.book.fileFormat ?? '').toLowerCase();
           if (format == 'pdf' && (book.fileUrl ?? '').isNotEmpty) {
+            unawaited(BackendApi.instance.saveReadingProgress(bookId: book.id, chapterNumber: 1));
             return _PdfBook(url: BackendApi.instance.absoluteApiUrl(book.fileUrl!), title: book.title);
           }
           if (format == 'epub' && (book.fileUrl ?? '').isNotEmpty) {
@@ -69,7 +108,7 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
             );
           }
           if (book.chapters.isNotEmpty) {
-            return _ChapterBook(chapters: book.chapters);
+            return _ChapterBook(chapters: book.chapters, bookId: book.id);
           }
           return const _ReaderState(icon: Icons.hourglass_empty_rounded, title: 'Reading content is not ready yet', body: 'Please check back after this book has finished processing.');
         },
@@ -194,9 +233,10 @@ class _ImageBook extends StatelessWidget {
 }
 
 class _ChapterBook extends StatefulWidget {
-  const _ChapterBook({required this.chapters});
+  const _ChapterBook({required this.chapters, required this.bookId});
 
   final List<BookChapterRead> chapters;
+  final int bookId;
 
   @override
   State<_ChapterBook> createState() => _ChapterBookState();
@@ -236,9 +276,9 @@ class _ChapterBookState extends State<_ChapterBook> {
             decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, border: Border(top: BorderSide(color: kLine))),
             child: Row(
               children: [
-                Expanded(child: OutlinedButton.icon(onPressed: isFirst ? null : () => setState(() => _selectedIndex--), icon: const Icon(Icons.arrow_back_rounded, size: 18), label: const Text('Previous'))),
+                Expanded(child: OutlinedButton.icon(onPressed: isFirst ? null : () { setState(() => _selectedIndex--); BackendApi.instance.saveReadingProgress(bookId: widget.bookId, chapterNumber: widget.chapters[_selectedIndex].chapterNumber); }, icon: const Icon(Icons.arrow_back_rounded, size: 18), label: const Text('Previous'))),
                 const SizedBox(width: 12),
-                Expanded(child: FilledButton.icon(onPressed: isLast ? null : () => setState(() => _selectedIndex++), icon: const Icon(Icons.arrow_forward_rounded, size: 18), label: const Text('Next'), style: FilledButton.styleFrom(backgroundColor: kBronze))),
+                Expanded(child: FilledButton.icon(onPressed: isLast ? null : () { setState(() => _selectedIndex++); BackendApi.instance.saveReadingProgress(bookId: widget.bookId, chapterNumber: widget.chapters[_selectedIndex].chapterNumber); }, icon: const Icon(Icons.arrow_forward_rounded, size: 18), label: const Text('Next'), style: FilledButton.styleFrom(backgroundColor: kBronze))),
               ],
             ),
           ),

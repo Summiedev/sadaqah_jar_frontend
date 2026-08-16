@@ -89,7 +89,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final accent = kBronzeLight;
+    final foreground = kClayLight;
     return Scaffold(
+      // The splash is a branded loading surface, not an app page. Preserve
+      // the original dark-brown background in both light and dark mode.
       backgroundColor: kScaffoldDark,
       body: Stack(
         children: [
@@ -107,7 +111,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     child: FractionallySizedBox(
                             widthFactor: Curves.easeOut.transform(_lineGrow.value),
                             child: DecoratedBox(
-                              decoration: BoxDecoration(color: kClayLight.withValues(alpha: 0.15)),
+                              decoration: BoxDecoration(color: foreground.withValues(alpha: 0.15)),
                             ),
                           ),
                   ),
@@ -145,7 +149,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           height: 180,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(44),
-                            border: Border.all(color: kClayLight.withValues(alpha: 0.07), width: 1.5),
+                            border: Border.all(color: foreground.withValues(alpha: 0.07), width: 1.5),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(44),
@@ -153,7 +157,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                               fit: StackFit.expand,
                               children: [
                                 Container(
-                                  decoration: const BoxDecoration(
+                                  decoration: BoxDecoration(
                                     gradient: RadialGradient(
                                       center: Alignment.center,
                                       radius: 0.9,
@@ -172,7 +176,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                                 gradient: SweepGradient(
                                                   colors: [
                                                     Colors.transparent,
-                                                    kBronze.withValues(alpha: 0.08),
+                                                    accent.withValues(alpha: 0.08),
                                                     Colors.transparent,
                                                   ],
                                                   stops: const [0.0, 0.5, 1.0],
@@ -191,7 +195,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           animation: _ringSweep,
                           builder: (context, _) => CustomPaint(
                             size: const Size(96, 96),
-                            painter: _DiamondRingsPainter(progress: _ringSweep.value),
+                            painter: _DiamondRingsPainter(progress: _ringSweep.value, color: foreground),
                           ),
                         ),
                         // Center gold dot - elastic pop, then a gentle ambient pulse.
@@ -206,11 +210,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 width: 5,
                                 height: 5,
                                 decoration: BoxDecoration(
-                                  color: kBronzeLight,
+                                  color: accent,
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: kBronzeLight.withValues(alpha: 0.5 * glow),
+                                      color: accent.withValues(alpha: 0.5 * glow),
                                       blurRadius: 10,
                                       spreadRadius: 2,
                                     ),
@@ -226,7 +230,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   const SizedBox(height: 38),
 
                   // Brand name - letters stagger in individually, with a shimmer sweep once settled.
-                  _ShimmerWordmark(controller: _controller, ambient: _ambient, letters: _letters),
+                  _ShimmerWordmark(controller: _controller, ambient: _ambient, letters: _letters, foreground: foreground, shimmer: kPaper),
                   const SizedBox(height: 12),
 
                   // Arabic subtitle
@@ -238,7 +242,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         fontSize: 16,
                         letterSpacing: 2,
                         fontWeight: FontWeight.w500,
-                        color: kClayLight.withValues(alpha: 0.55),
+                      color: foreground.withValues(alpha: 0.55),
                       ),
                     ),
                   ),
@@ -265,7 +269,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                     style: TextStyle(
                       fontSize: 9,
                       letterSpacing: 4.5,
-                      color: kClayLight.withValues(alpha: 0.45),
+                      color: foreground.withValues(alpha: 0.45),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -282,8 +286,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
 /// Draws the two concentric rotated-square rings with a stroke that sweeps
 /// in from 0 to full, instead of appearing all at once.
 class _DiamondRingsPainter extends CustomPainter {
-  _DiamondRingsPainter({required this.progress});
+  _DiamondRingsPainter({required this.progress, required this.color});
   final double progress;
+  final Color color;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -306,7 +311,7 @@ class _DiamondRingsPainter extends CustomPainter {
     final drawn = metrics.extractPath(0, extractLength);
 
     final paint = Paint()
-      ..color = kClayLight.withValues(alpha: alpha)
+      ..color = color.withValues(alpha: alpha)
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
@@ -315,17 +320,19 @@ class _DiamondRingsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _DiamondRingsPainter oldDelegate) => oldDelegate.progress != progress;
+  bool shouldRepaint(covariant _DiamondRingsPainter oldDelegate) => oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
 /// "M I Z A N" with each letter staggering in on its own delay, plus a soft
 /// diagonal shimmer sweep across the settled text - driven by the ambient
 /// loop so it repeats gently without restarting the whole entrance.
 class _ShimmerWordmark extends StatelessWidget {
-  const _ShimmerWordmark({required this.controller, required this.ambient, required this.letters});
+  const _ShimmerWordmark({required this.controller, required this.ambient, required this.letters, required this.foreground, required this.shimmer});
   final AnimationController controller;
   final AnimationController ambient;
   final List<String> letters;
+  final Color foreground;
+  final Color shimmer;
 
   @override
   Widget build(BuildContext context) {
@@ -349,11 +356,11 @@ class _ShimmerWordmark extends StatelessWidget {
                   offset: Offset(0, (1 - t) * 10),
                   child: Text(
                     i == letters.length - 1 ? letters[i] : '${letters[i]} ',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 34,
                       letterSpacing: 14,
                       fontWeight: FontWeight.w400,
-                      color: kClayLight,
+                      color: foreground,
                       fontFamily: 'serif',
                       height: 1.1,
                     ),
@@ -373,7 +380,7 @@ class _ShimmerWordmark extends StatelessWidget {
               return LinearGradient(
                 begin: Alignment(-1.5 + sweep * 3, 0),
                 end: Alignment(-0.5 + sweep * 3, 0),
-                colors: const [kClayLight, kPaper, kClayLight],
+                colors: [foreground, shimmer, foreground],
                 stops: const [0.35, 0.5, 0.65],
               ).createShader(bounds);
             },

@@ -150,15 +150,20 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     try {
       await BackendApi.instance.markNotificationRead(notificationId);
       if (!mounted) return;
+      // C5: don't blindly modify _items[index] after an await - the list may
+      // have been refreshed/reordered. Look the item up by ID again.
+      final updatedIndex =
+          _items.indexWhere((item) => item.id == notificationId);
+      if (updatedIndex == -1) return;
       setState(() {
-        _items[index] = NotificationItem(
-          id: _items[index].id,
-          type: _items[index].type,
-          title: _items[index].title,
-          body: _items[index].body,
+        _items[updatedIndex] = NotificationItem(
+          id: _items[updatedIndex].id,
+          type: _items[updatedIndex].type,
+          title: _items[updatedIndex].title,
+          body: _items[updatedIndex].body,
           isRead: true,
-          createdAt: _items[index].createdAt,
-          data: _items[index].data,
+          createdAt: _items[updatedIndex].createdAt,
+          data: _items[updatedIndex].data,
         );
       });
       _fetchUnreadCount();
@@ -203,7 +208,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     try {
       await BackendApi.instance.deleteNotification(item.id);
       if (!mounted) return;
-      setState(() => _items.removeAt(index));
+      // C5: same guard - find by ID after the await rather than using a
+      // potentially stale index.
+      final updatedIndex =
+          _items.indexWhere((n) => n.id == item.id);
+      if (updatedIndex == -1) return;
+      setState(() => _items.removeAt(updatedIndex));
       _fetchUnreadCount();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -214,7 +224,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
               if (mounted) {
                 setState(
                   () => _items.insert(
-                    index.clamp(0, _items.length).toInt(),
+                    updatedIndex.clamp(0, _items.length).toInt(),
                     item,
                   ),
                 );
@@ -230,6 +240,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -585,6 +596,20 @@ class _NotificationCard extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
+                      if (_detailText(notification) != null) ...[
+                        SizedBox(height: s(7)),
+                        Text(
+                          _detailText(notification)!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: s(11.5),
+                            color: mutedColor,
+                            height: 1.3,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                       SizedBox(height: s(8)),
                       Row(
                         children: [
@@ -660,6 +685,20 @@ class _NotificationCard extends StatelessWidget {
               '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}',
         )
         .join(' ');
+  }
+
+  String? _detailText(NotificationItem item) {
+    final data = item.data;
+    if (data == null || data.isEmpty) return null;
+    final family = data['family_name']?.toString();
+    final actor = data['actor_name']?.toString() ?? data['username']?.toString();
+    final goal = data['goal_title']?.toString();
+    final detail = [
+      if (family != null && family.isNotEmpty) 'Family: $family',
+      if (goal != null && goal.isNotEmpty) 'Goal: $goal',
+      if (actor != null && actor.isNotEmpty) 'From: $actor',
+    ];
+    return detail.isEmpty ? null : detail.take(2).join('  •  ');
   }
 
   String _formatDate(String raw) {

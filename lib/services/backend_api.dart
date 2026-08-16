@@ -8,6 +8,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 enum SessionBootstrapState { none, restored, expired }
 
+/// In-process signal used by screens that cache list responses. Mutations
+/// publish only after the server accepted them, so listeners can refresh
+/// without forcing a full app rebuild.
+final ValueNotifier<int> reflectionRevision = ValueNotifier<int>(0);
+
 class BackendApi {
   BackendApi._();
 
@@ -18,7 +23,11 @@ class BackendApi {
   static const String _refreshTokenKey = 'sadaqah_jar_refresh_token';
   static const String _accountKey = 'sadaqah_jar_account_snapshot';
   static const String _familyJarIdKey = 'sadaqah_jar_family_jar_id';
-  static const Duration _requestTimeout = Duration(seconds: 60);
+  // [M1] Intentional timeout categories. Ordinary reads must not leave the UI
+  // spinning for a minute; uploads need a much longer window.
+  static const Duration _receiveTimeout = Duration(seconds: 20);
+  static const Duration _mutationTimeout = Duration(seconds: 30);
+  static const Duration _uploadTimeout = Duration(minutes: 2);
 
   final String baseUrl = _resolveBaseUrl();
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
@@ -242,7 +251,7 @@ class BackendApi {
     return _request(
       (headers) => http
           .get(_uri(path, query), headers: headers)
-          .timeout(_requestTimeout),
+          .timeout(_receiveTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -258,7 +267,7 @@ class BackendApi {
     return _request(
       (headers) => http
           .post(_uri(path, query), headers: headers, body: body)
-          .timeout(_requestTimeout),
+          .timeout(_mutationTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -274,7 +283,7 @@ class BackendApi {
     return _request(
       (headers) => http
           .patch(_uri(path, query), headers: headers, body: body)
-          .timeout(_requestTimeout),
+          .timeout(_mutationTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -290,7 +299,7 @@ class BackendApi {
     return _request(
       (headers) => http
           .put(_uri(path, query), headers: headers, body: body)
-          .timeout(_requestTimeout),
+          .timeout(_mutationTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -305,7 +314,7 @@ class BackendApi {
     return _request(
       (headers) => http
           .delete(_uri(path, query), headers: headers)
-          .timeout(_requestTimeout),
+          .timeout(_receiveTimeout),
       auth: auth,
       retryOnUnauthorized: retryOnUnauthorized,
     );
@@ -407,11 +416,91 @@ class BackendApi {
   ///
   /// This method handles both transparently. If a `data` key exists it unwraps;
   /// otherwise it returns the decoded body as-is.
+  ///
+  /// IMPORTANT: This only unwraps ONE level. If the unwrapped value is itself
+  /// a map containing a `data` key that is part of the resource schema (e.g.
+  /// a paginated response), callers must NOT unwrap again.
   dynamic _unwrap(dynamic decoded) {
     if (decoded is Map<String, dynamic> && decoded.containsKey('data')) {
       return decoded['data'];
     }
     return decoded;
+  }
+
+  /// Safely unwraps a decoded response body and returns it as a Map.
+  ///
+  /// Throws [BackendApiException] if the body is not a Map after unwrapping.
+  Map<String, dynamic> expectMap(dynamic body, {String? context}) {
+    final unwrapped = _unwrap(body);
+    if (unwrapped is Map<String, dynamic>) {
+      return unwrapped;
+    }
+    if (unwrapped is Map) {
+      return Map<String, dynamic>.from(unwrapped);
+    }
+    throw BackendApiException(
+      context == null
+          ? 'Expected a JSON object but received ${_typeName(unwrapped)}'
+          : 'Expected a JSON object for $context but received ${_typeName(unwrapped)}',
+      0,
+    );
+  }
+
+  /// Safely unwraps a decoded response body and returns it as a List.
+  ///
+  /// Throws [BackendApiException] if the body is not a List after unwrapping.
+  List<dynamic> expectList(dynamic body, {String? context}) {
+    final unwrapped = _unwrap(body);
+    if (unwrapped is List) {
+      return unwrapped;
+    }
+    throw BackendApiException(
+      context == null
+          ? 'Expected a JSON array but received ${_typeName(unwrapped)}'
+          : 'Expected a JSON array for $context but received ${_typeName(unwrapped)}',
+      0,
+    );
+  }
+
+  /// Safely unwraps a decoded response body and returns it as a Map.
+  ///
+  /// Returns null if the body is null or empty after unwrapping.
+  Map<String, dynamic>? expectMapOrNull(dynamic body, {String? context}) {
+    final unwrapped = _unwrap(body);
+    if (unwrapped == null) return null;
+    if (unwrapped is Map<String, dynamic>) return unwrapped;
+    if (unwrapped is Map) return Map<String, dynamic>.from(unwrapped);
+    throw BackendApiException(
+      context == null
+          ? 'Expected a JSON object or null but received ${_typeName(unwrapped)}'
+          : 'Expected a JSON object or null for $context but received ${_typeName(unwrapped)}',
+      0,
+    );
+  }
+
+  /// Safely unwraps a decoded response body and returns it as a List.
+  ///
+  /// Returns an empty list if the body is null or empty after unwrapping.
+  List<dynamic> expectListOrEmpty(dynamic body, {String? context}) {
+    final unwrapped = _unwrap(body);
+    if (unwrapped == null) return const [];
+    if (unwrapped is List) return unwrapped;
+    throw BackendApiException(
+      context == null
+          ? 'Expected a JSON array or null but received ${_typeName(unwrapped)}'
+          : 'Expected a JSON array or null for $context but received ${_typeName(unwrapped)}',
+      0,
+    );
+  }
+
+  String _typeName(dynamic value) {
+    if (value == null) return 'null';
+    if (value is String) return 'a string';
+    if (value is num) return 'a number';
+    if (value is bool) return 'a boolean';
+    if (value is List) return 'an array';
+    if (value is Map) return 'an object';
+    return 'an unexpected value';
   }
 
   Map<String, dynamic>? _getEnvelopeMeta(Map<String, dynamic> decoded) {
@@ -437,7 +526,7 @@ class BackendApi {
         'password': password,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = expectMap(_handleJson(response), context: 'auth');
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
     if (accessToken != null &&
@@ -461,7 +550,7 @@ class BackendApi {
       '/auth/login',
       body: jsonEncode({'email': email, 'password': password}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = expectMap(_handleJson(response), context: 'auth');
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
     if (accessToken != null &&
@@ -485,7 +574,7 @@ class BackendApi {
       '/auth/google',
       body: jsonEncode({'id_token': idToken}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = expectMap(_handleJson(response), context: 'auth');
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
     if (accessToken != null &&
@@ -545,7 +634,7 @@ class BackendApi {
         if (avatarData != null) 'avatar_data': avatarData,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = expectMap(_handleJson(response), context: 'update account');
     final snapshot = AccountSnapshot.fromJson(decoded);
     await saveAccountSnapshot(
       userId: snapshot.userId,
@@ -568,7 +657,7 @@ class BackendApi {
         'new_email': newEmail,
       }),
     );
-    return _handleJson(response) as Map<String, dynamic>;
+    return expectMap(_handleJson(response), context: 'request email change');
   }
 
   Future<Map<String, dynamic>> confirmEmailChange({
@@ -579,7 +668,10 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'token': token}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = expectMap(
+      _handleJson(response),
+      context: 'confirm email change',
+    );
     if (decoded['access_token'] != null && decoded['refresh_token'] != null) {
       await saveSessionTokens(
         accessToken: decoded['access_token'].toString(),
@@ -593,9 +685,7 @@ class BackendApi {
     try {
       final response = await _get('/users/me/email/pending', auth: true);
       final decoded = _handleJson(response);
-      if (decoded == null || decoded is! Map<String, dynamic>) return null;
-      if (decoded.isEmpty) return null;
-      return decoded;
+      return expectMapOrNull(decoded, context: 'pending email change');
     } on BackendApiException catch (e) {
       if (e.statusCode == 404) return null;
       rethrow;
@@ -612,14 +702,14 @@ class BackendApi {
 
   Future<Map<String, dynamic>> me() async {
     final response = await _get('/auth/me', auth: true);
-    return _handleJson(response);
+    return expectMap(_handleJson(response), context: 'me');
   }
 
   Future<UserProfile> getUserProfile() async {
     final response = await _get('/auth/me', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // The /auth/me endpoint returns bare UserProfileResponse (not envelope-wrapped)
-    return UserProfile.fromJson(decoded);
+    return UserProfile.fromJson(expectMap(decoded, context: 'user profile'));
   }
 
   Future<UserPreferences> updatePreferences({
@@ -637,7 +727,10 @@ class BackendApi {
           'general_notifications': generalNotifications,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = expectMap(
+      _handleJson(response),
+      context: 'update preferences',
+    );
     return UserPreferences.fromJson(decoded);
   }
 
@@ -692,7 +785,7 @@ class BackendApi {
       query: {'token': token},
       retryOnUnauthorized: false,
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = expectMap(_handleJson(response), context: 'auth');
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
     if (accessToken != null &&
@@ -712,7 +805,7 @@ class BackendApi {
       body: jsonEncode({'code': code}),
       retryOnUnauthorized: false,
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = expectMap(_handleJson(response), context: 'auth');
     final accessToken = decoded['access_token']?.toString();
     final refreshToken = decoded['refresh_token']?.toString();
     if (accessToken == null ||
@@ -744,7 +837,7 @@ class BackendApi {
     request.files.add(
       http.MultipartFile.fromBytes('file', bytes, filename: filename),
     );
-    final streamed = await request.send().timeout(_requestTimeout);
+    final streamed = await request.send().timeout(_uploadTimeout);
     final response = await http.Response.fromStream(streamed);
     _handleJson(response);
   }
@@ -763,10 +856,10 @@ class BackendApi {
     request.files.add(
       http.MultipartFile.fromBytes('file', bytes, filename: filename),
     );
-    final streamed = await request.send().timeout(_requestTimeout);
+    final streamed = await request.send().timeout(_uploadTimeout);
     final response = await http.Response.fromStream(streamed);
     return AdminBookRecord.fromJson(
-      _handleJson(response) as Map<String, dynamic>,
+      expectMap(_handleJson(response), context: 'admin book'),
     );
   }
 
@@ -789,10 +882,10 @@ class BackendApi {
         ),
       );
     }
-    final streamed = await request.send().timeout(_requestTimeout);
+    final streamed = await request.send().timeout(_uploadTimeout);
     final response = await http.Response.fromStream(streamed);
     return AdminBookRecord.fromJson(
-      _handleJson(response) as Map<String, dynamic>,
+      expectMap(_handleJson(response), context: 'admin book'),
     );
   }
 
@@ -825,10 +918,11 @@ class BackendApi {
 
   Future<List<DailyAct>> getDailyActs() async {
     final response = await _get('/sadaqah/daily', auth: true);
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'daily acts')
         .map(
-          (item) => DailyAct.fromJson(Map<String, dynamic>.from(item as Map)),
+          (item) =>
+              DailyAct.fromJson(expectMap(item, context: 'daily act item')),
         )
         .toList();
   }
@@ -849,9 +943,9 @@ class BackendApi {
 
   Future<JarStats> getJar() async {
     final response = await _get('/sadaqah/jar', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy /sadaqah/jar returns bare JSON, not envelope
-    return JarStats.fromJson(decoded);
+    return JarStats.fromJson(expectMap(decoded, context: 'jar'));
   }
 
   Future<JarStats> addJarStar({
@@ -870,9 +964,9 @@ class BackendApi {
         if (requestId != null && requestId.isNotEmpty) 'request_id': requestId,
       },
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy /sadaqah/jar/add-star returns bare snapshot, not envelope
-    return JarStats.fromJson(decoded);
+    return JarStats.fromJson(expectMap(decoded, context: 'jar star'));
   }
 
   Future<CompletedJarPage> getCompletedJars({
@@ -884,32 +978,35 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy endpoint returns bare paginated response, not envelope
-    return CompletedJarPage.fromJson(decoded);
+    return CompletedJarPage.fromJson(
+      expectMap(decoded, context: 'completed jars'),
+    );
   }
 
   Future<Map<String, int>> getHeatmap() async {
     final response = await _get('/dashboard/heatmap', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy endpoint returns bare map, not envelope
-    return decoded.map(
-      (key, value) => MapEntry(key, int.tryParse('$value') ?? 0),
-    );
+    return expectMap(
+      decoded,
+      context: 'heatmap',
+    ).map((key, value) => MapEntry(key, int.tryParse('$value') ?? 0));
   }
 
   Future<StreakInfo> getStreak() async {
     final response = await _get('/streak/streak', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy endpoint returns bare response, not envelope
-    return StreakInfo.fromJson(decoded);
+    return StreakInfo.fromJson(expectMap(decoded, context: 'streak'));
   }
 
   Future<RankSummary> getMyRank() async {
     final response = await _get('/leaderboard/me', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy endpoint returns bare response, not envelope
-    return RankSummary.fromJson(decoded);
+    return RankSummary.fromJson(expectMap(decoded, context: 'rank'));
   }
 
   Future<List<LeaderboardEntry>> getFridayLeaderboard({int limit = 10}) async {
@@ -937,34 +1034,41 @@ class BackendApi {
 
   Future<FridayStats> getFridayStats() async {
     final response = await _get('/friday/stats', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy endpoint returns bare JSON
-    return FridayStats.fromJson(decoded);
+    return FridayStats.fromJson(expectMap(decoded, context: 'friday stats'));
   }
 
   Future<int> getAdminDailyUsers() async {
     final response = await _get('/admin/analytics/daily-users', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy endpoint returns bare JSON
-    return (decoded['new_users_today'] as num?)?.toInt() ?? 0;
+    return (expectMap(decoded, context: 'admin daily users')['new_users_today']
+                as num?)
+            ?.toInt() ??
+        0;
   }
 
   Future<List<AdminTopActEntry>> getAdminTopActs() async {
     final response = await _get('/admin/analytics/top-acts', auth: true);
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'admin top acts')
         .map(
-          (item) =>
-              AdminTopActEntry.fromJson(Map<String, dynamic>.from(item as Map)),
+          (item) => AdminTopActEntry.fromJson(
+            expectMap(item, context: 'admin top act'),
+          ),
         )
         .toList();
   }
 
   Future<int> getAdminStarsToday() async {
     final response = await _get('/admin/analytics/stars-today', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy endpoint returns bare JSON
-    return (decoded['stars_today'] as num?)?.toInt() ?? 0;
+    return (expectMap(decoded, context: 'admin stars today')['stars_today']
+                as num?)
+            ?.toInt() ??
+        0;
   }
 
   Future<List<AdminDonationIntentEntry>> getAdminDonationIntents() async {
@@ -972,11 +1076,11 @@ class BackendApi {
       '/admin/analytics/donation-intents',
       auth: true,
     );
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'admin donation intents')
         .map(
           (item) => AdminDonationIntentEntry.fromJson(
-            Map<String, dynamic>.from(item as Map),
+            expectMap(item, context: 'admin donation intent'),
           ),
         )
         .toList();
@@ -984,18 +1088,20 @@ class BackendApi {
 
   Future<DashboardStats> getDashboardStats() async {
     final response = await _get('/dashboard/stats', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
+    final decoded = _handleJson(response);
     // Legacy endpoint returns bare JSON, not envelope
-    return DashboardStats.fromJson(decoded);
+    return DashboardStats.fromJson(
+      expectMap(decoded, context: 'dashboard stats'),
+    );
   }
 
   Future<List<CategoryAnalyticsEntry>> getCategoryAnalytics() async {
     final response = await _get('/dashboard/category-analytics', auth: true);
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'category analytics')
         .map(
           (item) => CategoryAnalyticsEntry.fromJson(
-            Map<String, dynamic>.from(item as Map),
+            expectMap(item, context: 'category analytics item'),
           ),
         )
         .toList();
@@ -1003,9 +1109,8 @@ class BackendApi {
 
   Future<int> getUnreadNotificationCount() async {
     final response = await _get('/notifications/unread-count', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    final map = Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    final map = expectMap(decoded, context: 'unread count');
     return (map['count'] as num?)?.toInt() ?? 0;
   }
 
@@ -1019,18 +1124,19 @@ class BackendApi {
       auth: true,
       query: {if (unread) 'unread': true, 'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    final meta = _getEnvelopeMeta(decoded);
+    final decoded = _handleJson(response);
+    final data = expectList(decoded, context: 'notifications');
+    final meta =
+        decoded is Map<String, dynamic> ? _getEnvelopeMeta(decoded) : null;
     return NotificationPage(
       total: (meta?['total'] as num?)?.toInt() ?? 0,
       limit: limit,
       offset: offset,
       data:
-          (data as List)
+          data
               .map(
                 (i) => NotificationItem.fromJson(
-                  Map<String, dynamic>.from(i as Map),
+                  expectMap(i, context: 'notification item'),
                 ),
               )
               .toList(),
@@ -1086,9 +1192,8 @@ class BackendApi {
 
   Future<Map<String, dynamic>> getNotificationPreferences() async {
     final response = await _get('/notifications/preferences', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> updateNotificationPreferences({
@@ -1107,18 +1212,21 @@ class BackendApi {
         if (quietHours != null) 'quiet_hours': quietHours,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<List<CharityItem>> getFeaturedCharities() async {
-    final response = await _get('/charities/featured', auth: true);
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
+    // Featured charities are public catalogue data. Requiring an access token
+    // here made the donations screen fail for signed-out users and for users
+    // whose token had expired, even though the backend endpoint is public.
+    final response = await _get('/charities/featured', auth: false);
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'featured charities')
         .map(
-          (item) =>
-              CharityItem.fromJson(Map<String, dynamic>.from(item as Map)),
+          (item) => CharityItem.fromJson(
+            expectMap(item, context: 'featured charity'),
+          ),
         )
         .toList();
   }
@@ -1132,7 +1240,9 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    return AdminCharityPage.fromJson(_handleJson(response));
+    return AdminCharityPage.fromJson(
+      expectMap(_handleJson(response), context: 'admin charities'),
+    );
   }
 
   Future<AdminCharityRecord> createAdminCharity({
@@ -1180,7 +1290,9 @@ class BackendApi {
         'is_featured': isFeatured,
       }),
     );
-    return AdminCharityRecord.fromJson(_handleJson(response));
+    return AdminCharityRecord.fromJson(
+      expectMap(_handleJson(response), context: 'admin charity'),
+    );
   }
 
   Future<AdminCharityRecord> updateAdminCharity({
@@ -1232,7 +1344,9 @@ class BackendApi {
         if (isFeatured != null) 'is_featured': isFeatured,
       }),
     );
-    return AdminCharityRecord.fromJson(_handleJson(response));
+    return AdminCharityRecord.fromJson(
+      expectMap(_handleJson(response), context: 'admin charity'),
+    );
   }
 
   Future<void> deleteAdminCharity(int charityId) async {
@@ -1259,10 +1373,10 @@ class BackendApi {
         ),
       );
     }
-    final streamed = await request.send().timeout(_requestTimeout);
+    final streamed = await request.send().timeout(_uploadTimeout);
     final response = await http.Response.fromStream(streamed);
     return AdminCharityRecord.fromJson(
-      _handleJson(response) as Map<String, dynamic>,
+      expectMap(_handleJson(response), context: 'admin charity'),
     );
   }
 
@@ -1286,16 +1400,18 @@ class BackendApi {
         ),
       );
     }
-    final streamed = await request.send().timeout(_requestTimeout);
+    final streamed = await request.send().timeout(_uploadTimeout);
     final response = await http.Response.fromStream(streamed);
     return AdminCharityRecord.fromJson(
-      _handleJson(response) as Map<String, dynamic>,
+      expectMap(_handleJson(response), context: 'admin charity'),
     );
   }
 
   Future<CharityDetail> getCharity(int charityId) async {
-    final response = await _get('/charities/$charityId', auth: true);
-    return CharityDetail.fromJson(_handleJson(response));
+    final response = await _get('/charities/$charityId', auth: false);
+    return CharityDetail.fromJson(
+      expectMap(_handleJson(response), context: 'charity'),
+    );
   }
 
   Future<CharityPage> getCharities({
@@ -1310,9 +1426,11 @@ class BackendApi {
         'limit': limit,
         'offset': offset,
       },
-      auth: true,
+      auth: false,
     );
-    return CharityPage.fromJson(_handleJson(response));
+    return CharityPage.fromJson(
+      expectMap(_handleJson(response), context: 'charities'),
+    );
   }
 
   Future<AdminEvidencePage> getAdminEvidence({
@@ -1324,12 +1442,16 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    return AdminEvidencePage.fromJson(_handleJson(response));
+    return AdminEvidencePage.fromJson(
+      expectMap(_handleJson(response), context: 'admin evidence'),
+    );
   }
 
   Future<AdminEvidenceDetail> getAdminEvidenceForAct(int actId) async {
     final response = await _get('/admin/evidence/$actId', auth: true);
-    return AdminEvidenceDetail.fromJson(_handleJson(response));
+    return AdminEvidenceDetail.fromJson(
+      expectMap(_handleJson(response), context: 'admin evidence for act'),
+    );
   }
 
   Future<AdminEvidenceRecord> createAdminEvidence({
@@ -1352,7 +1474,9 @@ class BackendApi {
         if (grade != null) 'grade': grade,
       }),
     );
-    return AdminEvidenceRecord.fromJson(_handleJson(response));
+    return AdminEvidenceRecord.fromJson(
+      expectMap(_handleJson(response), context: 'admin evidence'),
+    );
   }
 
   Future<AdminEvidenceRecord> updateAdminEvidence({
@@ -1378,7 +1502,9 @@ class BackendApi {
         if (isVerified != null) 'is_verified': isVerified,
       }),
     );
-    return AdminEvidenceRecord.fromJson(_handleJson(response));
+    return AdminEvidenceRecord.fromJson(
+      expectMap(_handleJson(response), context: 'admin evidence'),
+    );
   }
 
   Future<void> deleteAdminEvidence(int evidenceId) async {
@@ -1394,9 +1520,8 @@ class BackendApi {
       auth: true,
       query: {'name': name, 'capacity': capacity},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    final map = Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    final map = expectMap(decoded, context: 'family');
     await saveLastFamilyJarId((map['id'] as num?)?.toInt());
     return map;
   }
@@ -1410,9 +1535,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'invite_code': normalizedCode}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    final map = Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    final map = expectMap(decoded, context: 'family');
     await saveLastFamilyJarId((map['id'] as num?)?.toInt());
     return map;
   }
@@ -1426,11 +1550,12 @@ class BackendApi {
       auth: true,
       query: {'limit': limit},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'family leaderboard')
         .map(
-          (i) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(i as Map)),
+          (i) => LeaderboardEntry.fromJson(
+            expectMap(i, context: 'leaderboard entry'),
+          ),
         )
         .toList();
   }
@@ -1439,40 +1564,41 @@ class BackendApi {
     required int jarId,
   }) async {
     final response = await _get('/family/$jarId/top-contributor', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> getFamilyJarDetail({required int jarId}) async {
     final response = await _get('/family/$jarId', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<List<Map<String, dynamic>>> getFridayRecommendations() async {
     final response = await _get('/friday/recommendations', auth: true);
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'friday recommendations',
+    ).map((item) => expectMap(item, context: 'friday recommendation')).toList();
   }
 
   Future<List<Map<String, dynamic>>> getMorningAdhkar() async {
     final response = await _get('/adhkar/morning', auth: true);
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'friday recommendations',
+    ).map((item) => expectMap(item, context: 'friday recommendation')).toList();
   }
 
   Future<List<Map<String, dynamic>>> getEveningAdhkar() async {
     final response = await _get('/adhkar/evening', auth: true);
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'friday recommendations',
+    ).map((item) => expectMap(item, context: 'friday recommendation')).toList();
   }
 
   Future<JourneyReflectionPage> getReflections({
@@ -1484,15 +1610,16 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    final meta = _getEnvelopeMeta(decoded);
+    final decoded = _handleJson(response);
+    final data = expectList(decoded, context: 'reflections');
+    final meta =
+        decoded is Map<String, dynamic> ? _getEnvelopeMeta(decoded) : null;
     return JourneyReflectionPage(
       items:
-          (data as List)
+          data
               .map(
                 (i) => JourneyReflection.fromJson(
-                  Map<String, dynamic>.from(i as Map),
+                  expectMap(i, context: 'reflection item'),
                 ),
               )
               .toList(),
@@ -1520,9 +1647,12 @@ class BackendApi {
         if (requestId != null && requestId.isNotEmpty) 'request_id': requestId,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return JourneyReflection.fromJson(Map<String, dynamic>.from(data as Map));
+    final decoded = _handleJson(response);
+    final result = JourneyReflection.fromJson(
+      expectMap(decoded, context: 'create reflection'),
+    );
+    reflectionRevision.value++;
+    return result;
   }
 
   Future<JourneyReflection> updateReflection(
@@ -1544,9 +1674,17 @@ class BackendApi {
         if (date != null) 'date': date.toIso8601String(),
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return JourneyReflection.fromJson(Map<String, dynamic>.from(data as Map));
+    final decoded = _handleJson(response);
+    final result = JourneyReflection.fromJson(
+      expectMap(decoded, context: 'create reflection'),
+    );
+    reflectionRevision.value++;
+    return result;
+  }
+
+  Future<void> deleteReflection(int reflectionId) async {
+    await _delete('/journey/reflections/$reflectionId', auth: true);
+    reflectionRevision.value++;
   }
 
   Future<JourneyAdhkarProgress> setAdhkarProgress(
@@ -1558,21 +1696,19 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'count': count}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
+    final decoded = _handleJson(response);
     return JourneyAdhkarProgress.fromJson(
-      Map<String, dynamic>.from(data as Map),
+      expectMap(decoded, context: 'set adhkar progress'),
     );
   }
 
   Future<List<JourneyAdhkarProgress>> getAdhkarProgress() async {
     final response = await _get('/journey/adhkar/progress', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'adhkar progress')
         .map(
           (i) => JourneyAdhkarProgress.fromJson(
-            Map<String, dynamic>.from(i as Map),
+            expectMap(i, context: 'adhkar progress item'),
           ),
         )
         .toList();
@@ -1583,10 +1719,9 @@ class BackendApi {
       '/journey/adhkar/$adhkarId/progress',
       auth: true,
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
+    final decoded = _handleJson(response);
     return JourneyAdhkarProgress.fromJson(
-      Map<String, dynamic>.from(data as Map),
+      expectMap(decoded, context: 'set adhkar progress'),
     );
   }
 
@@ -1595,10 +1730,9 @@ class BackendApi {
       '/journey/adhkar/$adhkarId/favorite',
       auth: true,
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
+    final decoded = _handleJson(response);
     return JourneyAdhkarFavorite.fromJson(
-      Map<String, dynamic>.from(data as Map),
+      expectMap(decoded, context: 'favorite adhkar'),
     );
   }
 
@@ -1615,12 +1749,11 @@ class BackendApi {
 
   Future<List<JourneyAdhkarFavorite>> getAdhkarFavorites() async {
     final response = await _get('/journey/adhkar/favorites', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'adhkar favorites')
         .map(
           (i) => JourneyAdhkarFavorite.fromJson(
-            Map<String, dynamic>.from(i as Map),
+            expectMap(i, context: 'adhkar favorite item'),
           ),
         )
         .toList();
@@ -1634,19 +1767,18 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'verified_only': 'true'},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    final list = data as List;
-    return list.map((i) => Map<String, dynamic>.from(i as Map)).toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'gentle acts',
+    ).map((i) => expectMap(i, context: 'gentle act')).toList();
   }
 
   Future<Map<String, dynamic>?> getLastReadingProgress() async {
     try {
       final response = await _get('/journey/reading/last', auth: true);
-      final decoded = _handleJson(response) as Map<String, dynamic>;
-      final data = _unwrap(decoded);
-      if (data == null) return null;
-      return Map<String, dynamic>.from(data as Map);
+      final decoded = _handleJson(response);
+      return expectMapOrNull(decoded, context: 'last reading progress');
     } on BackendApiException catch (_) {
       return null;
     }
@@ -1666,10 +1798,8 @@ class BackendApi {
   Future<Map<String, dynamic>?> getQuranProgress() async {
     try {
       final response = await _get('/journey/quran/progress', auth: true);
-      final decoded = _handleJson(response) as Map<String, dynamic>;
-      final data = _unwrap(decoded);
-      if (data == null) return null;
-      return Map<String, dynamic>.from(data as Map);
+      final decoded = _handleJson(response);
+      return expectMapOrNull(decoded, context: 'last reading progress');
     } on BackendApiException catch (_) {
       return null;
     }
@@ -1691,16 +1821,41 @@ class BackendApi {
     );
   }
 
+  Future<List<Map<String, dynamic>>> getQuranSurahs() async {
+    final response = await _get('/quran/surahs', auth: true);
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'quran surahs',
+    ).map((item) => expectMap(item, context: 'quran surah')).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getQuranSurahAyahs(int surahId) async {
+    final response = await _get('/quran/surahs/$surahId/ayahs', auth: true);
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'quran ayahs',
+    ).map((item) => expectMap(item, context: 'quran ayah')).toList();
+  }
+
+  Future<Map<String, dynamic>> getQuranPage(int pageNumber) async {
+    final response = await _get('/quran/pages/$pageNumber', auth: true);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'quran page');
+  }
+
   Future<List<Map<String, dynamic>>> getTodaysReflections() async {
     final response = await _get(
       '/journey/reflections',
       auth: true,
       query: {'limit': 5},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    final list = data as List? ?? const [];
-    return list.map((i) => Map<String, dynamic>.from(i as Map)).toList();
+    final decoded = _handleJson(response);
+    return expectListOrEmpty(
+      decoded,
+      context: 'today reflections',
+    ).map((i) => expectMap(i, context: 'today reflection')).toList();
   }
 
   // ── Goals API ──────────────────────────────────────────────
@@ -1721,9 +1876,8 @@ class BackendApi {
         if (month != null) 'month': month,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> getGoals({String? status, String? month}) async {
@@ -1731,16 +1885,14 @@ class BackendApi {
     if (status != null) query['status'] = status;
     if (month != null) query['month'] = month;
     final response = await _get('/goals', auth: true, query: query);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> getGoal(int goalId) async {
     final response = await _get('/goals/$goalId', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> updateGoal({
@@ -1758,9 +1910,8 @@ class BackendApi {
         if (actsTarget != null) 'acts_target': actsTarget,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> updateGoalProgress(
@@ -1772,9 +1923,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'acts_done': actsDone}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> updateGoalStatus(
@@ -1786,9 +1936,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'status': status}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<void> deleteGoal(int goalId) async {
@@ -1797,9 +1946,8 @@ class BackendApi {
 
   Future<Map<String, dynamic>> checkMonthlyReview() async {
     final response = await _get('/goals/reviews/check', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> submitMonthlyReview({
@@ -1822,9 +1970,8 @@ class BackendApi {
         'streak_at_review': streakAtReview,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<void> leaveFamilyJar({required int jarId}) async {
@@ -1839,11 +1986,11 @@ class BackendApi {
     required int jarId,
   }) async {
     final response = await _get('/family/$jarId/members', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
-        .map((i) => Map<String, dynamic>.from(i as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'family members',
+    ).map((i) => expectMap(i, context: 'family member')).toList();
   }
 
   Future<void> removeFamilyMember({
@@ -1862,20 +2009,27 @@ class BackendApi {
 
   Future<List<Map<String, dynamic>>> getPendingInvitations() async {
     final response = await _get('/family/invitations', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
-        .map((i) => Map<String, dynamic>.from(i as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'family members',
+    ).map((i) => expectMap(i, context: 'family member')).toList();
+  }
+
+  Future<void> cancelFamilyInvitation({
+    required int familyId,
+    required int invitationId,
+  }) async {
+    await _delete('/family/$familyId/invitations/$invitationId', auth: true);
   }
 
   Future<List<Map<String, dynamic>>> getFamilyGoals(int familyId) async {
     final response = await _get('/family/$familyId/goals', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
-        .map((i) => Map<String, dynamic>.from(i as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'family members',
+    ).map((i) => expectMap(i, context: 'family member')).toList();
   }
 
   Future<Map<String, dynamic>> createFamilyGoal(
@@ -1893,9 +2047,8 @@ class BackendApi {
         'acts_target': actsTarget,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<List<Map<String, dynamic>>> getFamilyReflections(
@@ -1908,11 +2061,11 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
-        .map((i) => Map<String, dynamic>.from(i as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'family members',
+    ).map((i) => expectMap(i, context: 'family member')).toList();
   }
 
   Future<Map<String, dynamic>> createFamilyReflection(
@@ -1924,9 +2077,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'text': text}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> updateFamilyReflection(
@@ -1939,9 +2091,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'text': text}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> encourageFamilyReflection(
@@ -1954,9 +2105,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'encouragement_type': encouragementType}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<List<Map<String, dynamic>>> getFamilyPrayers(
@@ -1969,11 +2119,11 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
-        .map((i) => Map<String, dynamic>.from(i as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'family members',
+    ).map((i) => expectMap(i, context: 'family member')).toList();
   }
 
   Future<Map<String, dynamic>> createFamilyPrayer(
@@ -1986,9 +2136,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'text': text, 'is_private': isPrivate}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> respondToFamilyPrayer(
@@ -2001,9 +2150,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'response_type': responseType}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<List<Map<String, dynamic>>> getPrayerComments(
@@ -2017,11 +2165,11 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
-        .map((i) => Map<String, dynamic>.from(i as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'family members',
+    ).map((i) => expectMap(i, context: 'family member')).toList();
   }
 
   Future<Map<String, dynamic>> createPrayerComment(
@@ -2034,9 +2182,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'text': text}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> updatePrayerComment(
@@ -2050,9 +2197,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode({'text': text}),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<void> deletePrayerComment(
@@ -2068,9 +2214,8 @@ class BackendApi {
 
   Future<Map<String, dynamic>> getFamilySettings(int familyId) async {
     final response = await _get('/family/$familyId/settings', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> updateFamilySettings(
@@ -2085,9 +2230,8 @@ class BackendApi {
           'notification_preferences': notificationPreferences,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<void> archiveFamilyJar(int familyId) async {
@@ -2111,34 +2255,100 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'families',
+    ).map((item) => expectMap(item, context: 'family item')).toList();
   }
 
   Future<Map<String, dynamic>> getFamilyDetail(int familyId) async {
     final response = await _get('/family/$familyId', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
+  }
+
+  Future<void> deleteFamilyReflection(int familyId, int reflectionId) async {
+    await _delete('/family/$familyId/reflections/$reflectionId', auth: true);
+  }
+
+  Future<List<Map<String, dynamic>>> getFamilyReflectionComments(
+    int familyId,
+    int reflectionId, {
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _get(
+      '/family/$familyId/reflections/$reflectionId/comments',
+      auth: true,
+      query: {'limit': limit, 'offset': offset},
+    );
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'reflection comments',
+    ).map((item) => expectMap(item, context: 'reflection comment')).toList();
+  }
+
+  Future<Map<String, dynamic>> createFamilyReflectionComment(
+    int familyId,
+    int reflectionId, {
+    required String text,
+  }) async {
+    final response = await _post(
+      '/family/$familyId/reflections/$reflectionId/comments',
+      auth: true,
+      body: jsonEncode({'text': text}),
+    );
+    return expectMap(_handleJson(response), context: 'reflection comment');
+  }
+
+  Future<void> deleteFamilyReflectionComment(
+    int familyId,
+    int reflectionId,
+    int commentId,
+  ) async {
+    await _delete(
+      '/family/$familyId/reflections/$reflectionId/comments/$commentId',
+      auth: true,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getFamilyActivity(
+    int familyId, {
+    int limit = 30,
+    String? cursor,
+  }) async {
+    final response = await _get(
+      '/family/$familyId/activity',
+      auth: false,
+      query: {'limit': limit, if (cursor != null) 'cursor': cursor},
+    );
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'family activity',
+    ).map((item) => expectMap(item, context: 'family activity item')).toList();
   }
 
   Future<Map<String, dynamic>> addFamilyAct(
     int familyId, {
+    String? type,
+    String? note,
     String? requestId,
   }) async {
     final response = await _post(
       '/family/$familyId/add-act',
       auth: true,
-      query: {
+      body: jsonEncode({
+        'act_type':
+            (type == null || type.trim().isEmpty) ? 'sadaqah' : type.trim(),
+        if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
         if (requestId != null && requestId.isNotEmpty) 'request_id': requestId,
-      },
+      }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<Map<String, dynamic>> bookmarkBook({
@@ -2152,9 +2362,8 @@ class BackendApi {
         if (chapterNumber != null) 'chapter_number': chapterNumber,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return Map<String, dynamic>.from(data as Map);
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'notification preferences');
   }
 
   Future<void> unbookmarkBook({required int bookId}) async {
@@ -2170,12 +2379,16 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    final map = Map<String, dynamic>.from(data as Map);
-    return (map['data'] as List)
-        .map((i) => Map<String, dynamic>.from(i as Map))
-        .toList();
+    final decoded = _handleJson(response);
+    // The /books/bookmarks endpoint returns an Envelope wrapping a paginated
+    // object: {"data": {"data": [...], "total": N, ...}}. We unwrap the outer
+    // envelope once, then read the inner `data` list from the paginated object.
+    final unwrapped = _unwrap(decoded);
+    final map = expectMap(unwrapped, context: 'bookmarks');
+    return expectList(
+      map['data'],
+      context: 'bookmark items',
+    ).map((i) => expectMap(i, context: 'bookmark item')).toList();
   }
 
   Future<List<BookRead>> getBooks({int limit = 50, int offset = 0}) async {
@@ -2184,30 +2397,27 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded) as List;
+    final decoded = _handleJson(response);
+    final data = expectList(decoded, context: 'books');
     return data
-        .map(
-          (item) => BookRead.fromJson(Map<String, dynamic>.from(item as Map)),
-        )
+        .map((item) => BookRead.fromJson(expectMap(item, context: 'book item')))
         .toList();
   }
 
   Future<BookDetail> getBook(int bookId) async {
     final response = await _get('/books/$bookId', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return BookDetail.fromJson(Map<String, dynamic>.from(data as Map));
+    final decoded = _handleJson(response);
+    return BookDetail.fromJson(expectMap(decoded, context: 'book'));
   }
 
   Future<List<BookChapterRead>> getBookChapters(int bookId) async {
     final response = await _get('/books/$bookId/chapters', auth: true);
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final data = _unwrap(decoded);
-    return (data as List)
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'book chapters')
         .map(
-          (item) =>
-              BookChapterRead.fromJson(Map<String, dynamic>.from(item as Map)),
+          (item) => BookChapterRead.fromJson(
+            expectMap(item, context: 'book chapter'),
+          ),
         )
         .toList();
   }
@@ -2218,13 +2428,14 @@ class BackendApi {
       auth: true,
       query: {'limit': limit, 'offset': offset},
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    final meta = _getEnvelopeMeta(decoded);
+    final decoded = _handleJson(response);
+    final map = expectMap(decoded, context: 'admin books');
+    final meta = _getEnvelopeMeta(map);
     final rows =
-        (decoded['data'] as List? ?? [])
+        expectListOrEmpty(map['data'], context: 'admin book items')
             .map(
               (item) => AdminBookRecord.fromJson(
-                Map<String, dynamic>.from(item as Map),
+                expectMap(item, context: 'admin book item'),
               ),
             )
             .toList();
@@ -2260,8 +2471,8 @@ class BackendApi {
         'sort_order': sortOrder,
       }),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    return AdminBookRecord.fromJson(decoded);
+    final decoded = _handleJson(response);
+    return AdminBookRecord.fromJson(expectMap(decoded, context: 'admin book'));
   }
 
   Future<AdminBookRecord> updateAdminBook(
@@ -2289,8 +2500,8 @@ class BackendApi {
       auth: true,
       body: jsonEncode(body),
     );
-    final decoded = _handleJson(response) as Map<String, dynamic>;
-    return AdminBookRecord.fromJson(decoded);
+    final decoded = _handleJson(response);
+    return AdminBookRecord.fromJson(expectMap(decoded, context: 'admin book'));
   }
 
   Future<void> deleteAdminBook(int bookId) async {
@@ -2299,7 +2510,9 @@ class BackendApi {
 
   Future<BookDetail> getAdminBook(int bookId) async {
     final response = await _get('/admin/books/$bookId', auth: true);
-    return BookDetail.fromJson(_handleJson(response) as Map<String, dynamic>);
+    return BookDetail.fromJson(
+      expectMap(_handleJson(response), context: 'admin book'),
+    );
   }
 
   String absoluteApiUrl(String pathOrUrl) {
@@ -2310,11 +2523,12 @@ class BackendApi {
   }
 
   List<LeaderboardEntry> _leaderboardFromResponse(http.Response response) {
-    final decoded = _handleJson(response) as List<dynamic>;
-    return decoded
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'leaderboard')
         .map(
-          (item) =>
-              LeaderboardEntry.fromJson(Map<String, dynamic>.from(item as Map)),
+          (item) => LeaderboardEntry.fromJson(
+            expectMap(item, context: 'leaderboard entry'),
+          ),
         )
         .toList();
   }
@@ -3563,9 +3777,9 @@ class NotificationItem {
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
     return NotificationItem(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      type: json['type']?.toString() ?? '',
+      type: (json['type'] ?? json['category'] ?? '').toString(),
       title: json['title']?.toString() ?? '',
-      body: json['body']?.toString() ?? '',
+      body: (json['body'] ?? json['message'] ?? '').toString(),
       isRead: json['is_read'] as bool? ?? false,
       createdAt: json['created_at']?.toString() ?? '',
       data:
@@ -3615,6 +3829,8 @@ class JourneyReflection {
     required this.mood,
     required this.isPrivate,
     required this.createdAt,
+    this.date,
+    this.updatedAt,
   });
 
   final int id;
@@ -3623,6 +3839,8 @@ class JourneyReflection {
   final String mood;
   final bool isPrivate;
   final String createdAt;
+  final String? date;
+  final String? updatedAt;
 
   factory JourneyReflection.fromJson(Map<String, dynamic> json) {
     return JourneyReflection(
@@ -3632,6 +3850,8 @@ class JourneyReflection {
       mood: json['mood']?.toString() ?? '',
       isPrivate: json['is_private'] as bool? ?? false,
       createdAt: json['created_at']?.toString() ?? '',
+      date: json['date']?.toString(),
+      updatedAt: json['updated_at']?.toString(),
     );
   }
 }

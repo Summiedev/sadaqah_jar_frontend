@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
 import '../../core/act_store.dart';
@@ -51,6 +50,7 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   late final PageController _pageController;
   int _index = 0;
+  ActStore? _observedActStore;
 
   static const List<Widget> _pages = [
     HomeScreen(),
@@ -64,14 +64,26 @@ class _AppShellState extends ConsumerState<AppShell> {
   void initState() {
     super.initState();
     _pageController = PageController();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         final store = ref.read(actStoreProvider);
+        _observedActStore = store;
+        store.addListener(_onActStoreChanged);
+        // Logout intentionally clears local user data. Rehydrate the same
+        // account's server-backed jar and goal progress when the shell opens
+        // again after login or account restoration.
+        await store.load();
         StreakProgressWidgetService.instance.update(store);
         ConnectivityService.instance.initialize(ref);
         QueueSyncService.instance.attemptSync();
       }
     });
+  }
+
+  void _onActStoreChanged() {
+    final store = _observedActStore;
+    if (store == null || !store.loaded) return;
+    StreakProgressWidgetService.instance.update(store);
   }
 
   @override
@@ -87,6 +99,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   void dispose() {
+    _observedActStore?.removeListener(_onActStoreChanged);
     ConnectivityService.instance.dispose();
     QueueSyncService.instance.dispose();
     _pageController.dispose();
@@ -291,17 +304,32 @@ class _DockedAddButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PressableSpring(
-      scale: .92,
-      onTap: onAdd,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: const BoxDecoration(color: kBronze, shape: BoxShape.circle),
-        child: Icon(
-          Icons.add_rounded,
-          color: Theme.of(context).colorScheme.onPrimary,
-          size: 22,
+    final tokens = context.colors;
+    return Semantics(
+      button: true,
+      label: 'Add a sadaqah act',
+      child: PressableSpring(
+        scale: .92,
+        onTap: onAdd,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: tokens.primary,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: tokens.primary.withValues(alpha: 0.22),
+                blurRadius: 12,
+                offset: const Offset(0, 5),
+              ),
+            ],
+          ),
+          child: Icon(
+            Icons.add_rounded,
+            color: tokens.onPrimary,
+            size: 22,
+          ),
         ),
       ),
     );

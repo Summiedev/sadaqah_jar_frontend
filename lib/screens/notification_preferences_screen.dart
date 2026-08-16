@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_theme.dart';
 import '../core/theme/theme_extensions.dart';
 import '../services/backend_api.dart';
+import '../services/local_reminder_service.dart';
 import '../services/push_notification_service.dart';
 
 class NotificationPreferencesScreen extends StatefulWidget {
@@ -103,6 +104,32 @@ class _NotificationPreferencesScreenState
     }
   }
 
+  Future<void> _sendTestNotification() async {
+    try {
+      final allowed =
+          await PushNotificationService.instance.enableForReminders();
+      if (!allowed) {
+        throw StateError(
+          'Notifications are blocked. Allow notifications for Mizan in device settings.',
+        );
+      }
+      await LocalReminderService.instance.showNow(
+        id: DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
+        title: 'Mizan is ready',
+        body: 'Your reminders will appear here when they are due.',
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Test notification sent.')));
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -166,6 +193,15 @@ class _NotificationPreferencesScreenState
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: _saving ? null : _sendTestNotification,
+                        icon: const Icon(Icons.notifications_active_outlined),
+                        label: const Text('Send test notification'),
                       ),
                     ),
                   ],

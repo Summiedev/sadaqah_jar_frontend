@@ -47,3 +47,17 @@ app.*.map.json
 # Firebase client configuration (project-specific; never commit)
 /android/app/google-services.json
 /ios/Runner/GoogleService-Info.plist
+
+# Firebase Admin service-account credentials (never commit)
+firebase-service-account*.json
+service-account*.json
+*-firebase-adminsdk-*.json
+
+# API keys / credential files (never commit)
+*.csv
+*.pem
+*.p12
+*.jks
+*.keystore
+secrets/
+credentials/

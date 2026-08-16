@@ -15,11 +15,15 @@ class ActStore extends ChangeNotifier {
 
   bool get loaded => _loaded;
   int get total => _acts.length;
-  int get today => _acts.where((act) {
-    final stamp = DateTime.tryParse(act['created_at']?.toString() ?? '');
-    final now = DateTime.now();
-    return stamp != null && stamp.year == now.year && stamp.month == now.month && stamp.day == now.day;
-  }).length;
+  int get today =>
+      _acts.where((act) {
+        final stamp = DateTime.tryParse(act['created_at']?.toString() ?? '');
+        final now = DateTime.now();
+        return stamp != null &&
+            stamp.year == now.year &&
+            stamp.month == now.month &&
+            stamp.day == now.day;
+      }).length;
 
   // Acts added locally that the backend has not yet confirmed. This makes the
   // jar fill move the instant a user adds an act - online or offline - instead
@@ -50,7 +54,6 @@ class ActStore extends ChangeNotifier {
     return ((done + _optimisticDelta) / capacity).clamp(0.0, 1.0);
   }
 
-
   int? _jarCurrentStars;
   int? _jarCapacity;
   int? _goalActsDone;
@@ -68,7 +71,18 @@ class ActStore extends ChangeNotifier {
   int? get goalId => _goalId;
   int? get goalTarget => _goalTarget ?? _jarCapacity;
 
-  Future<void> _refreshJarProgress() async {
+  Future<void>? _jarRefreshFuture;
+
+  /// Single-flight refresh: concurrent callers share one in-flight request.
+  /// A stale response can never overwrite a newer one because each generation
+  /// begins only after the previous call fully completes.
+  Future<void> _refreshJarProgress() {
+    return _jarRefreshFuture ??= _doRefreshJarProgress().whenComplete(() {
+      _jarRefreshFuture = null;
+    });
+  }
+
+  Future<void> _doRefreshJarProgress() async {
     try {
       final jar = await BackendApi.instance.getJar();
       _jarCurrentStars = jar.currentStars;
@@ -79,14 +93,20 @@ class ActStore extends ChangeNotifier {
     }
     try {
       final now = DateTime.now();
-      final month = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
-      final goals = await BackendApi.instance.getGoals(status: 'active', month: month);
+      final month =
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+      final goals = await BackendApi.instance.getGoals(
+        status: 'active',
+        month: month,
+      );
       final goalList = goals['goals'] as List? ?? [];
       if (goalList.isNotEmpty) {
         final firstGoal = goalList.first as Map<String, dynamic>;
         _goalId = (firstGoal['id'] as num?)?.toInt();
-        _goalActsDone = (firstGoal['acts_done'] as num?)?.toInt() ?? _jarCurrentStars;
-        _goalTarget = (firstGoal['acts_target'] as num?)?.toInt() ?? _jarCapacity;
+        _goalActsDone =
+            (firstGoal['acts_done'] as num?)?.toInt() ?? _jarCurrentStars;
+        _goalTarget =
+            (firstGoal['acts_target'] as num?)?.toInt() ?? _jarCapacity;
         _goalTitle = firstGoal['title']?.toString();
         _goalSubtitle = firstGoal['subtitle']?.toString();
       } else {
@@ -141,25 +161,50 @@ class ActStore extends ChangeNotifier {
     _lastKnownDone = confirmed;
   }
 
+  void _insertLocalAct({required String type, String? note}) {
+    _acts.insert(0, {
+      'type': type,
+      'note': note ?? '',
+      'created_at': DateTime.now().toIso8601String(),
+    });
+    if (_acts.length > 250) _acts.removeRange(250, _acts.length);
+  }
+
+  Future<void> _persistLocalActs() async {
+    _writeQueue = _writeQueue
+        .then((_) async {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(_key, jsonEncode(_acts));
+        })
+        .catchError((_) {});
+    await _writeQueue;
+  }
 
   Future<void> load() async {
     final prefs = await SharedPreferences.getInstance();
+    // The same provider instance can survive logout and be reused after the
+    // next login. Always clear the previous account's in-memory acts before
+    // reading the current local cache and refreshing server-backed progress.
+    _acts.clear();
     final raw = prefs.getString(_key);
     if (raw != null) {
       try {
         final values = jsonDecode(raw) as List<dynamic>;
         _acts
           ..clear()
-          ..addAll(values.map((value) => Map<String, dynamic>.from(value as Map)));
+          ..addAll(
+            values.map((value) => Map<String, dynamic>.from(value as Map)),
+          );
       } catch (_) {}
     }
     _loaded = true;
-    _refreshJarProgress();
+    // Do not publish the initial widget/UI state until the account-backed jar,
+    // goal and streak values have been restored.
+    await _refreshJarProgress();
   }
 
   Future<void> add({required String type, String? note}) async {
-    _acts.insert(0, {'type': type, 'note': note ?? '', 'created_at': DateTime.now().toIso8601String()});
-    if (_acts.length > 250) _acts.removeRange(250, _acts.length);
+    _insertLocalAct(type: type, note: note);
 
     // Optimistically move the jar fill forward immediately. We only do this once
     // we already have a backend baseline (otherwise totalStars falls back to the
@@ -171,11 +216,7 @@ class ActStore extends ChangeNotifier {
     }
     notifyListeners();
 
-    _writeQueue = _writeQueue.then((_) async {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_key, jsonEncode(_acts));
-    }).catchError((_) {});
-    await _writeQueue;
+    await _persistLocalActs();
 
     // Fire-and-forget refresh so the UI is never blocked on network calls.
     // The local act already counts; the server state will reconcile in the
@@ -183,12 +224,22 @@ class ActStore extends ChangeNotifier {
     unawaited(_refreshJarProgress());
   }
 
-  Future<void> addRemote({required String type, String? note, String? requestId}) async {
+  Future<void> addRemote({
+    required String type,
+    String? note,
+    String? requestId,
+  }) async {
     _lastKnownDone ??= _goalActsDone ?? _jarCurrentStars;
     _optimisticDelta += 1;
     notifyListeners();
     try {
-      await BackendApi.instance.addJarStar(type: type, note: note, requestId: requestId);
+      await BackendApi.instance.addJarStar(
+        type: type,
+        note: note,
+        requestId: requestId,
+      );
+      _insertLocalAct(type: type, note: note);
+      await _persistLocalActs();
       await _refreshJarProgress();
     } catch (_) {
       _optimisticDelta = (_optimisticDelta - 1).clamp(0, 1 << 30);
@@ -197,15 +248,31 @@ class ActStore extends ChangeNotifier {
     }
   }
 
-  Future<void> updateGoal({required String title, String? subtitle, required int actsTarget}) async {
+  Future<void> updateGoal({
+    required String title,
+    String? subtitle,
+    required int actsTarget,
+  }) async {
     final id = _goalId;
     if (id == null) {
-      _goalId = DateTime.now().microsecondsSinceEpoch;
-      _goalTitle = title;
-      _goalSubtitle = subtitle;
-      _goalTarget = actsTarget;
-      notifyListeners();
-      return;
+      // Phase 24 (M8): Do NOT fabricate a timestamp as a real backend goal ID.
+      // Create the goal through the API and store the real returned ID.
+      try {
+        final created = await BackendApi.instance.createGoal(
+          title: title,
+          subtitle: subtitle,
+          actsTarget: actsTarget,
+        );
+        _goalId = (created['id'] as num?)?.toInt();
+        _goalTitle = title;
+        _goalSubtitle = subtitle;
+        _goalTarget = actsTarget;
+        notifyListeners();
+        await _refreshJarProgress();
+        return;
+      } catch (_) {
+        rethrow;
+      }
     }
     try {
       await BackendApi.instance.updateGoal(
@@ -222,6 +289,29 @@ class ActStore extends ChangeNotifier {
     _goalTarget = actsTarget;
     notifyListeners();
     await _refreshJarProgress();
+  }
+
+  /// Clears ALL user-scoped state so a different account can never see the
+  /// previous user's data, even for one frame. This intentionally does NOT
+  /// touch device-level preferences such as theme or onboarding completion.
+  Future<void> resetForLogout() async {
+    _acts.clear();
+    _optimisticDelta = 0;
+    _lastKnownDone = null;
+    _jarCurrentStars = null;
+    _jarCapacity = null;
+    _goalActsDone = null;
+    _goalTarget = null;
+    _goalTitle = null;
+    _goalSubtitle = null;
+    _goalId = null;
+    _currentStreak = null;
+    _streakError = false;
+    _loaded = false;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+    notifyListeners();
   }
 }
 

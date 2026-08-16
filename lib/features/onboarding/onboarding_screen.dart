@@ -1,34 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../core/mode_provider.dart';
 import '../../core/session_controller.dart';
-import '../family/family_theme.dart' show FamilyJarView;
 import '../../core/theme/app_theme.dart';
-
-const _ink = kInk;
-const _bronze = kBronze;
-const _muted = kMuted;
+import '../../core/theme/theme_extensions.dart';
 
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
+
   @override
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen> with TickerProviderStateMixin {
-  late final PageController _pages = PageController();
-  late final AnimationController _breath = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800))..repeat(reverse: true);
-  int _page = 0;
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+  late final PageController _controller;
+  int _step = 0;
   int _mode = kModeBoth;
 
   @override
-  void dispose() { _pages.dispose(); _breath.dispose(); super.dispose(); }
+  void initState() {
+    super.initState();
+    _controller = PageController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   Future<void> _next() async {
-    if (_page < 2) {
-      await _pages.nextPage(duration: const Duration(milliseconds: 520), curve: Curves.easeInOutCubic);
+    if (_step < 2) {
+      await _controller.nextPage(
+        duration: const Duration(milliseconds: 360),
+        curve: Curves.easeOutCubic,
+      );
       return;
     }
     await ref.read(modeProvider.notifier).setMode(_mode);
@@ -36,25 +45,479 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> with Ticker
     if (mounted) context.go('/auth');
   }
 
+  Future<void> _skip() async {
+    await ref.read(modeProvider.notifier).setMode(_mode);
+    await ref.read(sessionProvider).completeOnboarding();
+    if (mounted) context.go('/auth');
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: AnimatedBuilder(
-      animation: _breath,
-      builder: (context, _) => DecoratedBox(
-        decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [kPaper, Color.lerp(kPaper, kIvory, _breath.value)!, kIvory])),
-        child: SafeArea(child: Column(children: [
-          Padding(padding: const EdgeInsets.fromLTRB(24, 18, 20, 0), child: Row(children: [const Text('MIZAN', style: TextStyle(color: _bronze, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 3.5)), const Spacer(), if (_page < 2) TextButton(onPressed: () { _pages.animateToPage(2, duration: const Duration(milliseconds: 450), curve: Curves.easeOutCubic); }, child: const Text('Skip', style: TextStyle(color: _muted, fontWeight: FontWeight.w700)))])),
-          Expanded(child: PageView(controller: _pages, onPageChanged: (value) => setState(() => _page = value), children: [_Welcome(breath: _breath), const _WhyMizan(), _ChooseMode(selected: _mode, onSelect: (value) => setState(() => _mode = value))])),
-          Padding(padding: const EdgeInsets.fromLTRB(24, 6, 24, 28), child: Column(children: [Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(3, (index) => AnimatedContainer(duration: const Duration(milliseconds: 240), margin: const EdgeInsets.symmetric(horizontal: 4), width: _page == index ? 26 : 7, height: 7, decoration: BoxDecoration(color: _page == index ? _bronze : kClay, borderRadius: BorderRadius.circular(99))))), const SizedBox(height: 22), SizedBox(width: double.infinity, child: FilledButton(onPressed: _next, child: Text(_page == 2 ? 'Begin with Mizan' : 'Continue')))])),
-        ])),
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Scaffold(
+      backgroundColor: colors.background,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 18, 18, 8),
+              child: Row(
+                children: [
+                  _BrandMark(colors: colors),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: _skip,
+                    child: Text(
+                      'Skip',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: PageView(
+                controller: _controller,
+                onPageChanged: (value) => setState(() => _step = value),
+                children: [
+                  _WelcomePage(colors: colors),
+                  _RhythmPage(colors: colors),
+                  _SpacePage(
+                    colors: colors,
+                    selected: _mode,
+                    onSelect: (value) => setState(() => _mode = value),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
+              child: Row(
+                children: [
+                  _ProgressDots(step: _step, colors: colors),
+                  const Spacer(),
+                  FilledButton.icon(
+                    onPressed: _next,
+                    icon: Icon(
+                      _step == 2
+                          ? Icons.arrow_forward_rounded
+                          : Icons.north_east_rounded,
+                      size: 18,
+                    ),
+                    label: Text(_step == 2 ? 'Begin' : 'Next'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BrandMark extends StatelessWidget {
+  const _BrandMark({required this.colors});
+  final MizanColors colors;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Container(
+        width: 30,
+        height: 30,
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: colors.primaryContainer,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: SvgPicture.asset('lib/assets/images/mizan_logo.svg'),
+      ),
+      const SizedBox(width: 9),
+      Text(
+        'MIZAN',
+        style: TextStyle(
+          color: colors.primary,
+          fontSize: 12,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 2.1,
+        ),
+      ),
+    ],
+  );
+}
+
+class _ProgressDots extends StatelessWidget {
+  const _ProgressDots({required this.step, required this.colors});
+  final int step;
+  final MizanColors colors;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: List.generate(
+      3,
+      (index) => AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        width: index == step ? 24 : 7,
+        height: 7,
+        margin: const EdgeInsets.only(right: 6),
+        decoration: BoxDecoration(
+          color: index == step ? colors.primary : colors.border,
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     ),
   );
 }
 
-class _Welcome extends StatelessWidget { const _Welcome({required this.breath}); final Animation<double> breath; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(horizontal: 28), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [AnimatedBuilder(animation: breath, builder: (context, child) => Transform.translate(offset: Offset(0, -5 * breath.value), child: child), child: const SizedBox(width: 190, height: 210, child: FamilyJarView(fill: .42, size: 156, glow: .95))), const SizedBox(height: 28), const Text('A quieter way\nto give.', textAlign: TextAlign.center, style: TextStyle(fontFamily: 'Georgia', fontSize: 34, height: 1.08, fontWeight: FontWeight.w700, color: _ink)), const SizedBox(height: 14), const Text('Mizan helps you keep the small acts of goodness that matter - gently, privately, and with intention.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.55, color: _muted))])); }
+class _WelcomePage extends StatelessWidget {
+  const _WelcomePage({required this.colors});
+  final MizanColors colors;
 
-class _WhyMizan extends StatelessWidget { const _WhyMizan(); @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(horizontal: 28), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Small acts\nbecome a life.', style: TextStyle(fontFamily: 'Georgia', fontSize: 33, height: 1.1, color: _ink, fontWeight: FontWeight.w700)), const SizedBox(height: 28), const _Rhythm(icon: Icons.add_circle_outline_rounded, title: 'Notice the good', body: 'Save a kind act, a gift, or a prayer in a few seconds.'), const SizedBox(height: 16), const _Rhythm(icon: Icons.local_fire_department_outlined, title: 'Build a gentle rhythm', body: 'Your streak celebrates return, never perfection.'), const SizedBox(height: 16), const _Rhythm(icon: Icons.volunteer_activism_outlined, title: 'Watch your jar grow', body: 'A clear, meaningful picture of the goodness you are gathering.') ])); }
- class _Rhythm extends StatelessWidget { const _Rhythm({required this.icon, required this.title, required this.body}); final IconData icon; final String title, body; @override Widget build(BuildContext context) => Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: kPaper.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(20), border: Border.all(color: kLine)), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [Container(width: 42, height: 42, decoration: BoxDecoration(color: kClayPale, borderRadius: BorderRadius.circular(14)), child: Icon(icon, color: _bronze)), const SizedBox(width: 13), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: _ink, fontWeight: FontWeight.w800, fontSize: 15)), const SizedBox(height: 4), Text(body, style: const TextStyle(color: _muted, fontSize: 12.5, height: 1.35))]))])); }
-class _ChooseMode extends StatelessWidget { const _ChooseMode({required this.selected, required this.onSelect}); final int selected; final ValueChanged<int> onSelect; @override Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(horizontal: 28), child: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Make it yours.', style: TextStyle(fontFamily: 'Georgia', fontSize: 33, color: _ink, fontWeight: FontWeight.w700)), const SizedBox(height: 9), const Text('You can change this anytime.', style: TextStyle(color: _muted, fontSize: 14)), const SizedBox(height: 28), _ModeOption(icon: Icons.person_outline_rounded, title: 'Personal', body: 'A private space for your own journey.', value: kModePersonal, selected: selected, onSelect: onSelect), const SizedBox(height: 12), _ModeOption(icon: Icons.groups_outlined, title: 'Family', body: 'Grow gently with the people you love.', value: kModeFamily, selected: selected, onSelect: onSelect), const SizedBox(height: 12), _ModeOption(icon: Icons.auto_awesome_outlined, title: 'Both', body: 'Keep solitude and togetherness close.', value: kModeBoth, selected: selected, onSelect: onSelect)])); }
-class _ModeOption extends StatelessWidget { const _ModeOption({required this.icon, required this.title, required this.body, required this.value, required this.selected, required this.onSelect}); final IconData icon; final String title, body; final int value, selected; final ValueChanged<int> onSelect; @override Widget build(BuildContext context) { final active = selected == value; return Material(color: active ? kPaper : kPaper.withValues(alpha: 0.8), borderRadius: BorderRadius.circular(20), child: InkWell(onTap: () => onSelect(value), borderRadius: BorderRadius.circular(20), child: AnimatedContainer(duration: const Duration(milliseconds: 180), padding: const EdgeInsets.all(16), decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: active ? _bronze : kLine, width: active ? 1.5 : 1)), child: Row(children: [Icon(icon, color: _bronze), const SizedBox(width: 13), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(color: _ink, fontSize: 15, fontWeight: FontWeight.w800)), const SizedBox(height: 3), Text(body, style: const TextStyle(color: _muted, fontSize: 12))])), Icon(active ? Icons.check_circle_rounded : Icons.circle_outlined, color: active ? _bronze : kClay)])))); } }
+  @override
+  Widget build(BuildContext context) => _PageLayout(
+    colors: colors,
+    eyebrow: 'WELCOME TO MIZAN',
+    title: 'A quieter space\nfor what matters.',
+    body:
+        'Keep your good intentions close, one small practice at a time.',
+    visual: _WelcomeVisual(colors: colors),
+  );
+}
+
+class _RhythmPage extends StatelessWidget {
+  const _RhythmPage({required this.colors});
+  final MizanColors colors;
+
+  @override
+  Widget build(BuildContext context) => _PageLayout(
+    colors: colors,
+    eyebrow: 'YOUR DAILY RHYTHM',
+    title: 'Small steps\nbecome a practice.',
+    body:
+        'Reflect, read, pray, and give in a way that feels steady, private, and human.',
+    visual: _RhythmVisual(colors: colors),
+  );
+}
+
+class _PageLayout extends StatelessWidget {
+  const _PageLayout({
+    required this.colors,
+    required this.eyebrow,
+    required this.title,
+    required this.body,
+    required this.visual,
+  });
+
+  final MizanColors colors;
+  final String eyebrow;
+  final String title;
+  final String body;
+  final Widget visual;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 8),
+        visual,
+        const SizedBox(height: 28),
+        Text(
+          eyebrow,
+          style: TextStyle(
+            color: colors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.3,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          title,
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 36,
+            height: 1.05,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          body,
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 16,
+            height: 1.45,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _WelcomeVisual extends StatelessWidget {
+  const _WelcomeVisual({required this.colors});
+  final MizanColors colors;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 210,
+    width: double.infinity,
+    decoration: BoxDecoration(
+      color: colors.primaryContainer,
+      borderRadius: BorderRadius.circular(28),
+      border: Border.all(color: colors.borderSubtle),
+    ),
+    child: Stack(
+      children: [
+        Positioned(
+          right: 24,
+          top: 20,
+          child: Icon(Icons.nights_stay_rounded, size: 82, color: colors.primary),
+        ),
+        Positioned(
+          left: 24,
+          bottom: 24,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                'Mizan',
+                style: TextStyle(
+                  color: colors.onPrimaryContainer,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Icon(Icons.auto_awesome, color: colors.primary, size: 18),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _RhythmVisual extends StatelessWidget {
+  const _RhythmVisual({required this.colors});
+  final MizanColors colors;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 210,
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: colors.surfaceElevated,
+      borderRadius: BorderRadius.circular(28),
+      border: Border.all(color: colors.borderSubtle),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'A GENTLE CHECK-IN',
+          style: TextStyle(
+            color: colors.textMuted,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.1,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            _RhythmItem(icon: Icons.menu_book_rounded, label: 'Read', colors: colors),
+            _RhythmLine(colors: colors),
+            _RhythmItem(icon: Icons.edit_note_rounded, label: 'Reflect', colors: colors),
+            _RhythmLine(colors: colors),
+            _RhythmItem(icon: Icons.volunteer_activism_rounded, label: 'Give', colors: colors),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+class _RhythmItem extends StatelessWidget {
+  const _RhythmItem({required this.icon, required this.label, required this.colors});
+  final IconData icon;
+  final String label;
+  final MizanColors colors;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Column(
+      children: [
+        Container(
+          width: 46,
+          height: 46,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: colors.primary, size: 22),
+        ),
+        const SizedBox(height: 9),
+        Text(
+          label,
+          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800),
+        ),
+      ],
+    ),
+  );
+}
+
+class _RhythmLine extends StatelessWidget {
+  const _RhythmLine({required this.colors});
+  final MizanColors colors;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 18,
+    child: Divider(color: colors.border, thickness: 1.5),
+  );
+}
+
+class _SpacePage extends StatelessWidget {
+  const _SpacePage({required this.colors, required this.selected, required this.onSelect});
+  final MizanColors colors;
+  final int selected;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'MAKE IT YOURS',
+          style: TextStyle(
+            color: colors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.3,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'How will you\nuse Mizan?',
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 36,
+            height: 1.05,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'Choose a starting point. You can change this later.',
+          style: TextStyle(color: colors.textSecondary, fontSize: 15, height: 1.4),
+        ),
+        const SizedBox(height: 24),
+        _Choice(
+          title: 'Just me',
+          body: 'A private daily practice',
+          icon: Icons.person_outline_rounded,
+          value: kModePersonal,
+          selected: selected,
+          colors: colors,
+          onSelect: onSelect,
+        ),
+        _Choice(
+          title: 'With family',
+          body: 'A shared space to grow together',
+          icon: Icons.people_outline_rounded,
+          value: kModeFamily,
+          selected: selected,
+          colors: colors,
+          onSelect: onSelect,
+        ),
+        _Choice(
+          title: 'Both',
+          body: 'Keep a personal and family space',
+          icon: Icons.layers_outlined,
+          value: kModeBoth,
+          selected: selected,
+          colors: colors,
+          onSelect: onSelect,
+        ),
+      ],
+    ),
+  );
+}
+
+class _Choice extends StatelessWidget {
+  const _Choice({
+    required this.title,
+    required this.body,
+    required this.icon,
+    required this.value,
+    required this.selected,
+    required this.colors,
+    required this.onSelect,
+  });
+
+  final String title;
+  final String body;
+  final IconData icon;
+  final int value;
+  final int selected;
+  final MizanColors colors;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = value == selected;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: () => onSelect(value),
+        borderRadius: BorderRadius.circular(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            color: active ? colors.primaryContainer : colors.surfaceElevated,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: active ? colors.primary : colors.borderSubtle,
+              width: active ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: active ? colors.primary : colors.iconSecondary, size: 24),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 3),
+                    Text(body, style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                  ],
+                ),
+              ),
+              Icon(
+                active ? Icons.check_circle_rounded : Icons.circle_outlined,
+                color: active ? colors.primary : colors.border,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

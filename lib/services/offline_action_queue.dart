@@ -18,7 +18,7 @@ extension ActionTypeExtension on ActionType {
     }
   }
 
-  static ActionType fromString(String value) {
+  static ActionType? tryParse(String? value) {
     switch (value) {
       case 'add_jar_star':
         return ActionType.addJarStar;
@@ -27,7 +27,7 @@ extension ActionTypeExtension on ActionType {
       case 'create_reflection':
         return ActionType.createReflection;
       default:
-        throw ArgumentError('Unknown action type: $value');
+        return null;
     }
   }
 }
@@ -51,19 +51,59 @@ class OfflineQueueItem {
   int retryCount;
   String? lastError;
 
-  factory OfflineQueueItem.fromJson(Map<String, dynamic> json) {
-    return OfflineQueueItem(
-      id: json['id'] as String,
-      actionType: ActionTypeExtension.fromString(json['action_type'] as String),
-      payload: Map<String, dynamic>.from(json['payload'] as Map),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      status: QueueStatus.values.firstWhere(
-        (s) => s.name == json['status'],
+  /// Safe factory that never throws on a malformed row. If a row is corrupt
+  /// (missing id, bad action type, bad date, non-map payload), it returns null
+  /// so the caller can quarantine/remove it instead of retrying forever.
+  static OfflineQueueItem? tryFromJson(Map<String, dynamic> json) {
+    final id = json['id']?.toString();
+    if (id == null || id.isEmpty) return null;
+
+    final actionType = ActionTypeExtension.tryParse(json['action_type']?.toString());
+    if (actionType == null) return null;
+
+    final payloadRaw = json['payload'];
+    if (payloadRaw is! Map) return null;
+    Map<String, dynamic> payload;
+    try {
+      payload = Map<String, dynamic>.from(payloadRaw);
+    } catch (_) {
+      return null;
+    }
+
+    DateTime createdAt;
+    try {
+      createdAt = DateTime.parse(json['created_at']?.toString() ?? '');
+    } catch (_) {
+      return null;
+    }
+
+    final statusRaw = json['status']?.toString();
+    QueueStatus status;
+    try {
+      status = QueueStatus.values.firstWhere(
+        (s) => s.name == statusRaw,
         orElse: () => QueueStatus.pending,
-      ),
-      retryCount: (json['retry_count'] as num?)?.toInt() ?? 0,
-      lastError: json['last_error'] as String?,
+      );
+    } catch (_) {
+      status = QueueStatus.pending;
+    }
+
+    return OfflineQueueItem(
+      id: id,
+      actionType: actionType,
+      payload: payload,
+      createdAt: createdAt,
+      status: status,
+      retryCount: (json['retry_count'] is num)
+          ? (json['retry_count'] as num).toInt()
+          : int.tryParse(json['retry_count']?.toString() ?? '') ?? 0,
+      lastError: json['last_error']?.toString(),
     );
+  }
+
+  factory OfflineQueueItem.fromJson(Map<String, dynamic> json) {
+    return tryFromJson(json) ??
+        (throw FormatException('Invalid OfflineQueueItem row: $json'));
   }
 
   Map<String, dynamic> toJson() {
@@ -123,18 +163,70 @@ class OfflineActionQueue {
       whereArgs: [QueueStatus.pending.name, QueueStatus.failed.name],
       orderBy: 'created_at ASC',
     );
-    return rows.map(OfflineQueueItem.fromJson).toList();
+    final items = <OfflineQueueItem>[];
+    final corruptIds = <String>[];
+    for (final row in rows) {
+      final item = OfflineQueueItem.tryFromJson(row);
+      if (item == null) {
+        // Phase 38: quarantine corrupt rows so one bad row can't poison the queue.
+        final id = row['id']?.toString();
+        if (id != null && id.isNotEmpty) corruptIds.add(id);
+        continue;
+      }
+      items.add(item);
+    }
+    if (corruptIds.isNotEmpty) {
+      for (final id in corruptIds) {
+        try {
+          await _db!.delete('offline_queue', where: 'id = ?', whereArgs: [id]);
+        } catch (_) {}
+      }
+    }
+    return items;
   }
 
   Future<void> updateStatus(String id, QueueStatus status, {String? error}) async {
     await _ensureInitialized();
+    // H4 fix: read retry_count, increment in Dart, write the integer.
+    // Using 'retry_count + 1' as a bound value is a bug - sqflite treats it as
+    // a literal, never incrementing the counter and breaking the max-retry cap.
+    int newRetry = 0;
+    if (status == QueueStatus.failed) {
+      final rows = await _db!.query(
+        'offline_queue',
+        columns: ['retry_count'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        final raw = rows.first['retry_count'];
+        final parsed = raw is num
+            ? raw.toInt()
+            : int.tryParse(raw?.toString() ?? '') ?? 0;
+        newRetry = parsed + 1;
+        if (newRetry < 0) newRetry = 1;
+      } else {
+        newRetry = 1;
+      }
+    } else {
+      final rows = await _db!.query(
+        'offline_queue',
+        columns: ['retry_count'],
+        where: 'id = ?',
+        whereArgs: [id],
+        limit: 1,
+      );
+      if (rows.isNotEmpty) {
+        final raw = rows.first['retry_count'];
+        newRetry = raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '0') ?? 0;
+      }
+    }
     await _db!.update(
       'offline_queue',
       {
         'status': status.name,
-        'retry_count': status == QueueStatus.failed
-            ? 'retry_count + 1'
-            : 'retry_count',
+        'retry_count': newRetry,
         'last_error': error,
       },
       where: 'id = ?',
@@ -159,6 +251,13 @@ class OfflineActionQueue {
   Future<void> clearSynced() async {
     await _ensureInitialized();
     await _db!.delete('offline_queue', where: 'status = ?', whereArgs: [QueueStatus.synced.name]);
+  }
+
+  /// Removes every queued item — used on logout so a signed-out user's pending
+  /// actions can never be replayed into a different account.
+  Future<void> clearForLogout() async {
+    await _ensureInitialized();
+    await _db!.delete('offline_queue');
   }
 
   Future<void> _ensureInitialized() async {

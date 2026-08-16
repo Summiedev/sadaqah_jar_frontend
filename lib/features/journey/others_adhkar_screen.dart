@@ -68,10 +68,9 @@ class _OthersAdhkarListState extends ConsumerState<OthersAdhkarList> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (dua.commonName != null &&
-                          dua.commonName!.isNotEmpty) ...[
+                      if (dua.commonName.isNotEmpty) ...[
                         Text(
-                          dua.commonName!,
+                          dua.commonName,
                           style: const TextStyle(
                             color: kBronze,
                             fontSize: 12,
@@ -98,7 +97,7 @@ class _OthersAdhkarListState extends ConsumerState<OthersAdhkarList> {
                       if (_showTransliteration) ...[
                         const SizedBox(height: 10),
                         Text(
-                          dua.transliteration,
+                          dua.displayTransliteration,
                           style: const TextStyle(
                             color: kBronzeLight,
                             fontFamily: 'Georgia',
@@ -119,7 +118,7 @@ class _OthersAdhkarListState extends ConsumerState<OthersAdhkarList> {
                           ),
                         ),
                       ],
-                      if (dua.notes != null && dua.notes!.isNotEmpty) ...[
+                      if (dua.notes.isNotEmpty) ...[
                         const SizedBox(height: 6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -132,7 +131,7 @@ class _OthersAdhkarListState extends ConsumerState<OthersAdhkarList> {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                dua.notes!,
+                                dua.notes,
                                 style: const TextStyle(
                                   color: kBronze,
                                   fontSize: 12.5,
@@ -248,10 +247,14 @@ class _ToggleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(99),
-      child: AnimatedContainer(
+    return Semantics(
+      button: true,
+      toggled: active,
+      label: '$label ${active ? 'shown' : 'hidden'}',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(99),
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
@@ -277,6 +280,7 @@ class _ToggleChip extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );

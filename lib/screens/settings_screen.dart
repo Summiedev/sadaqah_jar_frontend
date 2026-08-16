@@ -875,6 +875,7 @@ class _GoalsSectionState extends State<_GoalsSection> {
   }
 
   Future<void> _loadGoals() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     try {
       _goalsFuture = BackendApi.instance.getGoals();
@@ -976,12 +977,12 @@ class _GoalTile extends StatelessWidget {
             isArchived
                 ? null
                 : () async {
-                  final result = await Navigator.of(context).push<bool>(
+                  final result = await Navigator.of(context).push<dynamic>(
                     MaterialPageRoute(
                       builder: (_) => EditGoalScreen(goal: goal),
                     ),
                   );
-                  if (result == true) {
+                  if (result != null) {
                     onEdited();
                   }
                 },
@@ -1110,6 +1111,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   }
 
   Future<void> _save() async {
+    if (_saving) return;
     final title = _titleController.text.trim();
     final target = int.tryParse(_targetController.text.trim()) ?? 10;
 
@@ -1129,14 +1131,17 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
 
     setState(() => _saving = true);
     try {
-      final goalId = (widget.goal['id'] as num?)?.toInt() ?? 0;
-      await BackendApi.instance.updateGoal(
+      final goalId = (widget.goal['id'] as num?)?.toInt();
+      if (goalId == null || goalId <= 0) {
+        throw BackendApiException('Goal is no longer available.', 404);
+      }
+      final updated = await BackendApi.instance.updateGoal(
         goalId: goalId,
         title: title,
         actsTarget: target,
       );
       if (!mounted) return;
-      Navigator.of(context).pop(true);
+      Navigator.of(context).pop(updated);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -1149,6 +1154,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   }
 
   Future<void> _delete() async {
+    if (_saving) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
@@ -1183,7 +1189,10 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
 
     setState(() => _saving = true);
     try {
-      final goalId = (widget.goal['id'] as num?)?.toInt() ?? 0;
+      final goalId = (widget.goal['id'] as num?)?.toInt();
+      if (goalId == null || goalId <= 0) {
+        throw BackendApiException('Goal is no longer available.', 404);
+      }
       await BackendApi.instance.deleteGoal(goalId);
       if (!mounted) return;
       Navigator.of(context).pop(true);

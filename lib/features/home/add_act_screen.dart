@@ -45,6 +45,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
     ('Remove harm', Icons.clean_hands_outlined),
     ('Smile', Icons.sentiment_satisfied_alt_rounded),
     ('Time', Icons.schedule_outlined),
+    ('Other', Icons.edit_note_outlined),
   ];
 
   static const _allSuggestions = [
@@ -75,6 +76,10 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
   @override
   void initState() {
     super.initState();
+    // A user can record an act without forcing it into an inaccurate
+    // category. Existing categories remain available, while Other is the
+    // neutral default and the note field carries the user's own wording.
+    _selected = 'Other';
     _pickRandomSuggestions();
   }
 
@@ -100,18 +105,19 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
     final type = _selected!;
     final note = _note.text.trim();
 
-    final localId = 'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000).toString().padLeft(3, '0')}';
-    final payload = <String, dynamic>{
-      'type': type,
-      'note': note,
-    };
+    final localId =
+        'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000).toString().padLeft(3, '0')}';
+    final payload = <String, dynamic>{'type': type, 'note': note};
     if (widget.familyId != null) {
       payload['family_id'] = widget.familyId!;
     }
 
     final queueItem = OfflineQueueItem(
       id: localId,
-      actionType: widget.familyId != null ? ActionType.addFamilyAct : ActionType.addJarStar,
+      actionType:
+          widget.familyId != null
+              ? ActionType.addFamilyAct
+              : ActionType.addJarStar,
       payload: payload,
       createdAt: DateTime.now(),
     );
@@ -128,7 +134,9 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
         // fall back to offline-first behaviour by recording locally and
         // enqueuing for background sync so the UI never blocks.
         try {
-          await ref.read(actStoreProvider).addRemote(type: type, note: note, requestId: localId);
+          await ref
+              .read(actStoreProvider)
+              .addRemote(type: type, note: note, requestId: localId);
         } catch (_) {
           await ref.read(actStoreProvider).add(type: type, note: note);
           // Best-effort sync - never surface errors to the user.
@@ -137,7 +145,6 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
           } catch (_) {}
         }
       } else {
-        await ref.read(actStoreProvider).add(type: type, note: note);
         // Best-effort sync - never surface errors to the user.
         try {
           await QueueSyncService.instance.enqueueAndSync(queueItem);
@@ -158,163 +165,231 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return _saved
         ? const _Success()
         : FadeScaleTransition(
-            beginScale: 0.95,
-            child: DraggableScrollableSheet(
-              initialChildSize: 0.5,
-              minChildSize: 0.5,
-              maxChildSize: 0.88,
-              expand: false,
-              builder: (context, scrollController) {
-                return Material(
-                  color: Colors.transparent,
-                  child: Container(
-                    key: const ValueKey('add-sheet'),
-                    width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: kSurface,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          beginScale: 0.95,
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.5,
+            minChildSize: 0.5,
+            maxChildSize: 0.88,
+            expand: false,
+            builder: (context, scrollController) {
+              return Material(
+                color: Colors.transparent,
+                child: Container(
+                  key: const ValueKey('add-sheet'),
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: kSurface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(28),
                     ),
-                    child: Column(
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.only(top: 12),
-                          width: 42,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: kClay,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        margin: const EdgeInsets.only(top: 12),
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: kClay,
+                          borderRadius: BorderRadius.circular(99),
                         ),
-                        Expanded(
-                          child: SingleChildScrollView(
-                            controller: scrollController,
-                            padding: EdgeInsets.fromLTRB(20, 16, 20, 18 + MediaQuery.paddingOf(context).bottom),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'Add today\'s sadaqah',
-                                            style: TextStyle(
-                                              fontFamily: 'Georgia',
-                                              fontSize: 24,
-                                              color: kInk,
-                                              fontWeight: FontWeight.w700,
-                                              height: 1.15,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Every sincere act belongs in your jar.',
-                                            style: TextStyle(color: kMuted, fontSize: 13, height: 1.4),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      tooltip: 'Close',
-                                      icon: const Icon(Icons.close_rounded, color: kInk),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 18),
-                                const _GentleReminder(),
-                                const SizedBox(height: 22),
-                                _SectionHeader(title: 'WHAT DID YOU SHARE?'),
-                                const SizedBox(height: 12),
-                                _ActGrid(acts: _acts, selected: _selected, onSelect: (value) => setState(() => _selected = value)),
-                                const SizedBox(height: 22),
-                                _SectionHeader(title: 'INSPIRED?'),
-                                const SizedBox(height: 10),
-                                ..._suggestions.map((item) => _SuggestionCard(text: item, onTap: () => _onSuggestion(item))),
-                                const SizedBox(height: 14),
-                                InkWell(
-                                  onTap: () {
-                                    GoRouter.of(context).push('/charities');
-                                    Navigator.of(context).pop();
-                                  },
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                                    decoration: BoxDecoration(
-                                      color: kSoftBronze,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: kLine),
-                                    ),
-                                    child: Row(
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          controller: scrollController,
+                          padding: EdgeInsets.fromLTRB(
+                            20,
+                            16,
+                            20,
+                            18 + MediaQuery.paddingOf(context).bottom,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        const Icon(Icons.favorite_border_rounded, color: kBronze, size: 20),
-                                        const SizedBox(width: 10),
-                                        Expanded(
-                                          child: Text(
-                                            'Give to verified causes',
-                                            style: TextStyle(color: kInk, fontSize: 13.5, fontWeight: FontWeight.w600, height: 1.35),
+                                        Text(
+                                          'Add today\'s sadaqah',
+                                          style: TextStyle(
+                                            fontFamily: 'Georgia',
+                                            fontSize: 24,
+                                            color: kInk,
+                                            fontWeight: FontWeight.w700,
+                                            height: 1.15,
                                           ),
                                         ),
-                                        Icon(Icons.arrow_forward_rounded, color: kMuted, size: 18),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Every sincere act belongs in your jar.',
+                                          style: TextStyle(
+                                            color: kMuted,
+                                            fontSize: 13,
+                                            height: 1.4,
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ),
-                                ),
-                                const SizedBox(height: 22),
-                                _SectionHeader(title: 'A SMALL NOTE (OPTIONAL)'),
-                                const SizedBox(height: 10),
-                                TextField(
-                                  controller: _note,
-                                  maxLines: 2,
-                                  textCapitalization: TextCapitalization.sentences,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Example: Said Alhamdulillah 33 times',
+                                  IconButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    tooltip: 'Close',
+                                    icon: const Icon(
+                                      Icons.close_rounded,
+                                      color: kInk,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 16),
-                                AnimatedSwitcher(
-                                  key: const ValueKey('preview-line'),
-                                  duration: MizanMotion.fast,
-                                  switchInCurve: MizanMotion.gentle,
-                                  switchOutCurve: MizanMotion.gentle,
-                                  child: _PreviewLine(selected: _selected),
-                                ),
-                                if (_error != null) ...[
-                                  const SizedBox(height: 10),
-                                  Text(_error!, style: const TextStyle(color: kDanger, fontSize: 13, fontWeight: FontWeight.w700)),
                                 ],
-                                const SizedBox(height: 20),
-                                SizedBox(
+                              ),
+                              const SizedBox(height: 18),
+                              const _GentleReminder(),
+                              const SizedBox(height: 22),
+                              _SectionHeader(title: 'WHAT DID YOU SHARE?'),
+                              const SizedBox(height: 12),
+                              _ActGrid(
+                                acts: _acts,
+                                selected: _selected,
+                                onSelect:
+                                    (value) =>
+                                        setState(() => _selected = value),
+                              ),
+                              const SizedBox(height: 22),
+                              _SectionHeader(title: 'INSPIRED?'),
+                              const SizedBox(height: 10),
+                              ..._suggestions.map(
+                                (item) => _SuggestionCard(
+                                  text: item,
+                                  onTap: () => _onSuggestion(item),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              InkWell(
+                                onTap: () {
+                                  GoRouter.of(context).push('/charities');
+                                  Navigator.of(context).pop();
+                                },
+                                borderRadius: BorderRadius.circular(14),
+                                child: Container(
                                   width: double.infinity,
-                                  child: FilledButton.icon(
-                                    onPressed: (_selected == null || _saving) ? null : _save,
-                                    icon: _saving
-                                      ? SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
-                                      : const Icon(Icons.add_circle_outline_rounded),
-                                    label: Text(_saving ? 'Saving...' : 'Add to my jar'),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 14,
+                                    vertical: 14,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: kSoftBronze,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: kLine),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.favorite_border_rounded,
+                                        color: kBronze,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Give to verified causes',
+                                          style: TextStyle(
+                                            color: kInk,
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w600,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                      ),
+                                      Icon(
+                                        Icons.arrow_forward_rounded,
+                                        color: kMuted,
+                                        size: 18,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                                const SizedBox(height: 8),
+                              ),
+                              const SizedBox(height: 22),
+                              _SectionHeader(title: 'A SMALL NOTE (OPTIONAL)'),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: _note,
+                                maxLines: 2,
+                                textCapitalization:
+                                    TextCapitalization.sentences,
+                                decoration: const InputDecoration(
+                                  hintText:
+                                      'Example: Said Alhamdulillah 33 times',
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              AnimatedSwitcher(
+                                key: const ValueKey('preview-line'),
+                                duration: MizanMotion.fast,
+                                switchInCurve: MizanMotion.gentle,
+                                switchOutCurve: MizanMotion.gentle,
+                                child: _PreviewLine(selected: _selected),
+                              ),
+                              if (_error != null) ...[
+                                const SizedBox(height: 10),
+                                Text(
+                                  _error!,
+                                  style: const TextStyle(
+                                    color: kDanger,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ],
-                            ),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  onPressed:
+                                      (_selected == null || _saving)
+                                          ? null
+                                          : _save,
+                                  icon:
+                                      _saving
+                                          ? SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color:
+                                                  Theme.of(
+                                                    context,
+                                                  ).colorScheme.onPrimary,
+                                            ),
+                                          )
+                                          : const Icon(
+                                            Icons.add_circle_outline_rounded,
+                                          ),
+                                  label: Text(
+                                    _saving ? 'Saving...' : 'Add to my jar',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                );
-              },
-            ),
-          );
+                ),
+              );
+            },
+          ),
+        );
   }
 
   void _onSuggestion(String value) {
@@ -325,7 +400,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
         'Helped my parents with housework' => 'Kindness',
         'Made someone laugh when they were down' => 'Kindness',
         'Gave charity without telling anyone' => 'Money',
-        _ => 'Dhikr',
+        _ => 'Other',
       };
       if (_note.text.trim().isEmpty) _note.text = value;
     });
@@ -351,17 +426,20 @@ class _ActGrid extends StatelessWidget {
         return Wrap(
           spacing: 10,
           runSpacing: 10,
-          children: acts
-              .map((act) => SizedBox(
-                    width: itemWidth,
-                    child: _ActChoice(
-                      label: act.$1,
-                      icon: act.$2,
-                      selected: selected == act.$1,
-                      onTap: () => onSelect(act.$1),
+          children:
+              acts
+                  .map(
+                    (act) => SizedBox(
+                      width: itemWidth,
+                      child: _ActChoice(
+                        label: act.$1,
+                        icon: act.$2,
+                        selected: selected == act.$1,
+                        onTap: () => onSelect(act.$1),
+                      ),
                     ),
-                  ))
-              .toList(),
+                  )
+                  .toList(),
         );
       },
     );
@@ -438,15 +516,23 @@ class _PreviewLine extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              selected == null ? Icons.info_outline_rounded : Icons.check_circle_outline_rounded,
+              selected == null
+                  ? Icons.info_outline_rounded
+                  : Icons.check_circle_outline_rounded,
               color: kBronze,
               size: 20,
             ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                selected == null ? 'Choose one act to place it in your jar.' : '$selected will be added to today\'s jar.',
-                style: const TextStyle(color: kMuted, fontSize: 12.5, fontWeight: FontWeight.w700),
+                selected == null
+                    ? 'Choose one act to place it in your jar.'
+                    : '$selected will be added to today\'s jar.',
+                style: const TextStyle(
+                  color: kMuted,
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -546,13 +632,22 @@ class _SuggestionCard extends StatelessWidget {
                   color: kSoftBronze,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.auto_awesome_outlined, color: kBronze, size: 16),
+                child: const Icon(
+                  Icons.auto_awesome_outlined,
+                  color: kBronze,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   text,
-                  style: const TextStyle(color: kInk, fontSize: 13.5, fontWeight: FontWeight.w500, height: 1.35),
+                  style: const TextStyle(
+                    color: kInk,
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
                 ),
               ),
               Icon(Icons.add_rounded, color: kMuted, size: 18),
@@ -585,7 +680,12 @@ class _Success extends StatelessWidget {
             const SizedBox(height: 18),
             const Text(
               'Added to your jar',
-              style: TextStyle(fontFamily: 'Georgia', fontSize: 24, color: kInk, fontWeight: FontWeight.w700),
+              style: TextStyle(
+                fontFamily: 'Georgia',
+                fontSize: 24,
+                color: kInk,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -597,11 +697,19 @@ class _Success extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.cloud_upload_rounded, size: 16, color: kBronze.withValues(alpha: 0.7)),
+                Icon(
+                  Icons.cloud_upload_rounded,
+                  size: 16,
+                  color: kBronze.withValues(alpha: 0.7),
+                ),
                 const SizedBox(width: 6),
                 Text(
                   'Saved locally - will sync when online',
-                  style: TextStyle(color: kMuted.withValues(alpha: 0.8), fontSize: 12, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    color: kMuted.withValues(alpha: 0.8),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ],
             ),

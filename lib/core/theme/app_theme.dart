@@ -40,14 +40,14 @@ const Color kStonePale = Color(0xFFB09E8D);
 const Color kWhite = Color(0xFFFFFFFF);
 
 // Warm lifted dark surfaces, avoiding pure black and harsh white contrast.
-const Color kScaffoldDark = Color(0xFF26231F);
-const Color kSurfaceDark = Color(0xFF302C27);
-const Color kPaperDark = Color(0xFF39342E);
+const Color kScaffoldDark = Color(0xFF2E2A26);
+const Color kSurfaceDark = Color(0xFF39332D);
+const Color kPaperDark = Color(0xFF443C34);
 const Color kInkDark = Color(0xFFF2EAE0);
 const Color kMutedDark = Color(0xFFD3C8BB);
 const Color kLineDark = Color(0xFF675D51);
-const Color kElevatedDark = Color(0xFF423B34);
-const Color kBronzeDarkMode = Color(0xFFCFA36E);
+const Color kElevatedDark = Color(0xFF50463C);
+const Color kBronzeDarkMode = Color(0xFFD2A875);
 
 @immutable
 class MizanColors extends ThemeExtension<MizanColors> {
@@ -173,7 +173,7 @@ class MizanColors extends ThemeExtension<MizanColors> {
     background: kScaffoldDark,
     surface: kSurfaceDark,
     surfaceElevated: kPaperDark,
-    surfaceContainer: Color(0xFF35312B),
+    surfaceContainer: Color(0xFF3F3933),
     surfaceContainerHigh: kElevatedDark,
     textPrimary: kInkDark,
     textSecondary: kMutedDark,
@@ -188,9 +188,9 @@ class MizanColors extends ThemeExtension<MizanColors> {
     secondaryContainer: Color(0xFF3A4A3C),
     accent: Color(0xFFD4B57F),
     accentSoft: Color(0xFF514332),
-    border: kLineDark,
-    borderSubtle: Color(0xFF574E45),
-    divider: Color(0xFF5D554B),
+    border: Color(0xFF766A5E),
+    borderSubtle: Color(0xFF62584E),
+    divider: Color(0xFF6A6056),
     success: Color(0xFFA4BE9F),
     successContainer: Color(0xFF304131),
     warning: Color(0xFFDDB673),
@@ -202,8 +202,8 @@ class MizanColors extends ThemeExtension<MizanColors> {
     iconPrimary: kInkDark,
     iconSecondary: kMutedDark,
     iconDisabled: Color(0xFF91877D),
-    inputBackground: Color(0xFF2D2924),
-    inputBorder: kLineDark,
+    inputBackground: Color(0xFF38332E),
+    inputBorder: Color(0xFF766A5E),
     inputFocusedBorder: kBronzeDarkMode,
     overlay: Color(0xCC292621),
     scrim: Color(0x99000000),
