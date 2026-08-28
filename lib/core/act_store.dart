@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,7 +34,7 @@ class ActStore extends ChangeNotifier {
   int? _lastKnownDone;
 
   int get totalStars {
-    final base = _goalActsDone ?? _jarCurrentStars;
+    final base = _confirmedProgress;
     // When we have no backend baseline yet, the local list already counts the
     // new act, so we must NOT also add the optimistic delta (double counting).
     if (base == null) return _acts.length;
@@ -42,14 +43,14 @@ class ActStore extends ChangeNotifier {
 
   int get remainingActs {
     final capacity = _goalTarget ?? _jarCapacity;
-    final done = _goalActsDone ?? _jarCurrentStars;
+    final done = _confirmedProgress;
     if (capacity == null || done == null) return 0;
     return (capacity - (done + _optimisticDelta)).clamp(0, capacity);
   }
 
   double get progress {
     final capacity = _goalTarget ?? _jarCapacity;
-    final done = _goalActsDone ?? _jarCurrentStars;
+    final done = _confirmedProgress;
     if (done == null || capacity == null || capacity == 0) return 0.0;
     return ((done + _optimisticDelta) / capacity).clamp(0.0, 1.0);
   }
@@ -63,6 +64,17 @@ class ActStore extends ChangeNotifier {
   int? _goalId;
   int? _currentStreak;
   bool _streakError = false;
+
+  // A goal and the legacy jar can legitimately exist together. During the
+  // migration, older accounts may have a goal at zero while the durable jar
+  // already contains acts. Never let the stale, smaller value erase progress.
+  int? get _confirmedProgress {
+    final values = <int>[
+      if (_goalActsDone != null) _goalActsDone!,
+      if (_jarCurrentStars != null) _jarCurrentStars!,
+    ];
+    return values.isEmpty ? null : values.reduce(math.max);
+  }
 
   int? get currentStreak => _currentStreak;
   bool get streakError => _streakError;
@@ -147,7 +159,7 @@ class ActStore extends ChangeNotifier {
   /// moves forward, and the delta is gradually paid down as sync confirms acts.
   void _reconcileOptimisticDelta() {
     if (_optimisticDelta <= 0) return;
-    final confirmed = _goalActsDone ?? _jarCurrentStars;
+    final confirmed = _confirmedProgress;
     if (confirmed == null) return;
     if (_lastKnownDone != null && confirmed <= _lastKnownDone!) {
       // Server hasn't moved yet (queued act not synced) - keep the delta.
@@ -203,6 +215,17 @@ class ActStore extends ChangeNotifier {
     await _refreshJarProgress();
   }
 
+  /// Refresh account-backed progress without clearing the locally rendered
+  /// state. This is used when the app returns from the background so the home
+  /// screen and platform widgets catch up with changes made elsewhere.
+  Future<void> refresh() async {
+    if (!_loaded) {
+      await load();
+      return;
+    }
+    await _refreshJarProgress();
+  }
+
   Future<void> add({required String type, String? note}) async {
     _insertLocalAct(type: type, note: note);
 
@@ -210,8 +233,8 @@ class ActStore extends ChangeNotifier {
     // we already have a backend baseline (otherwise totalStars falls back to the
     // local list length and would double count). Seed _lastKnownDone so the next
     // refresh can tell whether the server has caught up with this act yet.
-    if ((_goalActsDone ?? _jarCurrentStars) != null) {
-      _lastKnownDone ??= _goalActsDone ?? _jarCurrentStars;
+    if (_confirmedProgress != null) {
+      _lastKnownDone ??= _confirmedProgress;
       _optimisticDelta += 1;
     }
     notifyListeners();
@@ -229,7 +252,7 @@ class ActStore extends ChangeNotifier {
     String? note,
     String? requestId,
   }) async {
-    _lastKnownDone ??= _goalActsDone ?? _jarCurrentStars;
+    _lastKnownDone ??= _confirmedProgress;
     _optimisticDelta += 1;
     notifyListeners();
     try {

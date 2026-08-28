@@ -7,8 +7,32 @@ import 'package:sadaqah_jar/services/backend_api.dart';
 import 'package:sadaqah_jar/core/user_facing_errors.dart';
 import 'package:sadaqah_jar/services/device_timezone.dart';
 import 'package:sadaqah_jar/services/websocket_service.dart';
+import 'package:sadaqah_jar/features/journey/quran/quran_data.dart';
 
 void main() {
+  group('Quran download state', () {
+    test('logical progress is bounded and readable', () {
+      const status = QuranDownloadStatus(
+        state: QuranDownloadState.downloading,
+        completed: 18,
+        total: 114,
+        message: 'Downloaded surah 18 of 114',
+      );
+      expect(status.percent, 16);
+      expect(status.progress, closeTo(18 / 114, 0.0001));
+    });
+
+    test('waiting for network is a resumable state', () {
+      const status = QuranDownloadStatus(
+        state: QuranDownloadState.waitingForNetwork,
+        completed: 7,
+        total: 718,
+      );
+      expect(status.state, QuranDownloadState.waitingForNetwork);
+      expect(status.completed, 7);
+    });
+  });
+
   group('C4: API response parsing safety', () {
     test('bare object is accepted', () {
       final api = BackendApi.instance;

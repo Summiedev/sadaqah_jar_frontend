@@ -86,8 +86,11 @@ class ResolvedNotificationDestination {
     }
     if (extraQuery != null && extraQuery!.isNotEmpty) {
       final query = extraQuery!.entries
-          .map((e) => '${Uri.encodeQueryComponent(e.key)}='
-              '${Uri.encodeQueryComponent(e.value)}')
+          .map(
+            (e) =>
+                '${Uri.encodeQueryComponent(e.key)}='
+                '${Uri.encodeQueryComponent(e.value)}',
+          )
           .join('&');
       path = '$path?$query';
     }

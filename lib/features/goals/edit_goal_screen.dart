@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,6 +19,9 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
   final _subtitle = TextEditingController();
   bool _saving = false;
   String? _error;
+  late final String _initialTitle;
+  late final String _initialTarget;
+  late final String _initialSubtitle;
 
   @override
   void initState() {
@@ -25,6 +30,41 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
     _title.text = store.goalTitle ?? '';
     _target.text = '${store.goalTarget ?? 30}';
     _subtitle.text = store.goalSubtitle ?? '';
+    _initialTitle = _title.text;
+    _initialTarget = _target.text;
+    _initialSubtitle = _subtitle.text;
+  }
+
+  bool get _hasUnsavedChanges =>
+      _title.text != _initialTitle ||
+      _target.text != _initialTarget ||
+      _subtitle.text != _initialSubtitle;
+
+  Future<void> _handleBack() async {
+    if (_saving) return;
+    if (!_hasUnsavedChanges) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text('Your goal changes have not been saved.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep editing'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -46,7 +86,14 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
       _error = null;
     });
     try {
-      await ref.read(actStoreProvider).updateGoal(title: _title.text.trim(), subtitle: _subtitle.text.trim().isEmpty ? null : _subtitle.text.trim(), actsTarget: parsed);
+      await ref
+          .read(actStoreProvider)
+          .updateGoal(
+            title: _title.text.trim(),
+            subtitle:
+                _subtitle.text.trim().isEmpty ? null : _subtitle.text.trim(),
+            actsTarget: parsed,
+          );
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
@@ -58,27 +105,67 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Edit Goal')),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            TextField(controller: _title, decoration: const InputDecoration(labelText: 'Goal title')),
-            const SizedBox(height: 12),
-            TextField(controller: _target, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Target count')),
-            const SizedBox(height: 12),
-            TextField(controller: _subtitle, minLines: 2, maxLines: 4, decoration: const InputDecoration(labelText: 'Subtitle / intention')),
-            if (_error != null) ...[
-              const SizedBox(height: 12),
-              Text(_error!, style: const TextStyle(color: kDanger)),
-            ],
-            const SizedBox(height: 18),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator()) : const Text('Save changes'),
+    return PopScope(
+      canPop: !_hasUnsavedChanges && !_saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_handleBack());
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Edit Goal'),
+          leading: IconButton(
+            onPressed: _handleBack,
+            icon: const Icon(Icons.arrow_back_rounded),
+            tooltip: 'Back',
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  controller: _title,
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(labelText: 'Goal title'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _target,
+                  onChanged: (_) => setState(() {}),
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Target count'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: _subtitle,
+                  onChanged: (_) => setState(() {}),
+                  minLines: 2,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Subtitle / intention',
+                  ),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  Text(_error!, style: const TextStyle(color: kDanger)),
+                ],
+                const SizedBox(height: 18),
+                FilledButton(
+                  onPressed: _saving ? null : _save,
+                  child:
+                      _saving
+                          ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(),
+                          )
+                          : const Text('Save changes'),
+                ),
+              ],
             ),
-          ]),
+          ),
         ),
       ),
     );

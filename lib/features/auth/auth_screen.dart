@@ -73,7 +73,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       foregroundColor: kMuted,
                     ),
                     icon: const Icon(Icons.arrow_back, size: 16),
-                    label: const Text('Back', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    label: const Text(
+                      'Back',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -81,14 +87,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const SizedBox(height: 42),
               Text(
                 _register ? 'Create your first gateway' : 'Welcome back',
-                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: colors.onSurface),
+                style: TextStyle(
+                  fontSize: 28,
+                  height: 1.1,
+                  fontWeight: FontWeight.w800,
+                  color: colors.onSurface,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 _register
                     ? 'A private place for your worship, reflection, and good deeds.'
                     : 'Continue your quiet rhythm, one good step at a time.',
-                style: TextStyle(color: colors.onSurfaceVariant, fontSize: 13, height: 1.45),
+                style: TextStyle(
+                  color: colors.onSurfaceVariant,
+                  fontSize: 13,
+                  height: 1.45,
+                ),
               ),
               const SizedBox(height: 22),
               Container(
@@ -97,17 +112,43 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   color: colors.surface,
                   borderRadius: BorderRadius.circular(22),
                   border: Border.all(color: colors.outlineVariant),
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: Theme.of(context).brightness == Brightness.dark ? 0.18 : 0.05), blurRadius: 18, offset: const Offset(0, 8))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(
+                        alpha:
+                            Theme.of(context).brightness == Brightness.dark
+                                ? 0.18
+                                : 0.05,
+                      ),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: colors.surfaceContainerHighest, borderRadius: BorderRadius.circular(16)),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                       child: Row(
                         children: [
-                          Expanded(child: _SegmentButton(selected: _register, label: 'Create account', onTap: () => setState(() => _register = true))),
-                          Expanded(child: _SegmentButton(selected: !_register, label: 'Sign in', onTap: () => setState(() => _register = false))),
+                          Expanded(
+                            child: _SegmentButton(
+                              selected: _register,
+                              label: 'Create account',
+                              onTap: () => setState(() => _register = true),
+                            ),
+                          ),
+                          Expanded(
+                            child: _SegmentButton(
+                              selected: !_register,
+                              label: 'Sign in',
+                              onTap: () => setState(() => _register = false),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -116,7 +157,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       duration: MizanMotion.normal,
                       switchInCurve: MizanMotion.gentle,
                       switchOutCurve: MizanMotion.gentle,
-                      child: _register ? _RegisterForm(onDone: _onAuthSuccess) : _SigninForm(onSuccess: _onAuthSuccess),
+                      child:
+                          _register
+                              ? _RegisterForm(onDone: _onAuthSuccess)
+                              : _SigninForm(onSuccess: _onAuthSuccess),
                     ),
                   ],
                 ),
@@ -125,7 +169,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               Row(
                 children: [
                   Expanded(child: Divider(color: colors.outlineVariant)),
-                  Padding(padding: const EdgeInsets.symmetric(horizontal: 14), child: Text('OR', style: TextStyle(fontSize: 10, letterSpacing: 2.5, color: colors.primary, fontWeight: FontWeight.w800))),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Text(
+                      'OR',
+                      style: TextStyle(
+                        fontSize: 10,
+                        letterSpacing: 2.5,
+                        color: colors.primary,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                   Expanded(child: Divider(color: colors.outlineVariant)),
                 ],
               ),
@@ -138,9 +193,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(color: kDangerBorder),
                   ),
-                    child: Text(
-                      _googleError!,
-                      style: const TextStyle(color: kDanger, fontSize: 13),
+                  child: Text(
+                    _googleError!,
+                    style: const TextStyle(color: kDanger, fontSize: 13),
                   ),
                 ),
               _GoogleButton(onTap: _continueWithGoogle, isLoading: _loading),
@@ -148,7 +203,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const Text(
                 'Your account keeps your progress available across your devices.',
                 textAlign: TextAlign.center,
-                 style: TextStyle(fontSize: 11, color: kMuted, height: 1.4),
+                style: TextStyle(fontSize: 11, color: kMuted, height: 1.4),
               ),
             ],
           ),
@@ -208,8 +263,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       setState(() => _googleError = _authErrorMessage(e, signingIn: true));
     } catch (e) {
       if (!mounted) return;
-      setState(() => _googleError =
-          'Google sign-in could not be completed. Please try again.');
+      setState(
+        () =>
+            _googleError =
+                'Google sign-in could not be completed. Please try again.',
+      );
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -217,7 +275,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 }
 
 class _SegmentButton extends StatelessWidget {
-  const _SegmentButton({required this.selected, required this.label, required this.onTap});
+  const _SegmentButton({
+    required this.selected,
+    required this.label,
+    required this.onTap,
+  });
 
   final bool selected;
   final String label;
@@ -234,7 +296,9 @@ class _SegmentButton extends StatelessWidget {
           backgroundColor: selected ? colors.surface : Colors.transparent,
           foregroundColor: colors.onSurface,
           minimumSize: const Size.fromHeight(36),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
         child: Text(label),
@@ -260,7 +324,6 @@ class _RegisterFormState extends State<_RegisterForm> {
   bool _loading = false;
   String? _errorMessage;
   bool _passwordVisible = false;
-
 
   @override
   void dispose() {
@@ -309,28 +372,22 @@ class _RegisterFormState extends State<_RegisterForm> {
         username: name,
         email: email,
         password: password,
+        familyCode: invitationCode,
       );
-
-      // If an invitation code was supplied, join that household now that the
-      // account exists and the session is authenticated. A bad/expired code
-      // must surface as an error rather than silently doing nothing.
-      if (invitationCode.isNotEmpty) {
-        await BackendApi.instance.joinFamilyJar(inviteCode: invitationCode);
-      }
 
       final profile = await BackendApi.instance.getUserProfile();
       if (!mounted) return;
-
 
       if (profile.emailVerified) {
         widget.onDone();
       } else {
         await Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => VerificationScreen(
-              onContinue: widget.onDone,
-              onLogin: () {},
-            ),
+            builder:
+                (_) => VerificationScreen(
+                  onContinue: widget.onDone,
+                  onLogin: () {},
+                ),
           ),
         );
       }
@@ -374,10 +431,10 @@ class _RegisterFormState extends State<_RegisterForm> {
           hint: 'At least 8 characters',
           controller: _passwordController,
           obscureText: !_passwordVisible,
-          onToggleVisibility: () => setState(() => _passwordVisible = !_passwordVisible),
+          onToggleVisibility:
+              () => setState(() => _passwordVisible = !_passwordVisible),
           textInputAction: TextInputAction.next,
         ),
-    
 
         const SizedBox(height: 12),
         _Field(
@@ -417,22 +474,44 @@ class _RegisterFormState extends State<_RegisterForm> {
             key: ValueKey(_loading),
             width: double.infinity,
             height: 52,
-            child: _loading
-                ? DecoratedBox(
-                    decoration: const BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))),
-                    child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Theme.of(context).colorScheme.onPrimary))),
-                  )
-                : ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBronze,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
+            child:
+                _loading
+                    ? DecoratedBox(
+                      decoration: const BoxDecoration(
+                        color: kBronze,
+                        borderRadius: BorderRadius.all(Radius.circular(16)),
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    )
+                    : ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kBronze,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Create account',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                    child: const Text('Create account', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                  ),
           ),
         ),
       ],
@@ -524,7 +603,8 @@ class _SigninFormState extends State<_SigninForm> {
           hint: '••••••••',
           controller: _passwordController,
           obscureText: !_passwordVisible,
-          onToggleVisibility: () => setState(() => _passwordVisible = !_passwordVisible),
+          onToggleVisibility:
+              () => setState(() => _passwordVisible = !_passwordVisible),
           textInputAction: TextInputAction.done,
         ),
         const SizedBox(height: 6),
@@ -539,7 +619,10 @@ class _SigninFormState extends State<_SigninForm> {
               minimumSize: Size.zero,
               foregroundColor: kMuted,
             ),
-            child: const Text('Forgot password?', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+            child: const Text(
+              'Forgot password?',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+            ),
           ),
         ),
         if (_errorMessage != null) ...[
@@ -574,22 +657,44 @@ class _SigninFormState extends State<_SigninForm> {
             key: ValueKey(_loading),
             width: double.infinity,
             height: 48,
-            child: _loading
-                ? DecoratedBox(
-                    decoration: const BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))),
-                    child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Theme.of(context).colorScheme.onPrimary))),
-                  )
-                : ElevatedButton(
-                    onPressed: _submit,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kBronze,
-                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      elevation: 0,
+            child:
+                _loading
+                    ? DecoratedBox(
+                      decoration: const BoxDecoration(
+                        color: kBronze,
+                        borderRadius: BorderRadius.all(Radius.circular(16)),
+                      ),
+                      child: Center(
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.2,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                        ),
+                      ),
+                    )
+                    : ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: kBronze,
+                        foregroundColor:
+                            Theme.of(context).colorScheme.onPrimary,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Sign in',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                    child: const Text('Sign in', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                  ),
           ),
         ),
       ],
@@ -623,7 +728,15 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: TextStyle(fontSize: 10, letterSpacing: 2, color: colors.onSurfaceVariant, fontWeight: FontWeight.w700)),
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 10,
+            letterSpacing: 2,
+            color: colors.onSurfaceVariant,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -635,17 +748,36 @@ class _Field extends StatelessWidget {
             hintStyle: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
             filled: true,
             fillColor: colors.surfaceContainerHighest,
-            contentPadding: EdgeInsets.symmetric(horizontal: showToggle ? 14 : 14, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.outlineVariant)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.outlineVariant)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: colors.primary, width: 1.5)),
-            suffixIcon: showToggle
-                ? IconButton(
-                    onPressed: onToggleVisibility,
-                    icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: colors.primary),
-                    tooltip: obscureText ? 'Show password' : 'Hide password',
-                  )
-                : null,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: showToggle ? 14 : 14,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: colors.outlineVariant),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: colors.outlineVariant),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: colors.primary, width: 1.5),
+            ),
+            suffixIcon:
+                showToggle
+                    ? IconButton(
+                      onPressed: onToggleVisibility,
+                      icon: Icon(
+                        obscureText
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 18,
+                        color: colors.primary,
+                      ),
+                      tooltip: obscureText ? 'Show password' : 'Hide password',
+                    )
+                    : null,
           ),
         ),
       ],
@@ -678,7 +810,14 @@ class _GoogleButton extends StatelessWidget {
           const _GoogleFavicon(),
           const SizedBox(width: 10),
           isLoading
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: kBronze))
+              ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: kBronze,
+                ),
+              )
               : const Text('Continue with Google'),
         ],
       ),
@@ -697,7 +836,9 @@ class _GoogleFavicon extends StatelessWidget {
       height: 20,
       cacheWidth: 40,
       cacheHeight: 40,
-      errorBuilder: (_, __, ___) => const Icon(Icons.g_mobiledata, size: 20, color: kBronze),
+      errorBuilder:
+          (_, __, ___) =>
+              const Icon(Icons.g_mobiledata, size: 20, color: kBronze),
     );
   }
 }

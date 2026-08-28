@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class SyncStatusBanner extends ConsumerWidget {
-
   const SyncStatusBanner({super.key});
 
   @override
@@ -14,5 +13,4 @@ class SyncStatusBanner extends ConsumerWidget {
     // perspective the act has already been added.
     return const SizedBox.shrink();
   }
-
 }

@@ -41,7 +41,10 @@ class FadeScaleTransition extends StatelessWidget {
       duration: duration,
       curve: curve,
       builder: (context, scale, child) {
-        final opacity = ((scale - beginScale) / (1 - beginScale)).clamp(0.0, 1.0);
+        final opacity = ((scale - beginScale) / (1 - beginScale)).clamp(
+          0.0,
+          1.0,
+        );
         return Opacity(
           opacity: opacity,
           child: Transform.scale(scale: scale, child: child),
@@ -124,7 +127,8 @@ class AnimatedNumber extends StatefulWidget {
   State<AnimatedNumber> createState() => _AnimatedNumberState();
 }
 
-class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProviderStateMixin {
+class _AnimatedNumberState extends State<AnimatedNumber>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<int> _animation;
   int _previous = 0;
@@ -133,7 +137,10 @@ class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProvid
   void initState() {
     super.initState();
     _controller = AnimationController(vsync: this, duration: widget.duration);
-    _animation = IntTween(begin: 0, end: widget.value).animate(CurvedAnimation(parent: _controller, curve: MizanMotion.gentle));
+    _animation = IntTween(
+      begin: 0,
+      end: widget.value,
+    ).animate(CurvedAnimation(parent: _controller, curve: MizanMotion.gentle));
     _previous = widget.value;
     _controller.forward();
   }
@@ -143,7 +150,9 @@ class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProvid
     super.didUpdateWidget(oldWidget);
     if (oldWidget.value != widget.value) {
       _previous = oldWidget.value;
-      _animation = IntTween(begin: _previous, end: widget.value).animate(CurvedAnimation(parent: _controller, curve: MizanMotion.gentle));
+      _animation = IntTween(begin: _previous, end: widget.value).animate(
+        CurvedAnimation(parent: _controller, curve: MizanMotion.gentle),
+      );
       _controller.forward(from: 0);
     }
   }
@@ -158,7 +167,8 @@ class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProvid
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _animation,
-      builder: (context, child) => Text('${_animation.value}', style: widget.style),
+      builder:
+          (context, child) => Text('${_animation.value}', style: widget.style),
     );
   }
 }
@@ -179,9 +189,16 @@ class ShimmerLoading extends StatefulWidget {
   State<ShimmerLoading> createState() => _ShimmerLoadingState();
 }
 
-class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
-  late final Animation<double> _shimmer = Tween<double>(begin: -2, end: 2).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+class _ShimmerLoadingState extends State<ShimmerLoading>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+  late final Animation<double> _shimmer = Tween<double>(
+    begin: -2,
+    end: 2,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   bool _isRunning = false;
 
   @override
@@ -224,7 +241,7 @@ class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProvid
           height: widget.height,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(widget.radius),
-              gradient: LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment(_shimmer.value - 1, 0),
               end: Alignment(_shimmer.value, 0),
               colors: [
@@ -241,12 +258,7 @@ class _ShimmerLoadingState extends State<ShimmerLoading> with SingleTickerProvid
 }
 
 class SuccessCheck extends StatefulWidget {
-  const SuccessCheck({
-    super.key,
-    this.size = 56,
-    this.color,
-    this.onComplete,
-  });
+  const SuccessCheck({super.key, this.size = 56, this.color, this.onComplete});
 
   final double size;
   final Color? color;
@@ -256,9 +268,16 @@ class SuccessCheck extends StatefulWidget {
   State<SuccessCheck> createState() => _SuccessCheckState();
 }
 
-class _SuccessCheckState extends State<SuccessCheck> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: MizanMotion.slow);
-  late final Animation<double> _scale = Tween<double>(begin: 0.5, end: 1).animate(CurvedAnimation(parent: _controller, curve: MizanMotion.soft));
+class _SuccessCheckState extends State<SuccessCheck>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: MizanMotion.slow,
+  );
+  late final Animation<double> _scale = Tween<double>(
+    begin: 0.5,
+    end: 1,
+  ).animate(CurvedAnimation(parent: _controller, curve: MizanMotion.soft));
 
   @override
   void initState() {

@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.sadaqah_jar"
+    namespace = "com.summie.mizan"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 
@@ -32,9 +32,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Confirm production application ID before release.
-        // If the app has already been published under this ID, do NOT change it.
-        applicationId = "com.example.sadaqah_jar"
+        applicationId = "com.summie.mizan"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = maxOf(flutter.minSdkVersion, 23)
@@ -66,6 +64,7 @@ android {
             }
         }
     }
+
 }
 
 flutter {

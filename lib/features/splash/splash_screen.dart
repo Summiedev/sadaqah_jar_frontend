@@ -9,7 +9,8 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
   // Main entrance - plays once, then explicitly stops so its ticker goes
   // fully idle instead of lingering at value == 1.0.
   late final AnimationController _controller = AnimationController(
@@ -43,11 +44,20 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     parent: _controller,
     curve: const Interval(0.0, 0.5, curve: Curves.easeIn),
   );
-  late final Animation<double> _scale = Tween<double>(begin: 0.92, end: 1.0).animate(
-    CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack)),
+  late final Animation<double> _scale = Tween<double>(
+    begin: 0.92,
+    end: 1.0,
+  ).animate(
+    CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
+    ),
   );
   late final Animation<double> _rise = Tween<double>(begin: 24, end: 0).animate(
-    CurvedAnimation(parent: _controller, curve: const Interval(0.05, 0.7, curve: Curves.easeOutCubic)),
+    CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.05, 0.7, curve: Curves.easeOutCubic),
+    ),
   );
 
   // Diamond ring draw-in (0 -> full sweep).
@@ -104,18 +114,23 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               padding: const EdgeInsets.only(top: 70),
               child: AnimatedBuilder(
                 animation: _lineGrow,
-                builder: (context, _) => SizedBox(
-                  width: 48,
-                  height: 1.2,
-                  child: Center(
-                    child: FractionallySizedBox(
-                            widthFactor: Curves.easeOut.transform(_lineGrow.value),
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(color: foreground.withValues(alpha: 0.15)),
+                builder:
+                    (context, _) => SizedBox(
+                      width: 48,
+                      height: 1.2,
+                      child: Center(
+                        child: FractionallySizedBox(
+                          widthFactor: Curves.easeOut.transform(
+                            _lineGrow.value,
+                          ),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: foreground.withValues(alpha: 0.15),
                             ),
                           ),
-                  ),
-                ),
+                        ),
+                      ),
+                    ),
               ),
             ),
           ),
@@ -149,7 +164,10 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                           height: 180,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(44),
-                            border: Border.all(color: foreground.withValues(alpha: 0.07), width: 1.5),
+                            border: Border.all(
+                              color: foreground.withValues(alpha: 0.07),
+                              width: 1.5,
+                            ),
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(44),
@@ -169,21 +187,24 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                 RepaintBoundary(
                                   child: AnimatedBuilder(
                                     animation: _ambient,
-                                    builder: (context, _) => Transform.rotate(
-                                      angle: _ambient.value * 2 * math.pi,
-                                      child: Container(
-                                              decoration: BoxDecoration(
-                                                gradient: SweepGradient(
-                                                  colors: [
-                                                    Colors.transparent,
-                                                    accent.withValues(alpha: 0.08),
-                                                    Colors.transparent,
-                                                  ],
-                                                  stops: const [0.0, 0.5, 1.0],
-                                                ),
+                                    builder:
+                                        (context, _) => Transform.rotate(
+                                          angle: _ambient.value * 2 * math.pi,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              gradient: SweepGradient(
+                                                colors: [
+                                                  Colors.transparent,
+                                                  accent.withValues(
+                                                    alpha: 0.08,
+                                                  ),
+                                                  Colors.transparent,
+                                                ],
+                                                stops: const [0.0, 0.5, 1.0],
                                               ),
                                             ),
-                                    ),
+                                          ),
+                                        ),
                                   ),
                                 ),
                               ],
@@ -193,18 +214,26 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         // Diamond rings - drawn in with a sweep, not just faded.
                         AnimatedBuilder(
                           animation: _ringSweep,
-                          builder: (context, _) => CustomPaint(
-                            size: const Size(96, 96),
-                            painter: _DiamondRingsPainter(progress: _ringSweep.value, color: foreground),
-                          ),
+                          builder:
+                              (context, _) => CustomPaint(
+                                size: const Size(96, 96),
+                                painter: _DiamondRingsPainter(
+                                  progress: _ringSweep.value,
+                                  color: foreground,
+                                ),
+                              ),
                         ),
                         // Center gold dot - elastic pop, then a gentle ambient pulse.
                         AnimatedBuilder(
                           animation: Listenable.merge([_dotPop, _ambient]),
                           builder: (context, _) {
-                            final pulse = 1 + (math.sin(_ambient.value * 2 * math.pi) * 0.12);
-                            final glow = 0.5 + (math.sin(_ambient.value * 2 * math.pi) * 0.3);
-                                return Transform.scale(
+                            final pulse =
+                                1 +
+                                (math.sin(_ambient.value * 2 * math.pi) * 0.12);
+                            final glow =
+                                0.5 +
+                                (math.sin(_ambient.value * 2 * math.pi) * 0.3);
+                            return Transform.scale(
                               scale: _dotPop.value.clamp(0.0, 1.0) * pulse,
                               child: Container(
                                 width: 5,
@@ -214,7 +243,9 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: accent.withValues(alpha: 0.5 * glow),
+                                      color: accent.withValues(
+                                        alpha: 0.5 * glow,
+                                      ),
                                       blurRadius: 10,
                                       spreadRadius: 2,
                                     ),
@@ -230,7 +261,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                   const SizedBox(height: 38),
 
                   // Brand name - letters stagger in individually, with a shimmer sweep once settled.
-                  _ShimmerWordmark(controller: _controller, ambient: _ambient, letters: _letters, foreground: foreground, shimmer: kPaper),
+                  _ShimmerWordmark(
+                    controller: _controller,
+                    ambient: _ambient,
+                    letters: _letters,
+                    foreground: foreground,
+                    shimmer: kPaper,
+                  ),
                   const SizedBox(height: 12),
 
                   // Arabic subtitle
@@ -242,7 +279,7 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                         fontSize: 16,
                         letterSpacing: 2,
                         fontWeight: FontWeight.w500,
-                      color: foreground.withValues(alpha: 0.55),
+                        color: foreground.withValues(alpha: 0.55),
                       ),
                     ),
                   ),
@@ -260,10 +297,11 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
                 opacity: _taglineFade,
                 child: AnimatedBuilder(
                   animation: _taglineFade,
-                  builder: (context, child) => Transform.translate(
-                    offset: Offset(0, (1 - _taglineFade.value) * 8),
-                    child: child,
-                  ),
+                  builder:
+                      (context, child) => Transform.translate(
+                        offset: Offset(0, (1 - _taglineFade.value) * 8),
+                        child: child,
+                      ),
                   child: Text(
                     'THE BEAUTY OF CONSTANCY',
                     style: TextStyle(
@@ -303,31 +341,49 @@ class _DiamondRingsPainter extends CustomPainter {
     canvas.restore();
   }
 
-  void _drawSweptSquare(Canvas canvas, {required double halfSize, required double alpha, required double strokeWidth}) {
-    final rect = Rect.fromLTWH(-halfSize, -halfSize, halfSize * 2, halfSize * 2);
+  void _drawSweptSquare(
+    Canvas canvas, {
+    required double halfSize,
+    required double alpha,
+    required double strokeWidth,
+  }) {
+    final rect = Rect.fromLTWH(
+      -halfSize,
+      -halfSize,
+      halfSize * 2,
+      halfSize * 2,
+    );
     final path = Path()..addRect(rect);
     final metrics = path.computeMetrics().first;
     final extractLength = metrics.length * progress.clamp(0.0, 1.0);
     final drawn = metrics.extractPath(0, extractLength);
 
-    final paint = Paint()
-      ..color = color.withValues(alpha: alpha)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    final paint =
+        Paint()
+          ..color = color.withValues(alpha: alpha)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = strokeWidth
+          ..strokeCap = StrokeCap.round;
 
     canvas.drawPath(drawn, paint);
   }
 
   @override
-  bool shouldRepaint(covariant _DiamondRingsPainter oldDelegate) => oldDelegate.progress != progress || oldDelegate.color != color;
+  bool shouldRepaint(covariant _DiamondRingsPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.color != color;
 }
 
 /// "M I Z A N" with each letter staggering in on its own delay, plus a soft
 /// diagonal shimmer sweep across the settled text - driven by the ambient
 /// loop so it repeats gently without restarting the whole entrance.
 class _ShimmerWordmark extends StatelessWidget {
-  const _ShimmerWordmark({required this.controller, required this.ambient, required this.letters, required this.foreground, required this.shimmer});
+  const _ShimmerWordmark({
+    required this.controller,
+    required this.ambient,
+    required this.letters,
+    required this.foreground,
+    required this.shimmer,
+  });
   final AnimationController controller;
   final AnimationController ambient;
   final List<String> letters;
@@ -346,10 +402,11 @@ class _ShimmerWordmark extends StatelessWidget {
             children: List.generate(letters.length, (i) {
               final start = 0.35 + (i * 0.06);
               final end = (start + 0.35).clamp(0.0, 1.0);
-              final t = CurvedAnimation(
-                parent: controller,
-                curve: Interval(start, end, curve: Curves.easeOutCubic),
-              ).value;
+              final t =
+                  CurvedAnimation(
+                    parent: controller,
+                    curve: Interval(start, end, curve: Curves.easeOutCubic),
+                  ).value;
               return Opacity(
                 opacity: t,
                 child: Transform.translate(

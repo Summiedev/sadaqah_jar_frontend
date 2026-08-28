@@ -105,7 +105,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              backendErrorMessage(
+                error,
+                fallback: 'Unable to update your notification settings.',
+              ),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) {
@@ -128,12 +137,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       }
       await BackendApi.instance.updatePreferences(generalNotifications: value);
       if (!mounted) return;
-      setState(() => _profileFuture = BackendApi.instance.getUserProfile());
+      final refreshedProfile = BackendApi.instance.getUserProfile();
+      setState(() {
+        _profileFuture = refreshedProfile;
+      });
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              backendErrorMessage(
+                error,
+                fallback: 'Unable to update your notification settings.',
+              ),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _savingReminder = false);
@@ -1091,6 +1112,8 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   late final TextEditingController _titleController;
   late final TextEditingController _targetController;
   bool _saving = false;
+  late final String _initialTitle;
+  late final String _initialTarget;
 
   @override
   void initState() {
@@ -1101,6 +1124,8 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     _targetController = TextEditingController(
       text: (widget.goal['acts_target'] as num?)?.toInt().toString() ?? '10',
     );
+    _initialTitle = _titleController.text;
+    _initialTarget = _targetController.text;
   }
 
   @override
@@ -1108,6 +1133,37 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     _titleController.dispose();
     _targetController.dispose();
     super.dispose();
+  }
+
+  bool get _hasUnsavedChanges =>
+      _titleController.text != _initialTitle ||
+      _targetController.text != _initialTarget;
+
+  Future<void> _handleBack() async {
+    if (_saving) return;
+    if (!_hasUnsavedChanges) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text('Your goal changes have not been saved.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep editing'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
   }
 
   Future<void> _save() async {
@@ -1210,75 +1266,88 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.colors;
-    return Scaffold(
-      backgroundColor: tokens.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: !_hasUnsavedChanges && !_saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_handleBack());
+      },
+      child: Scaffold(
         backgroundColor: tokens.background,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('Edit goal'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _FieldCard(
-                controller: _titleController,
-                label: 'Goal title',
-                icon: Icons.flag_outlined,
-              ),
-              const SizedBox(height: 12),
-              _FieldCard(
-                controller: _targetController,
-                label: 'Target count',
-                icon: Icons.track_changes_outlined,
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: kBronze,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+        appBar: AppBar(
+          backgroundColor: tokens.background,
+          surfaceTintColor: Colors.transparent,
+          title: const Text('Edit goal'),
+          leading: IconButton(
+            onPressed: _handleBack,
+            icon: Icon(Icons.arrow_back_rounded, color: tokens.iconPrimary),
+            tooltip: 'Back',
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _FieldCard(
+                  controller: _titleController,
+                  label: 'Goal title',
+                  icon: Icons.flag_outlined,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 12),
+                _FieldCard(
+                  controller: _targetController,
+                  label: 'Target count',
+                  icon: Icons.track_changes_outlined,
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: kBronze,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 16,
+                        horizontal: 24,
+                      ),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 16,
-                      horizontal: 24,
-                    ),
+                    onPressed: _saving ? null : _save,
+                    child:
+                        _saving
+                            ? SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                              ),
+                            )
+                            : Text(
+                              'Save changes',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Theme.of(context).colorScheme.onPrimary,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                   ),
-                  onPressed: _saving ? null : _save,
-                  child:
-                      _saving
-                          ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          )
-                          : Text(
-                            'Save changes',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed: _saving ? null : _delete,
-                style: TextButton.styleFrom(foregroundColor: kDanger),
-                child: const Text(
-                  'Delete goal',
-                  style: TextStyle(fontWeight: FontWeight.w600),
+                const SizedBox(height: 12),
+                TextButton(
+                  onPressed: _saving ? null : _delete,
+                  style: TextButton.styleFrom(foregroundColor: kDanger),
+                  child: const Text(
+                    'Delete goal',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1315,6 +1384,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _avatarData;
   String? _errorMessage;
   String? _successMessage;
+  String _originalName = '';
+  String? _originalAvatarData;
 
   _EmailChangeState _emailState = _EmailChangeState.idle;
   String? _pendingNewEmail;
@@ -1326,17 +1397,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.initState();
     _load();
     _emailController.addListener(_onEmailChanged);
+    _nameController.addListener(_onFormChanged);
+    _emailController.addListener(_onFormChanged);
+    _passwordController.addListener(_onFormChanged);
+    _otpController.addListener(_onFormChanged);
   }
 
   @override
   void dispose() {
     _emailController.removeListener(_onEmailChanged);
+    _nameController.removeListener(_onFormChanged);
+    _emailController.removeListener(_onFormChanged);
+    _passwordController.removeListener(_onFormChanged);
+    _otpController.removeListener(_onFormChanged);
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _otpController.dispose();
     _cooldownTimer?.cancel();
     super.dispose();
+  }
+
+  void _onFormChanged() {
+    if (mounted) setState(() {});
   }
 
   void _onEmailChanged() {
@@ -1372,6 +1455,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _avatarData = profile.avatarData;
         _loading = false;
         _originalEmail = profile.email;
+        _originalName = profile.username;
+        _originalAvatarData = profile.avatarData;
       });
     } catch (_) {
       try {
@@ -1383,6 +1468,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _avatarData = profile?.avatarData;
           _loading = false;
           _originalEmail = profile?.email;
+          _originalName = profile?.username ?? '';
+          _originalAvatarData = profile?.avatarData;
         });
       } catch (_) {
         if (!mounted) return;
@@ -1400,6 +1487,42 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   String? _originalEmail;
+
+  bool get _hasUnsavedChanges =>
+      !_loading &&
+      (_nameController.text.trim() != _originalName.trim() ||
+          _emailController.text.trim() != (_originalEmail ?? '').trim() ||
+          _avatarData != _originalAvatarData ||
+          _passwordController.text.isNotEmpty ||
+          _otpController.text.isNotEmpty ||
+          _emailState != _EmailChangeState.idle);
+
+  Future<void> _handleBack() async {
+    if (_savingProfile || _emailState == _EmailChangeState.verifying) return;
+    if (!_hasUnsavedChanges) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text('Your profile changes have not been saved.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep editing'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
+  }
 
   Future<void> _saveProfile() async {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -1616,24 +1739,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     final tokens = context.colors;
     if (_loading) {
-      return Scaffold(
-        backgroundColor: tokens.background,
-        appBar: AppBar(
+      return PopScope(
+        canPop: true,
+        child: Scaffold(
           backgroundColor: tokens.background,
-          surfaceTintColor: Colors.transparent,
-          leading: IconButton(
-            onPressed: () => Navigator.of(context).pop(),
-            icon: Icon(Icons.arrow_back_rounded, color: tokens.iconPrimary),
-          ),
-          title: const Text(
-            'Settings',
-            style: TextStyle(
-              fontFamily: 'Georgia',
-              fontWeight: FontWeight.w800,
+          appBar: AppBar(
+            backgroundColor: tokens.background,
+            surfaceTintColor: Colors.transparent,
+            leading: IconButton(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: Icon(Icons.arrow_back_rounded, color: tokens.iconPrimary),
+            ),
+            title: const Text(
+              'Settings',
+              style: TextStyle(
+                fontFamily: 'Georgia',
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
+          body: Center(child: CircularProgressIndicator(color: tokens.primary)),
         ),
-        body: Center(child: CircularProgressIndicator(color: tokens.primary)),
       );
     }
 
@@ -1644,230 +1770,75 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _emailState == _EmailChangeState.verifying ||
         _emailState == _EmailChangeState.verified;
 
-    return Scaffold(
-      backgroundColor: tokens.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_handleBack());
+      },
+      child: Scaffold(
         backgroundColor: tokens.background,
-        surfaceTintColor: Colors.transparent,
-        title: Text(isEmailChanging ? 'Change email' : 'Edit profile'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: tokens.borderSubtle),
-                ),
-                child: Column(
-                  children: [
-                    GestureDetector(
-                      onTap: _pickAvatar,
-                      child: Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          color: kClayLight,
-                          borderRadius: BorderRadius.circular(24),
-                        ),
-                        child:
-                            _avatarData != null && _avatarData!.isNotEmpty
-                                ? ClipRRect(
-                                  borderRadius: BorderRadius.circular(24),
-                                  child: Image.memory(
-                                    base64Decode(_avatarData!),
-                                    fit: BoxFit.cover,
-                                  ),
-                                )
-                                : Icon(
-                                  Icons.person,
-                                  color: tokens.primary,
-                                  size: 40,
-                                ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    TextButton.icon(
-                      onPressed: _pickAvatar,
-                      icon: Icon(
-                        Icons.photo_camera_outlined,
-                        size: 18,
-                        color: tokens.primary,
-                      ),
-                      label: Text(
-                        'Change avatar',
-                        style: TextStyle(
-                          color: tokens.primary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _FieldCard(
-                controller: _nameController,
-                label: 'Name',
-                icon: Icons.badge_outlined,
-              ),
-              const SizedBox(height: 12),
-              _EmailFieldCard(
-                controller: _emailController,
-                label: 'Email',
-                icon: Icons.alternate_email,
-                emailState: _emailState,
-              ),
-              if (_emailState == _EmailChangeState.reauthRequired) ...[
-                const SizedBox(height: 12),
-                _FieldCard(
-                  controller: _passwordController,
-                  label: 'Current password',
-                  icon: Icons.lock_outline,
-                  obscure: true,
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: _savingProfile ? null : _startEmailChange,
-                  child:
-                      _savingProfile
-                          ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Theme.of(context).colorScheme.onPrimary,
-                            ),
-                          )
-                          : const Text('Send verification code'),
-                ),
-              ],
-              if (_emailState == _EmailChangeState.sent ||
-                  _emailState == _EmailChangeState.verifying) ...[
-                const SizedBox(height: 12),
+        appBar: AppBar(
+          backgroundColor: tokens.background,
+          surfaceTintColor: Colors.transparent,
+          title: Text(isEmailChanging ? 'Change email' : 'Edit profile'),
+          leading: IconButton(
+            onPressed: _handleBack,
+            icon: Icon(Icons.arrow_back_rounded, color: tokens.iconPrimary),
+            tooltip: 'Back',
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: tokens.surfaceElevated,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(24),
                     border: Border.all(color: tokens.borderSubtle),
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        'Enter the 6-digit code sent to $_pendingNewEmail',
-                        style: TextStyle(
-                          color: tokens.textPrimary,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                      GestureDetector(
+                        onTap: _pickAvatar,
+                        child: Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: kClayLight,
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child:
+                              _avatarData != null && _avatarData!.isNotEmpty
+                                  ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(24),
+                                    child: Image.memory(
+                                      base64Decode(_avatarData!),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  )
+                                  : Icon(
+                                    Icons.person,
+                                    color: tokens.primary,
+                                    size: 40,
+                                  ),
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _otpController,
-                        keyboardType: TextInputType.number,
-                        maxLength: 6,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          letterSpacing: 8,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        decoration: InputDecoration(
-                          counterText: '',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(
-                            vertical: 16,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton(
-                              onPressed:
-                                  _emailState == _EmailChangeState.verifying
-                                      ? null
-                                      : _confirmEmailChange,
-                              child:
-                                  _emailState == _EmailChangeState.verifying
-                                      ? SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color:
-                                              Theme.of(
-                                                context,
-                                              ).colorScheme.onPrimary,
-                                        ),
-                                      )
-                                      : const Text('Verify email'),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          TextButton(
-                            onPressed:
-                                _emailState == _EmailChangeState.verifying
-                                    ? null
-                                    : _cancelEmailChange,
-                            child: const Text('Cancel'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       TextButton.icon(
-                        onPressed: _resendCooldown > 0 ? null : _resendCode,
+                        onPressed: _pickAvatar,
                         icon: Icon(
-                          _resendCooldown > 0
-                              ? Icons.hourglass_empty
-                              : Icons.refresh_rounded,
+                          Icons.photo_camera_outlined,
                           size: 18,
+                          color: tokens.primary,
                         ),
                         label: Text(
-                          _resendCooldown > 0
-                              ? 'Resend in $_resendCooldown s'
-                              : 'Resend code',
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-              if (_emailState == _EmailChangeState.verified) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: tokens.successContainer,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: tokens.success.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.check_circle_rounded,
-                        color: tokens.success,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _successMessage ?? 'Email updated successfully.',
+                          'Change avatar',
                           style: TextStyle(
-                            color: tokens.success,
-                            fontSize: 13,
+                            color: tokens.primary,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -1875,45 +1846,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ],
                   ),
                 ),
-              ],
-              if (_errorMessage != null) ...[
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: tokens.errorContainer,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: tokens.error.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Text(
-                    _errorMessage!,
-                    style: TextStyle(
-                      color: tokens.error,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                const SizedBox(height: 16),
+                _FieldCard(
+                  controller: _nameController,
+                  label: 'Name',
+                  icon: Icons.badge_outlined,
+                  onChanged: (_) => setState(() {}),
                 ),
-              ],
-              const SizedBox(height: 18),
-              if (_emailState == _EmailChangeState.idle ||
-                  _emailState == _EmailChangeState.cancelled)
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: kBronze,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: 16,
-                        horizontal: 24,
-                      ),
-                    ),
-                    onPressed: _savingProfile ? null : _saveProfile,
+                const SizedBox(height: 12),
+                _EmailFieldCard(
+                  controller: _emailController,
+                  label: 'Email',
+                  icon: Icons.alternate_email,
+                  emailState: _emailState,
+                ),
+                if (_emailState == _EmailChangeState.reauthRequired) ...[
+                  const SizedBox(height: 12),
+                  _FieldCard(
+                    controller: _passwordController,
+                    label: 'Current password',
+                    icon: Icons.lock_outline,
+                    obscure: true,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _savingProfile ? null : _startEmailChange,
                     child:
                         _savingProfile
                             ? SizedBox(
@@ -1924,19 +1882,203 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 color: Theme.of(context).colorScheme.onPrimary,
                               ),
                             )
-                            : Text(
-                              _emailChanged
-                                  ? 'Save profile changes'
-                                  : 'Save changes',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                fontWeight: FontWeight.w700,
+                            : const Text('Send verification code'),
+                  ),
+                ],
+                if (_emailState == _EmailChangeState.sent ||
+                    _emailState == _EmailChangeState.verifying) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: tokens.surfaceElevated,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: tokens.borderSubtle),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Enter the 6-digit code sent to $_pendingNewEmail',
+                          style: TextStyle(
+                            color: tokens.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _otpController,
+                          onChanged: (_) => setState(() {}),
+                          keyboardType: TextInputType.number,
+                          maxLength: 6,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            letterSpacing: 8,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          decoration: InputDecoration(
+                            counterText: '',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              vertical: 16,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton(
+                                onPressed:
+                                    _emailState == _EmailChangeState.verifying
+                                        ? null
+                                        : _confirmEmailChange,
+                                child:
+                                    _emailState == _EmailChangeState.verifying
+                                        ? SizedBox(
+                                          width: 18,
+                                          height: 18,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color:
+                                                Theme.of(
+                                                  context,
+                                                ).colorScheme.onPrimary,
+                                          ),
+                                        )
+                                        : const Text('Verify email'),
                               ),
                             ),
+                            const SizedBox(width: 12),
+                            TextButton(
+                              onPressed:
+                                  _emailState == _EmailChangeState.verifying
+                                      ? null
+                                      : _cancelEmailChange,
+                              child: const Text('Cancel'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _resendCooldown > 0 ? null : _resendCode,
+                          icon: Icon(
+                            _resendCooldown > 0
+                                ? Icons.hourglass_empty
+                                : Icons.refresh_rounded,
+                            size: 18,
+                          ),
+                          label: Text(
+                            _resendCooldown > 0
+                                ? 'Resend in $_resendCooldown s'
+                                : 'Resend code',
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-            ],
+                ],
+                if (_emailState == _EmailChangeState.verified) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: tokens.successContainer,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: tokens.success.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle_rounded,
+                          color: tokens.success,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _successMessage ?? 'Email updated successfully.',
+                            style: TextStyle(
+                              color: tokens.success,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (_errorMessage != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: tokens.errorContainer,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: tokens.error.withValues(alpha: 0.35),
+                      ),
+                    ),
+                    child: Text(
+                      _errorMessage!,
+                      style: TextStyle(
+                        color: tokens.error,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 18),
+                if (_emailState == _EmailChangeState.idle ||
+                    _emailState == _EmailChangeState.cancelled)
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: kBronze,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 24,
+                        ),
+                      ),
+                      onPressed: _savingProfile ? null : _saveProfile,
+                      child:
+                          _savingProfile
+                              ? SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                              )
+                              : Text(
+                                _emailChanged
+                                    ? 'Save profile changes'
+                                    : 'Save changes',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2029,12 +2171,14 @@ class _FieldCard extends StatelessWidget {
     required this.label,
     required this.icon,
     this.obscure = false,
+    this.onChanged,
   });
 
   final TextEditingController controller;
   final String label;
   final IconData icon;
   final bool obscure;
+  final ValueChanged<String>? onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -2048,6 +2192,7 @@ class _FieldCard extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
+        onChanged: onChanged,
         obscureText: obscure,
         decoration: InputDecoration(
           prefixIcon: Icon(icon, color: tokens.primary),

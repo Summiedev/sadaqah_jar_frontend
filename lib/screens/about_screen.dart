@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../core/theme/app_theme.dart';
+import '../core/theme/theme_extensions.dart';
 
 class AboutScreen extends StatelessWidget {
   const AboutScreen({super.key});
@@ -8,9 +9,9 @@ class AboutScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        backgroundColor: kSurface,
+        backgroundColor: context.colors.background,
         surfaceTintColor: Colors.transparent,
         title: const Text('About', style: TextStyle(color: kInk)),
         iconTheme: const IconThemeData(color: kInk),
@@ -22,7 +23,7 @@ class AboutScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: kPaper,
+                color: context.colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: kLine),
               ),
@@ -35,7 +36,11 @@ class AboutScreen extends StatelessWidget {
                       color: kSoftBronze,
                       borderRadius: BorderRadius.circular(24),
                     ),
-                    child: const Icon(Icons.auto_awesome_outlined, color: kBronze, size: 36),
+                    child: const Icon(
+                      Icons.auto_awesome_outlined,
+                      color: kBronze,
+                      size: 36,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -89,7 +94,7 @@ class AboutScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: kPaper,
+                color: context.colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: kLine),
               ),
@@ -98,15 +103,37 @@ class AboutScreen extends StatelessWidget {
                 children: [
                   const Text(
                     'Features',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: kInk),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: kInk,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  _FeatureRow(icon: Icons.add_circle_outline_rounded, text: 'Track daily acts of goodness'),
-                  _FeatureRow(icon: Icons.local_fire_department_outlined, text: 'Build a gentle streak'),
-                  _FeatureRow(icon: Icons.volunteer_activism_outlined, text: 'Visual sadaqah jar'),
-                  _FeatureRow(icon: Icons.groups_outlined, text: 'Family sharing and goals'),
-                  _FeatureRow(icon: Icons.menu_book_outlined, text: 'Adhkar and reflections'),
-                  _FeatureRow(icon: Icons.book_outlined, text: 'Islamic library'),
+                  _FeatureRow(
+                    icon: Icons.add_circle_outline_rounded,
+                    text: 'Track daily acts of goodness',
+                  ),
+                  _FeatureRow(
+                    icon: Icons.local_fire_department_outlined,
+                    text: 'Build a gentle streak',
+                  ),
+                  _FeatureRow(
+                    icon: Icons.volunteer_activism_outlined,
+                    text: 'Visual sadaqah jar',
+                  ),
+                  _FeatureRow(
+                    icon: Icons.groups_outlined,
+                    text: 'Family sharing and goals',
+                  ),
+                  _FeatureRow(
+                    icon: Icons.menu_book_outlined,
+                    text: 'Adhkar and reflections',
+                  ),
+                  _FeatureRow(
+                    icon: Icons.book_outlined,
+                    text: 'Islamic library',
+                  ),
                 ],
               ),
             ),
@@ -114,7 +141,7 @@ class AboutScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: kPaper,
+                color: context.colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: kLine),
               ),
@@ -123,7 +150,11 @@ class AboutScreen extends StatelessWidget {
                 children: [
                   const Text(
                     'Privacy',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: kInk),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: kInk,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -141,7 +172,11 @@ class AboutScreen extends StatelessWidget {
                 children: [
                   const Text(
                     'Made with ❤️ for the Ummah',
-                    style: TextStyle(fontSize: 13, color: kMuted, fontStyle: FontStyle.italic),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: kMuted,
+                      fontStyle: FontStyle.italic,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   const Text(

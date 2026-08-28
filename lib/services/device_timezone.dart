@@ -27,9 +27,7 @@ class DeviceTimezone {
     try {
       // flutter_timezone package (if present) returns a real IANA identifier.
       // Fall back to the platform channel if available.
-      const MethodChannel channel = MethodChannel(
-        'flutter_timezone',
-      );
+      const MethodChannel channel = MethodChannel('flutter_timezone');
       final value = await channel.invokeMethod<String>('getLocalTimezone');
       if (value != null && value.isNotEmpty) return value;
     } catch (_) {

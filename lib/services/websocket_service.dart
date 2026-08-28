@@ -155,11 +155,13 @@ class _SocketConnection {
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
     // Capped exponential backoff: 5s, 10s, 20s, 40s, 40s, ...
-    final delayMs = baseReconnectDelay.inMilliseconds *
+    final delayMs =
+        baseReconnectDelay.inMilliseconds *
         (1 << (_reconnectAttempts > 3 ? 3 : _reconnectAttempts));
-    final capped = delayMs > maxReconnectDelay.inMilliseconds
-        ? maxReconnectDelay
-        : Duration(milliseconds: delayMs);
+    final capped =
+        delayMs > maxReconnectDelay.inMilliseconds
+            ? maxReconnectDelay
+            : Duration(milliseconds: delayMs);
     final jitter = Duration(milliseconds: Random().nextInt(1000));
     _reconnectAttempts++;
     _reconnectTimer = Timer(capped + jitter, () {

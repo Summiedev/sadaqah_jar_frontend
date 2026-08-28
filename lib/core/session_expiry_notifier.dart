@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 class SessionExpiryNotifier extends Notifier<bool> {
   @override
   bool build() => false;
@@ -16,5 +15,6 @@ class SessionExpiryNotifier extends Notifier<bool> {
   }
 }
 
-final sessionExpiryProvider =
-    NotifierProvider<SessionExpiryNotifier, bool>(SessionExpiryNotifier.new);
+final sessionExpiryProvider = NotifierProvider<SessionExpiryNotifier, bool>(
+  SessionExpiryNotifier.new,
+);

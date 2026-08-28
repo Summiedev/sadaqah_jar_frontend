@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_theme.dart';
 import '../core/theme/theme_extensions.dart';
 import '../services/backend_api.dart';
-import '../services/local_reminder_service.dart';
 import '../services/push_notification_service.dart';
 
 class NotificationPreferencesScreen extends StatefulWidget {
@@ -64,7 +62,11 @@ class _NotificationPreferencesScreenState
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not load preferences: $e')),
+          SnackBar(
+            content: Text(
+              'Could not load preferences: ${backendErrorMessage(e, fallback: 'Please try again.')}',
+            ),
+          ),
         );
       }
     }
@@ -96,7 +98,11 @@ class _NotificationPreferencesScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save preferences: $e')),
+          SnackBar(
+            content: Text(
+              'Could not save preferences: ${backendErrorMessage(e, fallback: 'Please try again.')}',
+            ),
+          ),
         );
       }
     } finally {
@@ -113,36 +119,46 @@ class _NotificationPreferencesScreenState
           'Notifications are blocked. Allow notifications for Mizan in device settings.',
         );
       }
-      await LocalReminderService.instance.showNow(
-        id: DateTime.now().millisecondsSinceEpoch.remainder(1 << 31),
-        title: 'Mizan is ready',
-        body: 'Your reminders will appear here when they are due.',
-      );
+      final delivered = await BackendApi.instance.sendTestPush();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Test notification sent.')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Test push sent to $delivered device${delivered == 1 ? '' : 's'}.',
+          ),
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            backendErrorMessage(
+              error,
+              fallback: 'The test notification could not be sent.',
+            ),
+          ),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Notification Preferences'),
-        backgroundColor: kSurface,
+        backgroundColor: context.colors.background,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: kInk,
+            color: context.colors.textPrimary,
             size: 19,
           ),
         ),
@@ -150,7 +166,9 @@ class _NotificationPreferencesScreenState
       body: SafeArea(
         child:
             _loading
-                ? const Center(child: CircularProgressIndicator(color: kBronze))
+                ? Center(
+                  child: CircularProgressIndicator(color: colors.primary),
+                )
                 : ListView(
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                   children: [
@@ -166,7 +184,7 @@ class _NotificationPreferencesScreenState
                       width: double.infinity,
                       child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: kBronze,
+                          backgroundColor: colors.primary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
                           ),
@@ -211,30 +229,31 @@ class _NotificationPreferencesScreenState
   }
 
   Widget _buildMasterToggle() {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kPaper,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kLine),
+        border: Border.all(color: colors.border),
       ),
       child: SwitchListTile.adaptive(
         contentPadding: EdgeInsets.zero,
-        title: const Text(
+        title: Text(
           'Enable All Notifications',
           style: TextStyle(
-            color: kInk,
+            color: colors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
         ),
-        subtitle: const Text(
+        subtitle: Text(
           'Master toggle for every reminder category.',
-          style: TextStyle(color: kMuted, fontSize: 12.5),
+          style: TextStyle(color: colors.textSecondary, fontSize: 12.5),
         ),
         value: _allEnabled,
         onChanged: (v) => setState(() => _allEnabled = v),
-        activeThumbColor: kBronze,
+        activeThumbColor: colors.primary,
       ),
     );
   }
@@ -308,6 +327,7 @@ class _NotificationPreferencesScreenState
   }
 
   Widget _buildQuietHoursSection() {
+    final colors = context.colors;
     return _SectionCard(
       title: 'Quiet Hours',
       subtitle: 'Do Not Disturb window',
@@ -315,17 +335,17 @@ class _NotificationPreferencesScreenState
         children: [
           SwitchListTile.adaptive(
             contentPadding: EdgeInsets.zero,
-            title: const Text(
+            title: Text(
               'Enable Quiet Hours',
               style: TextStyle(
-                color: kInk,
+                color: colors.textPrimary,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
             value: _quietHoursEnabled,
             onChanged: (v) => setState(() => _quietHoursEnabled = v),
-            activeThumbColor: kBronze,
+            activeThumbColor: colors.primary,
           ),
           if (_quietHoursEnabled) ...[
             const SizedBox(height: 8),
@@ -355,6 +375,7 @@ class _NotificationPreferencesScreenState
   }
 
   Widget _buildCategorySection() {
+    final colors = context.colors;
     final orderedKeys = _categoryLabels.keys.toList();
     return _SectionCard(
       title: 'Reminder Categories',
@@ -366,15 +387,15 @@ class _NotificationPreferencesScreenState
               contentPadding: EdgeInsets.zero,
               title: Text(
                 _categoryLabels[key] ?? key,
-                style: const TextStyle(
-                  color: kInk,
+                style: TextStyle(
+                  color: colors.textPrimary,
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               value: _categories[key] ?? true,
               onChanged: (v) => setState(() => _categories[key] = v),
-              activeThumbColor: kBronze,
+              activeThumbColor: colors.primary,
             ),
         ],
       ),
@@ -398,23 +419,29 @@ class _SectionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kPaper,
+        color: context.colors.surfaceElevated,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kLine),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: kInk,
+            style: TextStyle(
+              color: context.colors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 2),
-          Text(subtitle, style: const TextStyle(color: kMuted, fontSize: 12.5)),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontSize: 12.5,
+            ),
+          ),
           const SizedBox(height: 12),
           child,
         ],
@@ -436,18 +463,19 @@ class _TimeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return TextField(
       controller: TextEditingController(text: value),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: kMuted),
+        labelStyle: TextStyle(color: colors.textSecondary),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: kLine),
+          borderSide: BorderSide(color: colors.inputBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: kLine),
+          borderSide: BorderSide(color: colors.inputBorder),
         ),
       ),
       onChanged: onChanged,

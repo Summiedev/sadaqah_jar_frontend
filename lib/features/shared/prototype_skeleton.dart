@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 
@@ -17,7 +17,12 @@ class PrototypeSkeleton extends StatelessWidget {
 }
 
 class SkeletonLine extends StatefulWidget {
-  const SkeletonLine({super.key, required this.width, required this.height, this.radius = 12});
+  const SkeletonLine({
+    super.key,
+    required this.width,
+    required this.height,
+    this.radius = 12,
+  });
 
   final double width;
   final double height;
@@ -27,21 +32,43 @@ class SkeletonLine extends StatefulWidget {
   State<SkeletonLine> createState() => _SkeletonLineState();
 }
 
-class _SkeletonLineState extends State<SkeletonLine> with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
-  @override void dispose() { _controller.dispose(); super.dispose(); }
+class _SkeletonLineState extends State<SkeletonLine>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  )..repeat();
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = MediaQuery.of(context).disableAnimations || MediaQuery.of(context).accessibleNavigation;
-    return AnimatedBuilder(animation: _controller, builder: (context, _) => Container(
-      width: widget.width,
-      height: widget.height,
-      decoration: BoxDecoration(
-        color: reduceMotion ? kClayLight : null,
-        gradient: reduceMotion ? null : LinearGradient(begin: Alignment(-1 + _controller.value * 2, 0), end: Alignment(_controller.value * 2, 0), colors: const [kClayLight, kPaper, kClayLight]),
-        borderRadius: BorderRadius.circular(widget.radius),
-      ),
-    ));
+    final reduceMotion =
+        MediaQuery.of(context).disableAnimations ||
+        MediaQuery.of(context).accessibleNavigation;
+    return AnimatedBuilder(
+      animation: _controller,
+      builder:
+          (context, _) => Container(
+            width: widget.width,
+            height: widget.height,
+            decoration: BoxDecoration(
+              color: reduceMotion ? kClayLight : null,
+              gradient:
+                  reduceMotion
+                      ? null
+                      : LinearGradient(
+                        begin: Alignment(-1 + _controller.value * 2, 0),
+                        end: Alignment(_controller.value * 2, 0),
+                        colors: const [kClayLight, kPaper, kClayLight],
+                      ),
+              borderRadius: BorderRadius.circular(widget.radius),
+            ),
+          ),
+    );
   }
 }
 

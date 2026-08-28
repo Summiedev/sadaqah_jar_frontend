@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,17 +53,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final acts = ref.watch(actStoreProvider);
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.colors;
     return Scaffold(
       body: DecoratedBox(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors:
-                dark
-                    ? const [kScaffoldDark, kSurfaceDark, kPaperDark]
-                    : const [kSurface, kClayLight, kPaper],
+            colors: [colors.background, colors.surface, colors.surfaceElevated],
           ),
         ),
         child: SafeArea(
@@ -154,21 +153,16 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
     final now = DateTime.now();
 
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        12,
-        MediaQuery.paddingOf(context).top + 20,
-        12,
-        20,
-      ),
+      // The Home screen is already inside SafeArea. Including the device
+      // top inset here made the flexible space taller than the SliverAppBar
+      // on some phones, which caused a vertical RenderFlex overflow.
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
         color: bg,
         border: Border(bottom: BorderSide(color: border)),
         boxShadow: [
           BoxShadow(
-            color:
-                dark
-                    ? Colors.black.withValues(alpha: 0.18)
-                    : Colors.black.withValues(alpha: 0.14),
+            color: tokens.scrim.withValues(alpha: dark ? 0.18 : 0.08),
             blurRadius: dark ? 16 : 22,
             offset: const Offset(0, 8),
           ),
@@ -182,103 +176,108 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
           final initial =
               name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'M';
 
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              InkWell(
-                onTap: () => context.push('/profile'),
-                customBorder: const CircleBorder(),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors:
-                          dark
-                              ? [
-                                kBronzeLight.withValues(alpha: 0.6),
-                                kBronzeLight.withValues(alpha: 0.15),
-                              ]
-                              : [
-                                kBronzeDark.withValues(alpha: 0.5),
-                                kBronzeDark.withValues(alpha: 0.12),
-                              ],
-                    ),
-                  ),
-                  child: CircleAvatar(
-                    radius: 19,
-                    backgroundColor:
-                        dark ? tokens.surfaceContainerHigh : tokens.surface,
-                    child: Text(
-                      initial,
-                      style: TextStyle(
-                        color: dark ? kBronzeLight : kBronzeDark,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 15,
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 360;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    onTap: () => context.push('/profile'),
+                    customBorder: const CircleBorder(),
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors:
+                              dark
+                                  ? [
+                                    tokens.accent.withValues(alpha: 0.6),
+                                    tokens.accent.withValues(alpha: 0.15),
+                                  ]
+                                  : [
+                                    tokens.primary.withValues(alpha: 0.5),
+                                    tokens.primary.withValues(alpha: 0.12),
+                                  ],
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 19,
+                        backgroundColor:
+                            dark ? tokens.surfaceContainerHigh : tokens.surface,
+                        child: Text(
+                          initial,
+                          style: TextStyle(
+                            color: dark ? tokens.accent : tokens.primary,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Assalamu alaikum, $name',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: primary,
-                        fontFamily: 'Georgia',
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w700,
-                        height: 1.0,
-                      ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Assalamu alaikum, $name',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: primary,
+                            fontFamily: 'Georgia',
+                            fontSize: 16.5,
+                            fontWeight: FontWeight.w700,
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _hijriLabel(now),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: secondary,
+                            fontSize: compact ? 10 : 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          _gregorianLabel(now),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: secondary,
+                            fontSize: compact ? 9.5 : 10.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _hijriLabel(now),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: secondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                      ),
+                  ),
+                  const SizedBox(width: 10),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: tokens.surfaceElevated,
+                      border: Border.all(color: border),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _gregorianLabel(now),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: secondary.withValues(alpha: 0.82),
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: NotificationActionButton(
+                      onPressed: () => context.push('/notifications'),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: dark ? kElevatedDark : kWhite,
-                  border: Border.all(color: border),
-                ),
-                child: NotificationActionButton(
-                  onPressed: () => context.push('/notifications'),
-                ),
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           );
         },
       ),
@@ -316,7 +315,7 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
       'November',
       'December',
     ];
-    return '${weekdays[date.weekday - 1]}, ${date.day} ${months[date.month - 1]} ${date.year}';
+    return '${weekdays[date.weekday - 1]} ${date.day} ${months[date.month - 1]}';
   }
 
   String _hijriLabel(DateTime date) {
@@ -371,7 +370,7 @@ class _HomeHeaderState extends State<_HomeHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.colors;
     return FutureBuilder<UserProfile>(
       future: _profileFuture,
       builder: (context, snapshot) {
@@ -397,7 +396,7 @@ class _HomeHeaderState extends State<_HomeHeader> {
                     Text(
                       display,
                       style: TextStyle(
-                        color: dark ? kInkDark : kInk,
+                        color: colors.textPrimary,
                         fontFamily: 'Georgia',
                         fontSize: 19,
                         fontWeight: FontWeight.w700,
@@ -408,9 +407,7 @@ class _HomeHeaderState extends State<_HomeHeader> {
                     Text(
                       'Small goodness, beautifully kept.',
                       style: TextStyle(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.6),
+                        color: colors.textSecondary,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -431,11 +428,10 @@ class _NotifIcon extends StatelessWidget {
   const _NotifIcon();
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return IconButton(
       icon: Icon(
         Icons.notifications_none_outlined,
-        color: dark ? kInkDark : kInk,
+        color: context.colors.iconPrimary,
       ),
       tooltip: 'Notifications',
       onPressed: () => context.push('/notifications'),
@@ -452,12 +448,12 @@ class _StreakPill extends ConsumerWidget {
     final acts = ref.watch(actStoreProvider);
     final streak = acts.currentStreak;
     final hasError = acts.streakError;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final chipBg = dark ? kElevatedDark : kClayPale;
-    final chipBorder = dark ? kLineDark : kLine;
-    final chipText = dark ? kMutedDark : kMuted;
-    final primaryText = dark ? kInkDark : kInk;
-    final accent = dark ? kBronzeDarkMode : kBronze;
+    final colors = context.colors;
+    final chipBg = colors.surfaceContainerHigh;
+    final chipBorder = colors.border;
+    final chipText = colors.textSecondary;
+    final primaryText = colors.textPrimary;
+    final accent = colors.primary;
 
     Widget child;
 
@@ -594,13 +590,16 @@ class _JarHero extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final acts = ref.watch(actStoreProvider);
     final goalTitle = acts.goalTitle;
+    final colors = context.colors;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final heroBg = dark ? kPaperDark : kInk;
-    final heroPrimaryText = dark ? kInkDark : kPaper;
-    final heroSecondaryText = dark ? kMutedDark : kClayLight;
-    final ctaColor = dark ? kBronzeDarkMode : kBronze;
-    final heroShadow =
-        dark ? kInk.withValues(alpha: 0.28) : kInk.withValues(alpha: 0.13);
+    final heroBg = dark ? colors.surfaceElevated : colors.textPrimary;
+    final heroPrimaryText = dark ? colors.textPrimary : colors.textInverse;
+    final heroSecondaryText =
+        dark
+            ? colors.textSecondary
+            : colors.textInverse.withValues(alpha: 0.82);
+    final ctaColor = colors.primary;
+    final heroShadow = colors.scrim.withValues(alpha: dark ? 0.2 : 0.08);
 
     return AnimatedSwitcher(
       duration: MizanMotion.slow,
@@ -649,8 +648,8 @@ class _JarHero extends ConsumerWidget {
                                 : 'MY SADAQAH JAR',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: kBronzeLight,
+                            style: TextStyle(
+                              color: colors.accent,
                               fontSize: 10,
                               letterSpacing: 1.0,
                               fontWeight: FontWeight.w800,
@@ -663,7 +662,7 @@ class _JarHero extends ConsumerWidget {
                           onPressed: () => _showEditGoal(context, ref),
                           icon: Icon(
                             Icons.edit_outlined,
-                            color: dark ? kBronzeDarkMode : kBronzeLight,
+                            color: colors.accent,
                             size: 16,
                           ),
                         ),
@@ -700,8 +699,8 @@ class _JarHero extends ConsumerWidget {
                           (context, value, _) => SmoothProgress(
                             value: value,
                             height: 6,
-                            color: kBronzeLight,
-                            backgroundColor: kStone,
+                            color: colors.accent,
+                            backgroundColor: colors.surfaceContainerHigh,
                           ),
                     ),
                     const SizedBox(height: 6),
@@ -770,8 +769,8 @@ class _JarHero extends ConsumerWidget {
                                 shape: BoxShape.circle,
                                 gradient: RadialGradient(
                                   colors: [
-                                    kBronzeLight.withValues(alpha: 0.6),
-                                    kBronzeLight.withValues(alpha: 0),
+                                    colors.accent.withValues(alpha: 0.6),
+                                    colors.accent.withValues(alpha: 0),
                                   ],
                                 ),
                               ),
@@ -939,13 +938,13 @@ class _VerifiedDonationsCard extends StatelessWidget {
   const _VerifiedDonationsCard();
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = dark ? kElevatedDark : kWhite;
-    final cardBorder = dark ? kLineDark : kLine;
-    final titleColor = dark ? kInkDark : kInk;
-    final bodyColor = dark ? kMutedDark : kInk.withValues(alpha: 0.65);
-    final iconBg = dark ? kSurfaceDark : kClay;
-    final accent = dark ? kBronzeDarkMode : kBronze;
+    final colors = context.colors;
+    final cardBg = colors.surfaceElevated;
+    final cardBorder = colors.border;
+    final titleColor = colors.textPrimary;
+    final bodyColor = colors.textSecondary;
+    final iconBg = colors.primaryContainer;
+    final accent = colors.primary;
 
     return FadeScaleTransition(
       beginScale: 0.97,
@@ -965,7 +964,7 @@ class _VerifiedDonationsCard extends StatelessWidget {
               border: Border.all(color: cardBorder),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: colors.scrim.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: Offset(0, 3),
                 ),
@@ -1023,13 +1022,12 @@ class _SectionHeading extends StatelessWidget {
   final String text;
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       text,
       style: TextStyle(
         fontFamily: 'Georgia',
         fontSize: 21,
-        color: dark ? kInkDark : kInk,
+        color: context.colors.textPrimary,
         fontWeight: FontWeight.w700,
       ),
     );
@@ -1061,8 +1059,8 @@ const _homeReflectionSources = [
     arabic:
         '\u{671}\u{644}\u{651}\u{64e}\u{630}\u{650}\u{64a}\u{646}\u{64e} \u{621}\u{64e}\u{627}\u{645}\u{64e}\u{646}\u{64f}\u{648}\u{627}\u{6df} \u{648}\u{64e}\u{62a}\u{64e}\u{637}\u{652}\u{645}\u{64e}\u{626}\u{650}\u{646}\u{651}\u{64f} \u{642}\u{64f}\u{644}\u{64f}\u{648}\u{628}\u{64f}\u{647}\u{64f}\u{645} \u{628}\u{650}\u{630}\u{650}\u{643}\u{652}\u{631}\u{650} \u{671}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{650} \u{6d7} \u{623}\u{64e}\u{644}\u{64e}\u{627} \u{628}\u{650}\u{630}\u{650}\u{643}\u{652}\u{631}\u{650} \u{671}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{650} \u{62a}\u{64e}\u{637}\u{652}\u{645}\u{64e}\u{626}\u{650}\u{646}\u{651}\u{64f} \u{671}\u{644}\u{652}\u{642}\u{64f}\u{644}\u{64f}\u{648}\u{628}\u{64f}',
     body:
-        'Those who believe and whose hearts find comfort in the remembrance of Allah. Surely in the remembrance of Allah do hearts find comfort.',
-    source: 'Quran 13:28 - Quran.com',
+        '(These are) those who believe (in the Oneness of Allah), and whose hearts find rest in the remembrance of Allah. Verily, in the remembrance of Allah do hearts find rest.',
+    source: 'Quran 13:28 - Hilali & Khan',
     prompt: 'Where is your heart asking for rest today?',
   ),
   _HomeSource(
@@ -1081,8 +1079,8 @@ const _homeReflectionSources = [
     arabic:
         '\u{641}\u{64e}\u{625}\u{650}\u{646}\u{651}\u{64e} \u{645}\u{64e}\u{639}\u{64e} \u{627}\u{644}\u{652}\u{639}\u{64f}\u{633}\u{652}\u{631}\u{650} \u{64a}\u{64f}\u{633}\u{652}\u{631}\u{64b}\u{627} \u{6dd} \u{625}\u{650}\u{646}\u{651}\u{64e} \u{645}\u{64e}\u{639}\u{64e} \u{627}\u{644}\u{652}\u{639}\u{64f}\u{633}\u{652}\u{631}\u{650} \u{64a}\u{64f}\u{633}\u{652}\u{631}\u{64b}\u{627}',
     body:
-        'So, surely with hardship comes ease. Surely with that hardship comes more ease.',
-    source: 'Quran 94:5-6 - Quran.com',
+        'So, verily, with the hardship, there is relief, verily, with the hardship, there is relief.',
+    source: 'Quran 94:5-6 - Hilali & Khan',
     prompt: 'Where do you need to trust Allah through difficulty?',
   ),
   _HomeSource(
@@ -1101,8 +1099,8 @@ const _homeReflectionSources = [
     arabic:
         '\u{648}\u{64e}\u{625}\u{650}\u{630}\u{64e}\u{627} \u{633}\u{64e}\u{623}\u{64e}\u{644}\u{64e}\u{643}\u{64e} \u{639}\u{650}\u{628}\u{64e}\u{627}\u{62f}\u{650}\u{64a} \u{639}\u{64e}\u{646}\u{651}\u{650}\u{64a} \u{641}\u{64e}\u{625}\u{650}\u{646}\u{651}\u{650}\u{64a} \u{642}\u{64e}\u{631}\u{650}\u{64a}\u{628}\u{64c} \u{6d6} \u{623}\u{64f}\u{62c}\u{650}\u{64a}\u{628}\u{64f} \u{62f}\u{64e}\u{639}\u{652}\u{648}\u{64e}\u{629}\u{64e} \u{627}\u{644}\u{62f}\u{651}\u{64e}\u{627}\u{639}\u{650} \u{625}\u{650}\u{630}\u{64e}\u{627} \u{62f}\u{64e}\u{639}\u{64e}\u{627}\u{646}\u{650} \u{6d6} \u{641}\u{64e}\u{644}\u{652}\u{64a}\u{64e}\u{633}\u{652}\u{62a}\u{64e}\u{62c}\u{650}\u{64a}\u{628}\u{64f}\u{648}\u{627} \u{644}\u{650}\u{64a} \u{648}\u{64e}\u{644}\u{652}\u{64a}\u{64f}\u{624}\u{652}\u{645}\u{650}\u{646}\u{64f}\u{648}\u{627} \u{628}\u{650}\u{64a} \u{644}\u{64e}\u{639}\u{64e}\u{644}\u{651}\u{64e}\u{647}\u{64f}\u{645}\u{652} \u{64a}\u{64e}\u{631}\u{652}\u{634}\u{64f}\u{62f}\u{64f}\u{648}\u{646}\u{64e}',
     body:
-        'When My servants ask you about Me: I am truly near. I respond to one\'s prayer when they call upon Me. So let them respond to Me and believe in Me, perhaps they will be guided.',
-    source: 'Quran 2:186 - Quran.com',
+        'And when My slaves ask you (O Muhammad) concerning Me, then (answer them), I am indeed near (to them by My Knowledge). I respond to the invocations of the supplicant when he calls on Me (without any mediator or intercessor). So let them obey Me and believe in Me, so that they may be led aright.',
+    source: 'Quran 2:186 - Hilali & Khan',
     prompt: 'What dua has been waiting quietly inside you?',
   ),
   _HomeSource(
@@ -1120,8 +1118,8 @@ const _homeReflectionSources = [
     arabic:
         '\u{642}\u{64f}\u{644}\u{652} \u{64a}\u{64e}\u{627} \u{639}\u{650}\u{628}\u{64e}\u{627}\u{62f}\u{650}\u{64a}\u{64e} \u{627}\u{644}\u{651}\u{64e}\u{630}\u{650}\u{64a}\u{646}\u{64e} \u{623}\u{64e}\u{633}\u{652}\u{631}\u{64e}\u{641}\u{64f}\u{648}\u{627} \u{639}\u{64e}\u{644}\u{64e}\u{649}\u{670} \u{623}\u{64e}\u{646}\u{652}\u{641}\u{64f}\u{633}\u{650}\u{647}\u{650}\u{645}\u{652} \u{644}\u{64e}\u{627} \u{62a}\u{64e}\u{642}\u{652}\u{646}\u{64e}\u{637}\u{64f}\u{648}\u{627} \u{645}\u{650}\u{646}\u{652} \u{631}\u{64e}\u{62d}\u{652}\u{645}\u{64e}\u{629}\u{650} \u{627}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{650} \u{6da} \u{625}\u{650}\u{646}\u{651}\u{64e} \u{627}\u{644}\u{644}\u{651}\u{64e}\u{647}\u{64e} \u{64a}\u{64e}\u{63a}\u{652}\u{641}\u{650}\u{631}\u{64f} \u{627}\u{644}\u{630}\u{651}\u{64f}\u{646}\u{64f}\u{648}\u{628}\u{64e} \u{62c}\u{64e}\u{645}\u{650}\u{64a}\u{639}\u{64b}\u{627} \u{6da} \u{625}\u{650}\u{646}\u{651}\u{64e}\u{647}\u{64f} \u{647}\u{64f}\u{648}\u{64e} \u{627}\u{644}\u{652}\u{63a}\u{64e}\u{641}\u{64f}\u{648}\u{631}\u{64f} \u{627}\u{644}\u{631}\u{651}\u{64e}\u{62d}\u{650}\u{64a}\u{645}\u{64f}',
     body:
-        'Say, O My servants who have transgressed against themselves, do not despair of the mercy of Allah. Indeed, Allah forgives all sins. Indeed, it is He who is the Forgiving, the Merciful.',
-    source: 'Quran 39:53 - Sahih International',
+        'Say: "O My slaves who have transgressed against themselves (by committing evil deeds and sins)! Despair not of the Mercy of Allah, verily, Allah forgives all sins. Truly, He is Oft-Forgiving, Most Merciful."',
+    source: 'Quran 39:53 - Hilali & Khan',
     prompt: 'Where do you need to receive mercy instead of carrying shame?',
   ),
   _HomeSource(
@@ -1140,8 +1138,8 @@ const _homeReflectionSources = [
     arabic:
         '\u{648}\u{64e}\u{625}\u{650}\u{630}\u{652} \u{62a}\u{64e}\u{623}\u{64e}\u{630}\u{651}\u{64e}\u{646}\u{64e} \u{631}\u{64e}\u{628}\u{651}\u{64f}\u{643}\u{64f}\u{645}\u{652} \u{644}\u{64e}\u{626}\u{650}\u{646}\u{652} \u{634}\u{64e}\u{643}\u{64e}\u{631}\u{652}\u{62a}\u{64f}\u{645}\u{652} \u{644}\u{64e}\u{623}\u{64e}\u{632}\u{650}\u{64a}\u{62f}\u{64e}\u{646}\u{651}\u{64e}\u{643}\u{64f}\u{645}\u{652} \u{6d6} \u{648}\u{64e}\u{644}\u{64e}\u{626}\u{650}\u{646}\u{652} \u{643}\u{64e}\u{641}\u{64e}\u{631}\u{652}\u{62a}\u{64f}\u{645}\u{652} \u{625}\u{650}\u{646}\u{651}\u{64e} \u{639}\u{64e}\u{630}\u{64e}\u{627}\u{628}\u{650}\u{64a} \u{644}\u{64e}\u{634}\u{64e}\u{62f}\u{650}\u{64a}\u{62f}\u{64c}',
     body:
-        'And remember when your Lord proclaimed, If you are grateful, I will certainly give you more. But if you are ungrateful, surely My punishment is severe.',
-    source: 'Quran 14:7 - Quran.com',
+        'And (remember) when your Lord proclaimed: "If you give thanks (by accepting Faith and worshipping none but Allah), I will give you more (of My Blessings), but if you are thankless (i.e. disbelievers), verily, My Punishment is indeed severe."',
+    source: 'Quran 14:7 - Hilali & Khan',
     prompt: 'What blessing can you name before asking for more?',
   ),
 ];
@@ -1174,17 +1172,13 @@ class _TodaysGentleActs extends StatelessWidget {
           'Keep mercy in your tone, even when you are tired.',
           'Make one private dua before you move on.',
         ][(now.day + _daySlot(now)) % 6];
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final labelColor = dark ? kInkDark : kInk;
-    final bodyColor =
-        dark ? kInkDark.withValues(alpha: 0.9) : kInk.withValues(alpha: 0.85);
-    final sourceColor = dark ? kMutedDark : kInk.withValues(alpha: 0.55);
-    final accentBg = dark ? kElevatedDark : kWhite;
-    final reminderBg =
-        dark
-            ? kBronzeDarkMode.withValues(alpha: 0.2)
-            : kBronze.withValues(alpha: 0.1);
-    final reminderText = dark ? kBronzeDarkMode : kBronzeDark;
+    final colors = context.colors;
+    final labelColor = colors.textPrimary;
+    final bodyColor = colors.textPrimary;
+    final sourceColor = colors.textSecondary;
+    final accentBg = colors.surfaceContainerHigh;
+    final reminderBg = colors.primaryContainer;
+    final reminderText = colors.onPrimaryContainer;
     return FadeScaleTransition(
       beginScale: 0.97,
       child: _Surface(
@@ -1202,7 +1196,7 @@ class _TodaysGentleActs extends StatelessWidget {
                   ),
                   child: Icon(
                     Icons.auto_awesome_outlined,
-                    color: dark ? kBronzeDarkMode : kBronze,
+                    color: colors.primary,
                     size: 20,
                   ),
                 ),
@@ -1282,6 +1276,7 @@ class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard>
   bool _isFriday = false;
   IconData _icon = Icons.wb_twilight_outlined;
   _TodayLightAction _action = _TodayLightAction.morningAdhkar;
+  Timer? _slotTimer;
 
   // Static prayer times used as gentle placeholders until live timings are wired.
   // Wire to location-based calculation (e.g. adhan API) when geo permissions
@@ -1294,6 +1289,10 @@ class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _applyRhythm(DateTime.now(), notify: false);
+    _slotTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _applyRhythm(DateTime.now()),
+    );
   }
 
   @override
@@ -1305,6 +1304,7 @@ class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard>
 
   @override
   void dispose() {
+    _slotTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -1352,7 +1352,161 @@ class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard>
     }
   }
 
-  _RhythmChoice _choiceFor(DateTime now) {
+  _RhythmChoice _choiceFor(DateTime now, {int rotation = 0}) {
+    final base = _baseChoiceFor(now);
+    if (rotation == 0) return base;
+
+    final alternatives = switch (base.action) {
+      _TodayLightAction.morningAdhkar => [
+        const _RhythmChoice(
+          slotKey: 'morning-quran',
+          title: 'Read a page of Quran',
+          body: 'Let one page set the pace for the day.',
+          source: 'Quran',
+          icon: Icons.menu_book_outlined,
+          action: _TodayLightAction.quranPage,
+        ),
+        const _RhythmChoice(
+          slotKey: 'morning-sadaqah',
+          title: 'Do an act of sadaqah',
+          body: 'Choose one quiet act of goodness before the day gets busy.',
+          source: 'Sadaqah',
+          icon: Icons.favorite_border_rounded,
+          action: _TodayLightAction.sadaqah,
+        ),
+      ],
+      _TodayLightAction.kahf => [
+        const _RhythmChoice(
+          slotKey: 'friday-salawat-alt',
+          title: 'Send salawat upon the Nabi',
+          body: 'Let Friday carry prayers and peace upon him.',
+          source: 'Friday reminder',
+          icon: Icons.favorite_outline_rounded,
+          action: _TodayLightAction.salawat,
+        ),
+        const _RhythmChoice(
+          slotKey: 'friday-sadaqah',
+          title: 'Give a little sadaqah',
+          body: 'A small private kindness is still a meaningful light.',
+          source: 'Friday reminder',
+          icon: Icons.volunteer_activism_outlined,
+          action: _TodayLightAction.sadaqah,
+        ),
+      ],
+      _TodayLightAction.quranPage => [
+        const _RhythmChoice(
+          slotKey: 'afternoon-sadaqah-alt',
+          title: 'Do an act of sadaqah',
+          body:
+              'Choose one private act of goodness before the afternoon passes.',
+          source: 'Sadaqah',
+          icon: Icons.favorite_border_rounded,
+          action: _TodayLightAction.sadaqah,
+        ),
+        const _RhythmChoice(
+          slotKey: 'afternoon-nawafil',
+          title: 'A quiet nawafil moment',
+          body: 'Make space for a small voluntary prayer if you are able.',
+          source: 'Nawafil',
+          icon: Icons.self_improvement_outlined,
+          action: _TodayLightAction.nawafil,
+        ),
+      ],
+      _TodayLightAction.sadaqah => [
+        const _RhythmChoice(
+          slotKey: 'afternoon-quran-alt',
+          title: 'Read a page of Quran',
+          body: 'Let one page bring a little stillness to the afternoon.',
+          source: 'Quran',
+          icon: Icons.menu_book_outlined,
+          action: _TodayLightAction.quranPage,
+        ),
+        const _RhythmChoice(
+          slotKey: 'afternoon-nawafil-alt',
+          title: 'A quiet nawafil moment',
+          body: 'Make space for a small voluntary prayer if you are able.',
+          source: 'Nawafil',
+          icon: Icons.self_improvement_outlined,
+          action: _TodayLightAction.nawafil,
+        ),
+      ],
+      _TodayLightAction.eveningAdhkar => [
+        const _RhythmChoice(
+          slotKey: 'evening-quran',
+          title: 'Read a page of Quran',
+          body: 'Close the day with a page read slowly and attentively.',
+          source: 'Quran',
+          icon: Icons.menu_book_outlined,
+          action: _TodayLightAction.quranPage,
+        ),
+        const _RhythmChoice(
+          slotKey: 'evening-sadaqah',
+          title: 'Do an act of sadaqah',
+          body: 'Leave one small kindness in the world before sleep.',
+          source: 'Sadaqah',
+          icon: Icons.favorite_border_rounded,
+          action: _TodayLightAction.sadaqah,
+        ),
+      ],
+      _TodayLightAction.salawat => [
+        const _RhythmChoice(
+          slotKey: 'friday-kahf-alt',
+          title: 'Read Surah Al-Kahf',
+          body: 'Return to the light of the cave on this blessed day.',
+          source: 'Quran 18',
+          icon: Icons.menu_book_outlined,
+          action: _TodayLightAction.kahf,
+        ),
+        const _RhythmChoice(
+          slotKey: 'friday-sadaqah-alt',
+          title: 'Give a little sadaqah',
+          body: 'A small private kindness is still a meaningful light.',
+          source: 'Friday reminder',
+          icon: Icons.volunteer_activism_outlined,
+          action: _TodayLightAction.sadaqah,
+        ),
+      ],
+      _TodayLightAction.tahajjud => [
+        const _RhythmChoice(
+          slotKey: 'night-nawafil',
+          title: 'A quiet nawafil moment',
+          body: 'Make space for a small voluntary prayer if you are able.',
+          source: 'Nawafil',
+          icon: Icons.self_improvement_outlined,
+          action: _TodayLightAction.nawafil,
+        ),
+        const _RhythmChoice(
+          slotKey: 'night-quran',
+          title: 'Read a page of Quran',
+          body: 'Let the quiet of the night hold one page of Quran.',
+          source: 'Quran',
+          icon: Icons.menu_book_outlined,
+          action: _TodayLightAction.quranPage,
+        ),
+      ],
+      _TodayLightAction.nawafil => [
+        const _RhythmChoice(
+          slotKey: 'late-sadaqah',
+          title: 'Do an act of sadaqah',
+          body: 'Choose a private good deed before the day closes.',
+          source: 'Sadaqah',
+          icon: Icons.favorite_border_rounded,
+          action: _TodayLightAction.sadaqah,
+        ),
+        const _RhythmChoice(
+          slotKey: 'late-quran',
+          title: 'Read a page of Quran',
+          body: 'Let one page bring the day to a peaceful close.',
+          source: 'Quran',
+          icon: Icons.menu_book_outlined,
+          action: _TodayLightAction.quranPage,
+        ),
+      ],
+    };
+    return alternatives[(rotation - 1) % alternatives.length];
+  }
+
+  _RhythmChoice _baseChoiceFor(DateTime now) {
     final isFriday = now.weekday == DateTime.friday;
     final minutes = now.hour * 60 + now.minute;
     final morningEnd = _dhuhr.hour * 60 + _dhuhr.minute;
@@ -1449,16 +1603,12 @@ class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard>
   Widget _buildContent() {
     final isFriday = _isFriday;
     final icon = _icon;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final accent =
-        dark
-            ? (isFriday ? kSageSoft : kBronzeDarkMode)
-            : (isFriday ? kSage : kBronze);
-    final iconBg = dark ? kSurfaceDark : kSoftBronze;
-    final titleColor = dark ? kInkDark : kInk;
-    final bodyColor = dark ? kMutedDark : kInk.withValues(alpha: 0.7);
-    final sourceColor =
-        dark ? kMutedDark.withValues(alpha: 0.9) : kInk.withValues(alpha: 0.55);
+    final colors = context.colors;
+    final accent = isFriday ? colors.secondary : colors.primary;
+    final iconBg = colors.primaryContainer;
+    final titleColor = colors.textPrimary;
+    final bodyColor = colors.textSecondary;
+    final sourceColor = colors.textMuted;
 
     return InkWell(
       onTap: _openAction,
@@ -1529,11 +1679,7 @@ class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard>
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_rounded,
-              color: dark ? kBronzeDarkMode : kBronze,
-              size: 18,
-            ),
+            Icon(Icons.arrow_forward_rounded, color: accent, size: 18),
           ],
         ),
       ),
@@ -1620,11 +1766,11 @@ class _LastReadCardState extends State<_LastReadCard> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = dark ? kInkDark : kInk;
-    final bodyColor = dark ? kMutedDark : kInk.withValues(alpha: 0.65);
-    final accent = dark ? kBronzeDarkMode : kBronze;
-    final iconBg = dark ? kSurfaceDark : kSoftBronze;
+    final colors = context.colors;
+    final titleColor = colors.textPrimary;
+    final bodyColor = colors.textSecondary;
+    final accent = colors.primary;
+    final iconBg = colors.primaryContainer;
     return FutureBuilder<Map<String, dynamic>?>(
       future: _future,
       builder: (context, snapshot) {
@@ -1672,7 +1818,7 @@ class _LastReadCardState extends State<_LastReadCard> {
                 child: _Surface(
                   child: Row(
                     children: [
-                      const Icon(Icons.menu_book_outlined, color: kSage),
+                      Icon(Icons.menu_book_outlined, color: colors.secondary),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
@@ -1727,9 +1873,9 @@ class _LastReadCardState extends State<_LastReadCard> {
                           color: iconBg,
                           borderRadius: BorderRadius.circular(14),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.bookmark_rounded,
-                          color: kSage,
+                          color: colors.secondary,
                           size: 22,
                         ),
                       ),
@@ -1781,19 +1927,43 @@ class _LastReadCardState extends State<_LastReadCard> {
   }
 }
 
-class _TodaysReflection extends StatelessWidget {
+class _TodaysReflection extends StatefulWidget {
   const _TodaysReflection();
+
+  @override
+  State<_TodaysReflection> createState() => _TodaysReflectionState();
+}
+
+class _TodaysReflectionState extends State<_TodaysReflection> {
+  Timer? _slotTimer;
+  late int _slot;
+
+  @override
+  void initState() {
+    super.initState();
+    _slot = _daySlot(DateTime.now());
+    _slotTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      final nextSlot = _daySlot(DateTime.now());
+      if (nextSlot != _slot && mounted) {
+        setState(() => _slot = nextSlot);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _slotTimer?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final verse =
-        _homeReflectionSources[now.day % _homeReflectionSources.length];
+    final verse = _sourceForSlot(_slot);
     final prompt = verse.prompt;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final iconBg = dark ? kSurfaceDark : kSoftBronze;
-    final bodyColor =
-        dark ? kInkDark.withValues(alpha: 0.9) : kInk.withValues(alpha: 0.85);
-    final sourceColor = dark ? kMutedDark : kInk.withValues(alpha: 0.75);
+    final colors = context.colors;
+    final iconBg = colors.primaryContainer;
+    final bodyColor = colors.textPrimary;
+    final sourceColor = colors.textSecondary;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1816,7 +1986,7 @@ class _TodaysReflection extends StatelessWidget {
                       ),
                       child: Icon(
                         Icons.menu_book_rounded,
-                        color: dark ? kBronzeDarkMode : kBronze,
+                        color: colors.primary,
                         size: 20,
                       ),
                     ),
@@ -1867,7 +2037,8 @@ class _TodaysReflection extends StatelessWidget {
                                 : 'Reflect on this hadith',
                           ),
                           style: FilledButton.styleFrom(
-                            backgroundColor: kBronze,
+                            backgroundColor: colors.primary,
+                            foregroundColor: colors.onPrimary,
                             padding: const EdgeInsets.symmetric(
                               horizontal: 18,
                               vertical: 12,
@@ -1957,7 +2128,7 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
     });
     try {
       final localId =
-        'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000).toString().padLeft(3, '0')}';
+          'local_${DateTime.now().millisecondsSinceEpoch}_${(DateTime.now().microsecond % 1000).toString().padLeft(3, '0')}';
       final title = widget.verse.source;
       final reflectionBody =
           '${widget.verse.arabic}\n\n${widget.verse.body}\n\n${widget.prompt}\n\n$body';
@@ -1971,12 +2142,19 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
       } catch (_) {
         // Preserve the entry offline; the queue uses the same request ID so a
         // retry cannot create a duplicate once connectivity returns.
-        await QueueSyncService.instance.enqueueAndSync(OfflineQueueItem(
-          id: localId,
-          actionType: ActionType.createReflection,
-          payload: {'title': title, 'body': reflectionBody, 'mood': 'Reflective', 'request_id': localId},
-          createdAt: DateTime.now(),
-        ));
+        await QueueSyncService.instance.enqueueAndSync(
+          OfflineQueueItem(
+            id: localId,
+            actionType: ActionType.createReflection,
+            payload: {
+              'title': title,
+              'body': reflectionBody,
+              'mood': 'Reflective',
+              'request_id': localId,
+            },
+            createdAt: DateTime.now(),
+          ),
+        );
       }
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -1991,11 +2169,10 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    final titleColor = dark ? kInkDark : kInk;
-    final bodyColor =
-        dark ? kInkDark.withValues(alpha: 0.9) : kInk.withValues(alpha: 0.85);
-    final promptBg = dark ? kElevatedDark : kSoftBronze;
+    final colors = context.colors;
+    final titleColor = colors.textPrimary;
+    final bodyColor = colors.textPrimary;
+    final promptBg = colors.primaryContainer;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         20,
@@ -2061,8 +2238,8 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
               const SizedBox(height: 10),
               Text(
                 _error!,
-                style: const TextStyle(
-                  color: kDanger,
+                style: TextStyle(
+                  color: colors.error,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -2071,7 +2248,7 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
             const SizedBox(height: 14),
             FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: kBronze,
+                backgroundColor: colors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               onPressed: _saving ? null : _save,
@@ -2099,29 +2276,29 @@ class _ArabicText extends StatelessWidget {
   final String text;
   final double fontSize;
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: double.infinity,
-    child: Text(
-      text,
-      textDirection: TextDirection.rtl,
-      textAlign: TextAlign.right,
-      softWrap: true,
-      style: TextStyle(
-        color:
-            Theme.of(context).brightness == Brightness.dark
-                ? kInkDark.withValues(alpha: 0.96)
-                : kInk,
-        fontSize: fontSize,
-        height: 1.9,
-        fontFamilyFallback: const [
-          'Noto Naskh Arabic',
-          'Noto Sans Arabic',
-          'Arial Unicode MS',
-          'Tahoma',
-        ],
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SizedBox(
+      width: double.infinity,
+      child: Text(
+        text,
+        textDirection: TextDirection.rtl,
+        textAlign: TextAlign.right,
+        softWrap: true,
+        style: TextStyle(
+          color: colors.textPrimary,
+          fontSize: fontSize,
+          height: 1.9,
+          fontFamilyFallback: const [
+            'Noto Naskh Arabic',
+            'Noto Sans Arabic',
+            'Arial Unicode MS',
+            'Tahoma',
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _Surface extends StatelessWidget {

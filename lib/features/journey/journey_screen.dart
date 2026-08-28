@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/backend_api.dart';
 import 'journey_search_screen.dart';
@@ -60,9 +63,10 @@ class _JourneyScreenState extends State<JourneyScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: dark ? kScaffoldDark : kIvory,
+      backgroundColor: colors.background,
       body: NestedScrollView(
         physics: const BouncingScrollPhysics(),
         headerSliverBuilder:
@@ -74,8 +78,8 @@ class _JourneyScreenState extends State<JourneyScreen>
                 elevation: dark ? 0 : 6,
                 shadowColor: Colors.black.withValues(alpha: dark ? 0 : 0.14),
                 scrolledUnderElevation: dark ? 0 : 6,
-                backgroundColor: dark ? kSurfaceDark : kClayLight,
-                foregroundColor: dark ? kInkDark : kInk,
+                backgroundColor: colors.surface,
+                foregroundColor: colors.textPrimary,
                 surfaceTintColor: Colors.transparent,
                 expandedHeight: 58,
                 collapsedHeight: 58,
@@ -120,7 +124,7 @@ class _JourneyScreenState extends State<JourneyScreen>
                 delegate: _PinnedHeader(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: dark ? kSurfaceDark : kClayLight,
+                      color: colors.surface,
                       boxShadow:
                           dark
                               ? null
@@ -178,13 +182,14 @@ class _JourneySegments extends StatelessWidget {
   final List<String> labels;
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       height: 42,
       decoration: BoxDecoration(
-        color: dark ? kElevatedDark : kSoftBronze,
+        color: colors.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: dark ? kLineDark : kLine),
+        border: Border.all(color: colors.border),
       ),
       child: TabBar(
         controller: controller,
@@ -194,7 +199,7 @@ class _JourneySegments extends StatelessWidget {
         dividerColor: Colors.transparent,
         indicatorSize: TabBarIndicatorSize.tab,
         indicator: BoxDecoration(
-          color: dark ? kSurfaceDark : kPaper,
+          color: colors.surfaceElevated,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
@@ -205,8 +210,8 @@ class _JourneySegments extends StatelessWidget {
             ),
           ],
         ),
-        labelColor: dark ? kInkDark : kInk,
-        unselectedLabelColor: dark ? kMutedDark : kMuted,
+        labelColor: colors.textPrimary,
+        unselectedLabelColor: colors.textSecondary,
         labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
         tabs: labels.map((label) => Tab(height: 34, text: label)).toList(),
       ),
@@ -228,18 +233,30 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
   @override
   void initState() {
     super.initState();
+    reflectionRevision.addListener(_onReflectionRevision);
     _load();
   }
 
-  Future<void> _load() async {
+  @override
+  void dispose() {
+    reflectionRevision.removeListener(_onReflectionRevision);
+    super.dispose();
+  }
+
+  void _onReflectionRevision() {
+    if (mounted) _load(showSpinner: false);
+  }
+
+  Future<void> _load({bool showSpinner = true}) async {
     if (!mounted) return;
-    setState(() => _loading = true);
+    if (showSpinner) setState(() => _loading = true);
     try {
       final page = await BackendApi.instance.getReflections();
       if (!mounted) return;
       setState(() {
         _items = page.items;
         _loading = false;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
@@ -251,14 +268,7 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
   }
 
   Future<void> _composeAndInsert(BuildContext context) async {
-    final reflection = await Navigator.of(context).push<JourneyReflection>(
-      MaterialPageRoute(
-        builder: (_) => Scaffold(
-          backgroundColor: context.colors.background,
-          body: const SafeArea(child: _ComposeSheet()),
-        ),
-      ),
-    );
+    final reflection = await _composeReflection(context);
     if (!mounted || reflection == null) return;
     setState(() {
       _items = [
@@ -271,56 +281,80 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     if (_loading) {
-      return const Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2, color: kBronze),
-        ),
+      return Center(
+        child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary),
       );
     }
     if (_error != null && _items.isEmpty) {
       return Center(
-        child: Column(
-          children: [
-            const Icon(Icons.wifi_off_rounded, size: 36, color: kBronze),
-            const SizedBox(height: 16),
-            Text(
-              'Could not load reflections',
-              style: TextStyle(
-                color: kInk,
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                fontFamily: 'Georgia',
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.menu_book_outlined, size: 38, color: colors.primary),
+              const SizedBox(height: 16),
+              Text(
+                'Your notes are taking a moment',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Georgia',
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _error!,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: kMuted, fontSize: 13),
-            ),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              onPressed: _load,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Try again'),
-            ),
-          ],
+              const SizedBox(height: 8),
+              Text(
+                'We could not reach your journal. Your saved writing is still safe.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: colors.textSecondary, height: 1.5),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: _load,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Try again'),
+              ),
+            ],
+          ),
         ),
       );
     }
     if (_items.isEmpty) {
       return Stack(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 40, 20, 100),
-            child: Center(
-              child: Text(
-                'No reflections yet. Write your first one and see it appear here.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: kMuted, fontSize: 14),
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(28, 70, 28, 120),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.auto_stories_outlined,
+                    size: 44,
+                    color: colors.primary,
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    'A quiet place for your notes',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontFamily: 'Georgia',
+                      fontSize: 21,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Write what you noticed, learned, or want to carry with you.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.textSecondary, height: 1.5),
+                  ),
+                ],
               ),
             ),
           ),
@@ -340,11 +374,37 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
     final order = grouped.keys.toList();
     return Stack(
       children: [
-        ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
-          children: [
-            for (final day in order) _ReflectionSection(day, grouped[day]!),
-          ],
+        RefreshIndicator(
+          onRefresh: () => _load(showSpinner: false),
+          color: colors.primary,
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${_items.length} note${_items.length == 1 ? '' : 's'}',
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _load(showSpinner: false),
+                    tooltip: 'Refresh notes',
+                    icon: Icon(
+                      Icons.refresh_rounded,
+                      color: colors.iconSecondary,
+                    ),
+                  ),
+                ],
+              ),
+              for (final day in order) _ReflectionSection(day, grouped[day]!),
+            ],
+          ),
         ),
         Positioned(
           right: 20,
@@ -419,21 +479,24 @@ class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
   final String text;
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Text(
-        text.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 11,
-          letterSpacing: 1.8,
-          fontWeight: FontWeight.w700,
-          color: kBronze,
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Row(
+      children: [
+        Text(
+          text.toUpperCase(),
+          style: TextStyle(
+            color: colors.primary,
+            fontSize: 11,
+            letterSpacing: 1.8,
+            fontWeight: FontWeight.w700,
+          ),
         ),
-      ),
-      const SizedBox(width: 12),
-      const Expanded(child: Divider(color: kLine, height: 1)),
-    ],
-  );
+        const SizedBox(width: 12),
+        Expanded(child: Divider(color: colors.borderSubtle, height: 1)),
+      ],
+    );
+  }
 }
 
 class _ReflectionTile extends StatelessWidget {
@@ -444,60 +507,97 @@ class _ReflectionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Material(
-    color: colors.surfaceElevated,
-    borderRadius: BorderRadius.circular(22),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(22),
-      onTap:
-          () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => _ReflectionDetailPage(reflection: reflection),
-            ),
-          ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                _Pill(entry.mood, color: kSoftBronze, textColor: kBronze),
-                const Spacer(),
-                if (entry.isPrivate)
-                Icon(
-                  Icons.lock_outline_rounded,
-                  size: 15,
-                    color: colors.textSecondary,
-                  ),
-                const SizedBox(width: 7),
-                Text(
-                  _date(entry.date),
-                  style: TextStyle(fontSize: 12, color: colors.textSecondary),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              entry.title,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontFamily: 'Georgia',
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
+      color: colors.surfaceElevated,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap:
+            () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => _ReflectionDetailPage(reflection: reflection),
               ),
             ),
-            const SizedBox(height: 8),
-            Text(
-              entry.body,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: colors.textSecondary, height: 1.5),
-            ),
-          ],
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 15, 16, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 3,
+                height: 82,
+                margin: const EdgeInsets.only(right: 14),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            entry.mood.isEmpty ? 'Note' : entry.mood,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        if (entry.isPrivate)
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            size: 14,
+                            color: colors.iconSecondary,
+                          ),
+                        const SizedBox(width: 7),
+                        Text(
+                          _date(entry.date),
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: colors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      entry.title.isEmpty ? 'Untitled note' : entry.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontFamily: 'Georgia',
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      entry.body,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        height: 1.5,
+                        fontSize: 13.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right_rounded, color: colors.iconSecondary),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
 
@@ -515,18 +615,23 @@ class _Pill extends StatelessWidget {
   final bool? selected;
   @override
   Widget build(BuildContext context) {
-    final effectiveColor =
-        selected == true ? color.withValues(alpha: 0.25) : color;
+    final colors = context.colors;
+    final isSelected = selected == true;
+    final effectiveColor = isSelected ? color : colors.surfaceContainer;
+    final effectiveTextColor = isSelected ? textColor : colors.textSecondary;
     final child = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: effectiveColor,
         borderRadius: BorderRadius.circular(99),
+        border: Border.all(
+          color: isSelected ? textColor.withValues(alpha: 0.35) : colors.border,
+        ),
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: textColor,
+          color: effectiveTextColor,
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -550,13 +655,16 @@ class _ComposeButton extends StatelessWidget {
   const _ComposeButton({required this.onTap});
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => FloatingActionButton(
-    backgroundColor: kBronze,
-    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-    tooltip: 'Write reflection',
-    onPressed: onTap,
-    child: const Icon(Icons.edit_outlined),
-  );
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return FloatingActionButton(
+      backgroundColor: colors.primary,
+      foregroundColor: colors.onPrimary,
+      tooltip: 'Write reflection',
+      onPressed: onTap,
+      child: const Icon(Icons.edit_outlined),
+    );
+  }
 }
 
 class _AdhkarTab extends StatefulWidget {
@@ -637,6 +745,7 @@ class _AdhkarTabState extends State<_AdhkarTab> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final item = _adhkar[categories[selected]];
     final isMorning = categories[selected] == 'Morning';
     final isEvening = categories[selected] == 'Evening';
@@ -661,9 +770,11 @@ class _AdhkarTabState extends State<_AdhkarTab> {
                     setState(() => selected = index);
                     _persist();
                   },
-                  selectedColor: kSoftBronze,
-                  backgroundColor: kPaper,
-                  side: BorderSide(color: selected == index ? kBronze : kLine),
+                  selectedColor: colors.primaryContainer,
+                  backgroundColor: colors.surfaceElevated,
+                  side: BorderSide(
+                    color: selected == index ? colors.primary : colors.border,
+                  ),
                 ),
           ),
         ),
@@ -787,83 +898,86 @@ class _DhikrTile extends StatelessWidget {
   final int count;
   final VoidCallback onSave, onCount;
   @override
-  Widget build(BuildContext context) => Material(
-    color: kPaper,
-    borderRadius: BorderRadius.circular(22),
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  item.arabic,
-                  textDirection: TextDirection.rtl,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: kInk,
-                    fontSize: 26,
-                    height: 1.7,
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.surfaceElevated,
+      borderRadius: BorderRadius.circular(22),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.arabic,
+                    textDirection: TextDirection.rtl,
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      color: colors.textPrimary,
+                      fontSize: 26,
+                      height: 1.7,
+                    ),
                   ),
                 ),
-              ),
-              IconButton(
-                onPressed: onSave,
-                icon: Icon(
-                  saved
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  color: kBronze,
+                IconButton(
+                  onPressed: onSave,
+                  icon: Icon(
+                    saved
+                        ? Icons.bookmark_rounded
+                        : Icons.bookmark_border_rounded,
+                    color: colors.primary,
+                  ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            item.transliteration,
-            style: const TextStyle(
-              color: kBronze,
-              fontFamily: 'Georgia',
-              fontStyle: FontStyle.italic,
-              fontSize: 16,
+              ],
             ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            item.translation,
-            style: const TextStyle(color: kMuted, height: 1.5),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Text(
-                item.reference,
-                style: const TextStyle(
-                  color: kMuted,
-                  fontSize: 11.5,
-                  fontStyle: FontStyle.italic,
+            const SizedBox(height: 10),
+            Text(
+              item.transliteration,
+              style: TextStyle(
+                color: colors.primary,
+                fontFamily: 'Georgia',
+                fontStyle: FontStyle.italic,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              item.translation,
+              style: TextStyle(color: colors.textSecondary, height: 1.5),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Text(
+                  item.reference,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              IconButton(
-                onPressed:
-                    () => ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Audio playback is coming soon.'),
+                const Spacer(),
+                IconButton(
+                  onPressed:
+                      () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Audio playback is coming soon.'),
+                        ),
                       ),
-                    ),
-                icon: const Icon(Icons.volume_up_outlined, color: kBronze),
-              ),
-              _Counter(value: count, onTap: onCount),
-            ],
-          ),
-        ],
+                  icon: Icon(Icons.volume_up_outlined, color: colors.primary),
+                ),
+                _Counter(value: count, onTap: onCount),
+              ],
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _Counter extends StatelessWidget {
@@ -918,23 +1032,26 @@ class _ReadingTabState extends State<_ReadingTab> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return FutureBuilder<List<BookRead>>(
       future: _booksFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: kBronze));
+          return Center(
+            child: CircularProgressIndicator(color: colors.primary),
+          );
         }
         if (snapshot.hasError) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.wifi_off_rounded, size: 36, color: kBronze),
+                Icon(Icons.wifi_off_rounded, size: 36, color: colors.primary),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Could not load library',
                   style: TextStyle(
-                    color: kInk,
+                    color: colors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Georgia',
@@ -942,9 +1059,9 @@ class _ReadingTabState extends State<_ReadingTab> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  snapshot.error.toString(),
+                  'Your books could not be loaded. Please try again.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: kMuted, fontSize: 13),
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 TextButton.icon(
@@ -966,31 +1083,35 @@ class _ReadingTabState extends State<_ReadingTab> {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: kSoftBronze,
+                    color: colors.primaryContainer,
                     shape: BoxShape.circle,
-                    border: Border.all(color: kLine),
+                    border: Border.all(color: colors.border),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.menu_book_outlined,
                     size: 32,
-                    color: kBronze,
+                    color: colors.primary,
                   ),
                 ),
                 const SizedBox(height: 18),
-                const Text(
+                Text(
                   'No books available yet',
                   style: TextStyle(
-                    color: kInk,
+                    color: colors.textPrimary,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Georgia',
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'New books will appear here as they are added.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: kMuted, fontSize: 13, height: 1.5),
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 13,
+                    height: 1.5,
+                  ),
                 ),
               ],
             ),
@@ -1002,8 +1123,16 @@ class _ReadingTabState extends State<_ReadingTab> {
           separatorBuilder: (_, __) => const SizedBox(height: 14),
           itemBuilder: (context, index) {
             final book = books[index];
-            final isContinue = _lastProgress?['book_id']?.toString() == book.id.toString();
-            return _ReadingTile(book: book, isContinue: isContinue, chapter: isContinue ? (_lastProgress?['chapter_number'] as num?)?.toInt() : null);
+            final isContinue =
+                _lastProgress?['book_id']?.toString() == book.id.toString();
+            return _ReadingTile(
+              book: book,
+              isContinue: isContinue,
+              chapter:
+                  isContinue
+                      ? (_lastProgress?['chapter_number'] as num?)?.toInt()
+                      : null,
+            );
           },
         );
       },
@@ -1012,82 +1141,99 @@ class _ReadingTabState extends State<_ReadingTab> {
 }
 
 class _ReadingTile extends StatelessWidget {
-  const _ReadingTile({required this.book, this.isContinue = false, this.chapter});
+  const _ReadingTile({
+    required this.book,
+    this.isContinue = false,
+    this.chapter,
+  });
   final BookRead book;
   final bool isContinue;
   final int? chapter;
   @override
-  Widget build(BuildContext context) => Material(
-    color: kPaper,
-    borderRadius: BorderRadius.circular(22),
-    child: InkWell(
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Material(
+      color: colors.surfaceElevated,
       borderRadius: BorderRadius.circular(22),
-      onTap: () => _openReader(context, book),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (isContinue)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text('Continue reading${chapter == null ? '' : ' · Chapter $chapter'}', style: const TextStyle(color: kBronze, fontWeight: FontWeight.w800, fontSize: 12)),
-              ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: kSoftSage,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                book.category.toUpperCase(),
-                style: const TextStyle(
-                  color: kSage,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.8,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: () => _openReader(context, book),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isContinue)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    'Continue reading${chapter == null ? '' : ' - Chapter $chapter'}',
+                    style: TextStyle(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: colors.successContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  book.category.toUpperCase(),
+                  style: TextStyle(
+                    color: colors.success,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              book.title,
-              style: const TextStyle(
-                color: kInk,
-                fontFamily: 'Georgia',
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              book.author,
-              style: const TextStyle(
-                color: kBronze,
-                fontFamily: 'Georgia',
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-            if (book.description != null && book.description!.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 14),
               Text(
-                book.description!,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: kMuted, height: 1.5),
+                book.title,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontFamily: 'Georgia',
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                book.author,
+                style: TextStyle(
+                  color: colors.primary,
+                  fontFamily: 'Georgia',
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              if (book.description != null && book.description!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  book.description!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: colors.textSecondary, height: 1.5),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Text(
+                '${book.chapterCount ?? 0} chapters \u00b7 ${book.totalReadingTime ?? 0} min read',
+                style: TextStyle(color: colors.textSecondary, fontSize: 11.5),
               ),
             ],
-            const SizedBox(height: 14),
-            Text(
-              '${book.chapterCount ?? 0} chapters \u00b7 ${book.totalReadingTime ?? 0} min read',
-              style: const TextStyle(color: kMuted, fontSize: 11.5),
-            ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _SavedTab extends StatefulWidget {
@@ -1114,15 +1260,19 @@ class _SavedTabState extends State<_SavedTab> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return FutureBuilder<List<JourneyAdhkarFavorite>>(
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: kBronze),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.primary,
+              ),
             ),
           );
         }
@@ -1130,12 +1280,12 @@ class _SavedTabState extends State<_SavedTab> {
           return Center(
             child: Column(
               children: [
-                const Icon(Icons.wifi_off_rounded, size: 36, color: kBronze),
+                Icon(Icons.wifi_off_rounded, size: 36, color: colors.primary),
                 const SizedBox(height: 16),
                 Text(
                   'Could not load saved items',
                   style: TextStyle(
-                    color: kInk,
+                    color: colors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Georgia',
@@ -1143,9 +1293,9 @@ class _SavedTabState extends State<_SavedTab> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  snapshot.error.toString(),
+                  'Your saved items could not be loaded. Please try again.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: kMuted, fontSize: 13),
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 TextButton.icon(
@@ -1159,13 +1309,13 @@ class _SavedTabState extends State<_SavedTab> {
         }
         final favorites = snapshot.data ?? const [];
         if (favorites.isEmpty) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.fromLTRB(20, 40, 20, 32),
             child: Center(
               child: Text(
                 'No saved items yet. Explore adhkar and reflections to build your collection.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: kMuted, fontSize: 14),
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
               ),
             ),
           );
@@ -1178,14 +1328,14 @@ class _SavedTabState extends State<_SavedTab> {
           itemBuilder: (context, index) {
             final fav = favorites[index];
             return ListTile(
-              tileColor: kPaper,
+              tileColor: colors.surfaceElevated,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
               title: Text(
                 'Adhkar #${fav.adhkarId}',
-                style: const TextStyle(
-                  color: kInk,
+                style: TextStyle(
+                  color: colors.textPrimary,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -1221,15 +1371,19 @@ class _HistorialTabState extends State<_HistorialTab> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return FutureBuilder<JourneyReflectionPage>(
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: SizedBox(
               width: 22,
               height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2, color: kBronze),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: colors.primary,
+              ),
             ),
           );
         }
@@ -1237,12 +1391,12 @@ class _HistorialTabState extends State<_HistorialTab> {
           return Center(
             child: Column(
               children: [
-                const Icon(Icons.wifi_off_rounded, size: 36, color: kBronze),
+                Icon(Icons.wifi_off_rounded, size: 36, color: colors.primary),
                 const SizedBox(height: 16),
                 Text(
                   'Could not load history',
                   style: TextStyle(
-                    color: kInk,
+                    color: colors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     fontFamily: 'Georgia',
@@ -1250,9 +1404,9 @@ class _HistorialTabState extends State<_HistorialTab> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  snapshot.error.toString(),
+                  'Your history could not be loaded. Please try again.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: kMuted, fontSize: 13),
+                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 TextButton.icon(
@@ -1267,13 +1421,13 @@ class _HistorialTabState extends State<_HistorialTab> {
         final page = snapshot.data;
         final items = page?.items ?? const [];
         if (items.isEmpty) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.fromLTRB(24, 40, 24, 32),
             child: Center(
               child: Text(
                 'No history yet. Your journey begins with the first step.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: kMuted, fontSize: 14),
+                style: TextStyle(color: colors.textSecondary, fontSize: 14),
               ),
             ),
           );
@@ -1301,33 +1455,36 @@ class _TimelineItem extends StatelessWidget {
   final IconData icon;
   final String text;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 18),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 33,
-          height: 33,
-          decoration: BoxDecoration(
-            color: kSoftBronze,
-            borderRadius: BorderRadius.circular(10),
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 33,
+            height: 33,
+            decoration: BoxDecoration(
+              color: colors.primaryContainer,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 17, color: colors.primary),
           ),
-          child: Icon(icon, size: 17, color: kBronze),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 5),
-            child: Text(
-              text,
-              style: const TextStyle(color: kMuted, height: 1.5),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Text(
+                text,
+                style: TextStyle(color: colors.textSecondary, height: 1.5),
+              ),
             ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _ReaderData {
@@ -1351,67 +1508,75 @@ class _ReaderPage extends StatelessWidget {
   const _ReaderPage({required this.data});
   final _ReaderData data;
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: kPaper,
-    appBar: AppBar(
-      backgroundColor: kPaper,
-      surfaceTintColor: Colors.transparent,
-      leading: BackButton(color: kInk),
-      actions: const [
-        Icon(Icons.bookmark_border_rounded, color: kBronze),
-        SizedBox(width: 16),
-      ],
-    ),
-    body: ListView(
-      padding: const EdgeInsets.fromLTRB(30, 24, 30, 44),
-      children: [
-        Text(
-          data.kicker.toUpperCase(),
-          style: const TextStyle(
-            color: kBronze,
-            letterSpacing: 1.8,
-            fontWeight: FontWeight.w700,
-            fontSize: 11,
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Scaffold(
+      backgroundColor: colors.background,
+      appBar: AppBar(
+        backgroundColor: colors.surface,
+        surfaceTintColor: Colors.transparent,
+        leading: BackButton(color: colors.iconPrimary),
+        actions: [
+          Icon(Icons.bookmark_border_rounded, color: colors.primary),
+          SizedBox(width: 16),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(30, 24, 30, 44),
+        children: [
+          Text(
+            data.kicker.toUpperCase(),
+            style: const TextStyle(
+              color: kBronze,
+              letterSpacing: 1.8,
+              fontWeight: FontWeight.w700,
+              fontSize: 11,
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          data.title,
-          style: const TextStyle(
-            color: kInk,
-            fontFamily: 'Georgia',
-            fontSize: 32,
-            height: 1.18,
-            fontWeight: FontWeight.w700,
+          const SizedBox(height: 16),
+          Text(
+            data.title,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontFamily: 'Georgia',
+              fontSize: 32,
+              height: 1.18,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        const SizedBox(height: 11),
-        Text(
-          data.meta,
-          style: const TextStyle(color: kMuted, fontStyle: FontStyle.italic),
-        ),
-        const SizedBox(height: 28),
-        const Divider(color: kLine),
-        const SizedBox(height: 26),
-        Text(
-          data.body,
-          style: const TextStyle(
-            color: kInk,
-            fontFamily: 'Georgia',
-            fontSize: 19,
-            height: 1.8,
+          const SizedBox(height: 11),
+          Text(
+            data.meta,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 28),
+          Divider(color: colors.divider),
+          const SizedBox(height: 26),
+          Text(
+            data.body,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontFamily: 'Georgia',
+              fontSize: 19,
+              height: 1.8,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 Future<JourneyReflection?> _composeReflection(BuildContext context) {
   return showModalBottomSheet<JourneyReflection>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: kPaper,
+    useSafeArea: true,
+    showDragHandle: true,
+    backgroundColor: context.colors.surfaceElevated,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
@@ -1433,6 +1598,12 @@ class _ComposeSheetState extends State<_ComposeSheet> {
   bool _shareWithFamily = false;
   bool _saving = false;
 
+  bool get _hasUnsavedChanges =>
+      _titleController.text.trim().isNotEmpty ||
+      _bodyController.text.trim().isNotEmpty ||
+      _mood != null ||
+      _shareWithFamily;
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -1443,13 +1614,13 @@ class _ComposeSheetState extends State<_ComposeSheet> {
   Future<void> _save() async {
     final title = _titleController.text.trim();
     final body = _bodyController.text.trim();
-    if (title.isEmpty || body.isEmpty || _mood == null) return;
+    if (body.isEmpty || _saving) return;
     setState(() => _saving = true);
     try {
       final reflection = await BackendApi.instance.createReflection(
-        title: title,
+        title: title.isEmpty ? 'A note from today' : title,
         body: body,
-        mood: _mood!,
+        mood: _mood ?? 'Reflective',
         isPrivate: !_shareWithFamily,
       );
       if (mounted) Navigator.pop(context, reflection);
@@ -1458,126 +1629,176 @@ class _ComposeSheetState extends State<_ComposeSheet> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        20,
-        24,
-        24 + MediaQuery.viewInsetsOf(context).bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Write reflection',
-            style: TextStyle(
-              color: kInk,
-              fontFamily: 'Georgia',
-              fontSize: 25,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 18),
-          TextField(
-            controller: _titleController,
-            decoration: const InputDecoration(
-              hintText: 'A title for this moment',
-            ),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _bodyController,
-            minLines: 4,
-            maxLines: 7,
-            decoration: const InputDecoration(
-              hintText: 'What is on your heart?',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'How are you feeling?',
-            style: TextStyle(
-              color: kInk,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _Pill(
-                  'Grateful',
-                  color: kSoftSage,
-                  textColor: kSage,
-                  selected: _mood == 'Grateful',
-                  onTap: () => setState(() => _mood = 'Grateful'),
-                ),
+  Future<void> _handleBack() async {
+    if (_saving) return;
+    if (!_hasUnsavedChanges) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text('Your note has not been saved.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep editing'),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _Pill(
-                  'Peaceful',
-                  color: kSoftBronze,
-                  textColor: kBronze,
-                  selected: _mood == 'Peaceful',
-                  onTap: () => setState(() => _mood = 'Peaceful'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _Pill(
-                  'Hopeful',
-                  color: kClayLight,
-                  textColor: kBronzeLight,
-                  selected: _mood == 'Hopeful',
-                  onTap: () => setState(() => _mood = 'Hopeful'),
-                ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Discard'),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return PopScope(
+      canPop: !_hasUnsavedChanges && !_saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_handleBack());
+      },
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          8,
+          20,
+          20 + MediaQuery.viewInsetsOf(context).bottom,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Share with family',
+                'New note',
                 style: TextStyle(
-                  color: kInk,
-                  fontSize: 13,
+                  color: colors.textPrimary,
+                  fontFamily: 'Georgia',
+                  fontSize: 25,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const Spacer(),
-              Switch(
+              const SizedBox(height: 5),
+              Text(
+                'Keep a thought, a lesson, or a quiet intention.',
+                style: TextStyle(color: colors.textSecondary, height: 1.4),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                controller: _titleController,
+                onChanged: (_) => setState(() {}),
+                textCapitalization: TextCapitalization.sentences,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontFamily: 'Georgia',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Give this note a title (optional)',
+                  hintStyle: TextStyle(color: colors.textMuted),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Container(height: 1, color: colors.divider),
+              TextField(
+                controller: _bodyController,
+                onChanged: (_) => setState(() {}),
+                autofocus: true,
+                textCapitalization: TextCapitalization.sentences,
+                minLines: 7,
+                maxLines: 12,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  height: 1.65,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Write freely...',
+                  hintStyle: TextStyle(color: colors.textMuted),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Optional feeling',
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 9),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final mood in ['Grateful', 'Peaceful', 'Hopeful'])
+                    _Pill(
+                      mood,
+                      color: colors.primaryContainer,
+                      textColor: colors.onPrimaryContainer,
+                      selected: _mood == mood,
+                      onTap:
+                          () => setState(
+                            () => _mood = _mood == mood ? null : mood,
+                          ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile.adaptive(
+                contentPadding: EdgeInsets.zero,
+                title: Text(
+                  'Share with family',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                subtitle: Text(
+                  'Keep this note private unless you choose otherwise.',
+                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                ),
                 value: _shareWithFamily,
                 onChanged: (v) => setState(() => _shareWithFamily = v),
               ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _saving ? null : _save,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: colors.primary,
+                    foregroundColor: colors.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  child:
+                      _saving
+                          ? SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: colors.onPrimary,
+                            ),
+                          )
+                          : const Text('Save note'),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 18),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: _saving ? null : _save,
-              style: FilledButton.styleFrom(backgroundColor: kBronze),
-              child:
-                  _saving
-                      ? SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      )
-                      : const Text('Save privately'),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -1591,13 +1812,26 @@ class _ReflectionDetailPage extends StatefulWidget {
 }
 
 class _ReflectionDetailPageState extends State<_ReflectionDetailPage> {
-  late final _titleController = TextEditingController(text: widget.reflection.title);
-  late final _bodyController = TextEditingController(text: widget.reflection.body);
+  late final _titleController = TextEditingController(
+    text: widget.reflection.title,
+  );
+  late final _bodyController = TextEditingController(
+    text: widget.reflection.body,
+  );
   bool _editing = false;
   bool _saving = false;
 
+  bool get _hasUnsavedChanges =>
+      _editing &&
+      (_titleController.text.trim() != widget.reflection.title.trim() ||
+          _bodyController.text.trim() != widget.reflection.body.trim());
+
   @override
-  void dispose() { _titleController.dispose(); _bodyController.dispose(); super.dispose(); }
+  void dispose() {
+    _titleController.dispose();
+    _bodyController.dispose();
+    super.dispose();
+  }
 
   Future<void> _save() async {
     setState(() => _saving = true);
@@ -1608,41 +1842,171 @@ class _ReflectionDetailPageState extends State<_ReflectionDetailPage> {
         body: _bodyController.text.trim(),
       );
       if (!mounted) return;
-      setState(() { _editing = false; _saving = false; _titleController.text = updated.title; _bodyController.text = updated.body; });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reflection saved')));
-    } catch (_) { if (mounted) setState(() => _saving = false); }
+      setState(() {
+        _editing = false;
+        _saving = false;
+        _titleController.text = updated.title;
+        _bodyController.text = updated.body;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Reflection saved')));
+    } catch (_) {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _handleBack() async {
+    if (_saving) return;
+    if (!_hasUnsavedChanges) {
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text('Your reflection has not been saved.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep editing'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Scaffold(
-      backgroundColor: colors.background,
-      appBar: AppBar(
-        title: Text(_editing ? 'Edit reflection' : 'Reflection'),
-        actions: [
-          if (_editing) ...[
-            TextButton(onPressed: _saving ? null : () => setState(() { _editing = false; _titleController.text = widget.reflection.title; _bodyController.text = widget.reflection.body; }), child: const Text('Cancel')),
-            TextButton(onPressed: _saving ? null : _save, child: const Text('Save')),
-          ] else IconButton(onPressed: () => setState(() => _editing = true), icon: const Icon(Icons.edit_outlined), tooltip: 'Edit reflection'),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(24, 20, 24, 32 + MediaQuery.viewInsetsOf(context).bottom),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(widget.reflection.mood, style: TextStyle(color: colors.primary, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 18),
-            _editing
-                ? TextField(controller: _titleController, style: TextStyle(color: colors.textPrimary, fontFamily: 'Georgia', fontSize: 30, fontWeight: FontWeight.w700), decoration: const InputDecoration(border: InputBorder.none))
-                : Text(_titleController.text, style: TextStyle(color: colors.textPrimary, fontFamily: 'Georgia', fontSize: 30, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            Text(_date(DateTime.tryParse(widget.reflection.date ?? widget.reflection.createdAt)), style: TextStyle(color: colors.textSecondary)),
-            const SizedBox(height: 28),
-            _editing
-                ? TextField(controller: _bodyController, autofocus: true, minLines: 12, maxLines: null, style: TextStyle(color: colors.textPrimary, fontSize: 17, height: 1.7), decoration: InputDecoration(hintText: 'Write freely...', hintStyle: TextStyle(color: colors.textMuted), border: InputBorder.none))
-                : Text(_bodyController.text, style: TextStyle(color: colors.textPrimary, fontFamily: 'Georgia', fontSize: 19, height: 1.8)),
-          ]),
+    return PopScope(
+      canPop: !_hasUnsavedChanges && !_saving,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) unawaited(_handleBack());
+      },
+      child: Scaffold(
+        backgroundColor: colors.background,
+        appBar: AppBar(
+          title: Text(_editing ? 'Edit reflection' : 'Reflection'),
+          leading: IconButton(
+            onPressed: _handleBack,
+            icon: Icon(Icons.arrow_back_rounded, color: colors.iconPrimary),
+            tooltip: 'Back',
+          ),
+          actions: [
+            if (_editing) ...[
+              TextButton(
+                onPressed:
+                    _saving
+                        ? null
+                        : () => setState(() {
+                          _editing = false;
+                          _titleController.text = widget.reflection.title;
+                          _bodyController.text = widget.reflection.body;
+                        }),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: _saving ? null : _save,
+                child: const Text('Save'),
+              ),
+            ] else
+              IconButton(
+                onPressed: () => setState(() => _editing = true),
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit reflection',
+              ),
+          ],
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              24,
+              20,
+              24,
+              32 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.reflection.mood,
+                  style: TextStyle(
+                    color: colors.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                _editing
+                    ? TextField(
+                      controller: _titleController,
+                      onChanged: (_) => setState(() {}),
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontFamily: 'Georgia',
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                      ),
+                    )
+                    : Text(
+                      _titleController.text,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontFamily: 'Georgia',
+                        fontSize: 30,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                const SizedBox(height: 12),
+                Text(
+                  _date(
+                    DateTime.tryParse(
+                      widget.reflection.date ?? widget.reflection.createdAt,
+                    ),
+                  ),
+                  style: TextStyle(color: colors.textSecondary),
+                ),
+                const SizedBox(height: 28),
+                _editing
+                    ? TextField(
+                      controller: _bodyController,
+                      onChanged: (_) => setState(() {}),
+                      autofocus: true,
+                      minLines: 12,
+                      maxLines: null,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 17,
+                        height: 1.7,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Write freely...',
+                        hintStyle: TextStyle(color: colors.textMuted),
+                        border: InputBorder.none,
+                      ),
+                    )
+                    : Text(
+                      _bodyController.text,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontFamily: 'Georgia',
+                        fontSize: 19,
+                        height: 1.8,
+                      ),
+                    ),
+              ],
+            ),
+          ),
         ),
       ),
     );

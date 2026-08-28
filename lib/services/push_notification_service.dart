@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +11,7 @@ import 'backend_api.dart';
 import 'device_timezone.dart';
 import 'location_service.dart';
 import 'local_reminder_service.dart';
+import '../firebase_options.dart';
 
 const _kPendingPayloadKey = 'pending_notification_payload';
 
@@ -35,6 +37,11 @@ Future<void> persistFcmPayload(Map<String, dynamic> data) async {
 ///   the OS will not show anything otherwise.
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   try {
+    if (Firebase.apps.isEmpty) {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
     final data = Map<String, dynamic>.from(message.data);
     await persistFcmPayload(data);
 
@@ -58,7 +65,9 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       body: body,
       payload: jsonEncode(data),
     );
-  } catch (_) {
+  } catch (error, stack) {
+    debugPrint('FCM background handling failed: $error');
+    if (kDebugMode) debugPrintStack(stackTrace: stack);
     // Background handler must never throw into the framework.
   }
 }
@@ -70,7 +79,7 @@ class PushNotificationService {
   static final instance = PushNotificationService._();
   static const _deviceIdKey = 'push_device_id';
   bool _configured = false;
-  bool _tokenRegistrationInFlight = false;
+  Future<bool>? _tokenRegistrationFuture;
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
   StreamSubscription<RemoteMessage>? _openedAppSubscription;
@@ -116,8 +125,8 @@ class PushNotificationService {
     if (kIsWeb) return;
     try {
       await syncAfterAuthentication();
-    } catch (e) {
-      // Firebase may not be initialized in some environments.
+    } catch (error) {
+      debugPrint('Push initialization deferred: $error');
     }
   }
 
@@ -134,7 +143,8 @@ class PushNotificationService {
         await _registerCurrentToken();
         _listenForTokenRefresh();
       }
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Push authentication sync deferred: $error');
       // Permission or Firebase failures must not block authentication.
     }
   }
@@ -215,11 +225,28 @@ class PushNotificationService {
   /// [Phase 7] Single-flight token registration. Prevents duplicate backend
   /// token records when app opens repeatedly or parent rebuilds.
   Future<bool> _registerCurrentToken() async {
-    if (_tokenRegistrationInFlight) return false;
-    _tokenRegistrationInFlight = true;
+    final active = _tokenRegistrationFuture;
+    if (active != null) return active;
+    final registration = _performTokenRegistration();
+    _tokenRegistrationFuture = registration;
+    try {
+      return await registration;
+    } finally {
+      if (identical(_tokenRegistrationFuture, registration)) {
+        _tokenRegistrationFuture = null;
+      }
+    }
+  }
+
+  Future<bool> _performTokenRegistration() async {
     try {
       final token = await FirebaseMessaging.instance.getToken();
-      if (token == null) return false;
+      if (token == null || token.isEmpty) {
+        debugPrint(
+          'FCM token registration skipped: Firebase returned no token.',
+        );
+        return false;
+      }
       final preferences = await SharedPreferences.getInstance();
       var deviceId = preferences.getString(_deviceIdKey);
       if (deviceId == null) {
@@ -237,12 +264,11 @@ class PushNotificationService {
         coords: await _storedCoordinates(),
       );
       return true;
-    } catch (_) {
+    } catch (error) {
       // Registration may retry on next refresh. Explicit opt-in callers get
       // a failure result so the UI does not claim reminders are enabled.
+      debugPrint('FCM token registration failed: $error');
       return false;
-    } finally {
-      _tokenRegistrationInFlight = false;
     }
   }
 

@@ -8,8 +8,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/backend_api.dart';
 import '../../core/mode_provider.dart';
 import '../../core/animations.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_extensions.dart';
+import 'family_models.dart';
 import 'family_theme.dart';
 
 class FamilyScreen extends ConsumerStatefulWidget {
@@ -37,6 +37,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
   /// Syncs triggered after a create/join or by pull-to-refresh run silently so
   /// the list doesn't flicker or flash a loading indicator.
   Future<void> _loadFamilies({bool showSpinner = true}) async {
+    if (!mounted) return;
     setState(() {
       if (showSpinner) _loading = true;
       _error = null;
@@ -53,7 +54,10 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = backendErrorMessage(
+          e,
+          fallback: 'Could not load your family hubs. Please try again.',
+        );
         _loading = false;
       });
     }
@@ -74,67 +78,122 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
     }
   }
 
+  Future<void> _confirmDiscardDialog(
+    BuildContext dialogContext, {
+    required String message,
+  }) async {
+    final discard = await showDialog<bool>(
+      context: dialogContext,
+      builder:
+          (confirmContext) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: Text(message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(confirmContext).pop(false),
+                child: const Text('Keep editing'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(confirmContext).pop(true),
+                child: const Text('Discard'),
+              ),
+            ],
+          ),
+    );
+    if (discard == true && dialogContext.mounted) {
+      Navigator.of(dialogContext).pop();
+    }
+  }
+
   Future<void> _createFamily() async {
     final nameController = TextEditingController();
     final result = await showDialog<String>(
       context: context,
       builder:
-          (ctx) => DialogFadeScale(
-            child: AlertDialog(
-              backgroundColor: fIvory,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(22),
-              ),
-              title: const Text(
-                'Create a family jar',
-                style: TextStyle(
-                  fontFamily: 'Georgia',
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: fWalnut,
-                ),
-              ),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Start a shared space for your family.',
-                    style: TextStyle(color: fStone, fontSize: 13),
-                  ),
-                  const SizedBox(height: 14),
-                  TextField(
-                    controller: nameController,
-                    autofocus: true,
-                    decoration: InputDecoration(
-                      labelText: 'Family name',
-                      hintText: 'e.g. The Ahmad Family',
-                      filled: true,
-                      fillColor: fPaper,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: fClay),
+          (ctx) => StatefulBuilder(
+            builder:
+                (ctx, setDialogState) => PopScope(
+                  canPop: nameController.text.trim().isEmpty,
+                  onPopInvokedWithResult: (didPop, _) {
+                    if (!didPop && nameController.text.trim().isNotEmpty) {
+                      unawaited(
+                        _confirmDiscardDialog(
+                          ctx,
+                          message: 'The family name has not been saved.',
+                        ),
+                      );
+                    }
+                  },
+                  child: DialogFadeScale(
+                    child: AlertDialog(
+                      backgroundColor: ctx.colors.surfaceElevated,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(22),
                       ),
+                      title: Text(
+                        'Create a family jar',
+                        style: TextStyle(
+                          fontFamily: 'Georgia',
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: ctx.colors.textPrimary,
+                        ),
+                      ),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Start a shared space for your family.',
+                            style: TextStyle(
+                              color: ctx.colors.textSecondary,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          TextField(
+                            controller: nameController,
+                            autofocus: true,
+                            onChanged: (_) => setDialogState(() {}),
+                            decoration: InputDecoration(
+                              labelText: 'Family name',
+                              hintText: 'e.g. The Ahmad Family',
+                              filled: true,
+                              fillColor: ctx.colors.inputBackground,
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                borderSide: BorderSide(
+                                  color: ctx.colors.inputBorder,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(
+                            'Cancel',
+                            style: TextStyle(color: ctx.colors.textSecondary),
+                          ),
+                        ),
+                        FilledButton(
+                          onPressed: () {
+                            final name = nameController.text.trim();
+                            if (name.isEmpty) return;
+                            Navigator.pop(ctx, name);
+                          },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: ctx.colors.primary,
+                            foregroundColor: ctx.colors.onPrimary,
+                          ),
+                          child: const Text('Create'),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: fStone)),
                 ),
-                FilledButton(
-                  onPressed: () {
-                    final name = nameController.text.trim();
-                    if (name.isEmpty) return;
-                    Navigator.pop(ctx, name);
-                  },
-                  style: FilledButton.styleFrom(backgroundColor: fBronze),
-                  child: const Text('Create'),
-                ),
-              ],
-            ),
           ),
     );
 
@@ -154,26 +213,29 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
         builder:
             (ctx) => DialogFadeScale(
               child: AlertDialog(
-                backgroundColor: fIvory,
+                backgroundColor: ctx.colors.surfaceElevated,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(22),
                 ),
-                title: const Text(
+                title: Text(
                   'Family jar created!',
                   style: TextStyle(
                     fontFamily: 'Georgia',
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: fWalnut,
+                    color: ctx.colors.textPrimary,
                   ),
                 ),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Share this code with your family members:',
-                      style: TextStyle(color: fStone, fontSize: 13),
+                      style: TextStyle(
+                        color: ctx.colors.textSecondary,
+                        fontSize: 13,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -182,20 +244,20 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                         vertical: 14,
                       ),
                       decoration: BoxDecoration(
-                        color: fPaper,
+                        color: ctx.colors.surfaceElevated,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: fClay),
+                        border: Border.all(color: ctx.colors.inputBorder),
                       ),
                       child: Row(
                         children: [
                           Expanded(
                             child: Text(
                               inviteCode,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: 'Georgia',
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
-                                color: fWalnut,
+                                color: ctx.colors.textPrimary,
                                 letterSpacing: 1.5,
                               ),
                             ),
@@ -217,9 +279,9 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                                 ),
                               );
                             },
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.copy_rounded,
-                              color: fBronze,
+                              color: ctx.colors.primary,
                             ),
                             tooltip: 'Copy code',
                           ),
@@ -231,7 +293,10 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                 actions: [
                   FilledButton(
                     onPressed: () => Navigator.pop(ctx),
-                    style: FilledButton.styleFrom(backgroundColor: fBronze),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: ctx.colors.primary,
+                      foregroundColor: ctx.colors.onPrimary,
+                    ),
                     child: const Text('Done'),
                   ),
                 ],
@@ -240,7 +305,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       );
       // Silent reconciliation so the optimistic card is replaced with the
       // authoritative server record (no spinner, no flicker).
-      _loadFamilies(showSpinner: false);
+      await _loadFamilies(showSpinner: false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -260,26 +325,29 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       builder:
           (ctx) => DialogFadeScale(
             child: AlertDialog(
-              backgroundColor: fIvory,
+              backgroundColor: ctx.colors.surfaceElevated,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(22),
               ),
-              title: const Text(
+              title: Text(
                 'Join a family jar',
                 style: TextStyle(
                   fontFamily: 'Georgia',
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: fWalnut,
+                  color: ctx.colors.textPrimary,
                 ),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Enter the invite code shared with you.',
-                    style: TextStyle(color: fStone, fontSize: 13),
+                    style: TextStyle(
+                      color: ctx.colors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   TextField(
@@ -289,10 +357,10 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                       labelText: 'Invite code',
                       hintText: 'e.g. MIZAN-ABC-123',
                       filled: true,
-                      fillColor: fPaper,
+                      fillColor: ctx.colors.inputBackground,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: BorderSide(color: fClay),
+                        borderSide: BorderSide(color: ctx.colors.inputBorder),
                       ),
                     ),
                   ),
@@ -301,7 +369,10 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Cancel', style: TextStyle(color: fStone)),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(color: ctx.colors.textSecondary),
+                  ),
                 ),
                 FilledButton(
                   onPressed: () {
@@ -309,7 +380,10 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                     if (code.isEmpty) return;
                     Navigator.pop(ctx, code);
                   },
-                  style: FilledButton.styleFrom(backgroundColor: fBronze),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: ctx.colors.primary,
+                    foregroundColor: ctx.colors.onPrimary,
+                  ),
                   child: const Text('Join'),
                 ),
               ],
@@ -336,7 +410,12 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
         SnackBar(
           behavior: SnackBarBehavior.floating,
           margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-          content: Text('Could not join jar: $e'),
+          content: Text(
+            backendErrorMessage(
+              e,
+              fallback: 'Could not join the family. Please try again.',
+            ),
+          ),
         ),
       );
     }
@@ -363,7 +442,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
             return false;
           },
           child: RefreshIndicator(
-            color: fBronze,
+            color: context.colors.primary,
             onRefresh: () => _loadFamilies(showSpinner: false),
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(
@@ -412,7 +491,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                                     width: 14,
                                     height: 14,
                                     decoration: BoxDecoration(
-                                      color: kDanger,
+                                      color: tokens.error,
                                       borderRadius: BorderRadius.circular(99),
                                     ),
                                     child: Center(
@@ -456,10 +535,12 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
 
   Widget _buildBody(BuildContext context) {
     if (_loading) {
-      return const SizedBox(
+      return SizedBox(
         key: ValueKey('loading'),
         height: 300,
-        child: Center(child: CircularProgressIndicator(color: fBronze)),
+        child: Center(
+          child: CircularProgressIndicator(color: context.colors.primary),
+        ),
       );
     }
     if (_error != null) {
@@ -667,10 +748,10 @@ class _JarCard extends StatelessWidget {
                     child: Text(
                       '$goalLabel · ${(progress * 100).round()}%',
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: fBronzeDark,
+                        color: tokens.primary,
                       ),
                     ),
                   ),
@@ -738,6 +819,7 @@ class _EmptyFamily extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.all(28),
       child: Column(
@@ -758,12 +840,16 @@ class _EmptyFamily extends StatelessWidget {
                 width: 96,
                 height: 96,
                 decoration: BoxDecoration(
-                  color: fClayPale,
+                  color: colors.primaryContainer,
                   shape: BoxShape.circle,
-                  border: Border.all(color: fClay),
+                  border: Border.all(color: colors.border),
                 ),
-                child: const Center(
-                  child: Icon(Icons.groups_outlined, size: 40, color: fBronze),
+                child: Center(
+                  child: Icon(
+                    Icons.groups_outlined,
+                    size: 40,
+                    color: colors.primary,
+                  ),
                 ),
               ),
             )
@@ -772,29 +858,37 @@ class _EmptyFamily extends StatelessWidget {
               width: 96,
               height: 96,
               decoration: BoxDecoration(
-                color: fClayPale,
+                color: colors.primaryContainer,
                 shape: BoxShape.circle,
-                border: Border.all(color: fClay),
+                border: Border.all(color: colors.border),
               ),
-              child: const Center(
-                child: Icon(Icons.groups_outlined, size: 40, color: fBronze),
+              child: Center(
+                child: Icon(
+                  Icons.groups_outlined,
+                  size: 40,
+                  color: colors.primary,
+                ),
               ),
             ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'No family yet',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w700,
-              color: fWalnut,
+              color: colors.textPrimary,
               fontFamily: 'Georgia',
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Create a jar or join one with an invite code.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone),
+            style: TextStyle(
+              fontSize: 12.5,
+              height: 1.5,
+              color: colors.textSecondary,
+            ),
           ),
           const SizedBox(height: 18),
           Row(
@@ -805,8 +899,8 @@ class _EmptyFamily extends StatelessWidget {
                   icon: const Icon(Icons.person_add_rounded, size: 18),
                   label: const Text('Join with code'),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: fWalnut,
-                    side: BorderSide(color: fClay),
+                    foregroundColor: colors.textPrimary,
+                    side: BorderSide(color: colors.border),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),

@@ -293,16 +293,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                         ),
                                       ),
                                       value: profile?.fridayReminder ?? false,
-                                      onChanged: _remindersBusy
-                                          ? null
-                                          : (value) {
-                                              unawaited(
-                                                _toggleFridayReminder(
-                                                  profile,
-                                                  value,
-                                                ),
-                                              );
-                                            },
+                                      onChanged:
+                                          _remindersBusy
+                                              ? null
+                                              : (value) {
+                                                unawaited(
+                                                  _toggleFridayReminder(
+                                                    profile,
+                                                    value,
+                                                  ),
+                                                );
+                                              },
                                       activeThumbColor: kBronze,
                                     ),
                                   ),

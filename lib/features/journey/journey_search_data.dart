@@ -39,7 +39,10 @@ class JourneySearchIndex {
 
     _addAdhkarCategory('Morning', morning_adhkar_data.MorningAdhkarData.duas);
     _addAdhkarCategory('Evening', evening_adhkar_data.EveningAdhkarData.duas);
-    _addAdhkarCategory('After Salah', after_salah_adhkar_data.AfterSalahAdhkarData.duas);
+    _addAdhkarCategory(
+      'After Salah',
+      after_salah_adhkar_data.AfterSalahAdhkarData.duas,
+    );
     _addAdhkarCategory('Sleep', sleep_adhkar_data.SleepAdhkarData.duas);
     _addAdhkarCategory('Travel', travel_adhkar_data.TravelAdhkarData.duas);
     _addAdhkarCategory('Others', others_adhkar_data.OtherAdhkarData.duas);
@@ -48,9 +51,11 @@ class JourneySearchIndex {
         category: 'Protection',
         title: 'Audhu bikalimatillahit-tammati',
         subtitle: 'I seek refuge in the perfect words of Allah.',
-        arabic: 'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ',
+        arabic:
+            'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ',
         transliteration: 'Audhu bikalimatillahit-tammati min sharri ma khalaq',
-        translation: 'I seek refuge in the perfect words of Allah, from the evil of what He has created.',
+        translation:
+            'I seek refuge in the perfect words of Allah, from the evil of what He has created.',
         source: 'Muslim',
         commonName: 'Protection dhikr',
         id: 1001,
@@ -86,52 +91,98 @@ class JourneySearchIndex {
       ),
     ]);
 
-    _addReflection('Reflection', 'Grateful', 'Service at home', 'I prepared breakfast quietly for my parents. May our home stay gentle and grateful.');
-    _addReflection('Reflection', 'Quiet', 'A slower morning', 'I let the first hour be slow. No phone, just the window and the light.');
-    _addReflection('Reflection', 'Hopeful', 'Beginning again', 'Consistency broke for a while. Today I begin again, gently.');
+    _addReflection(
+      'Reflection',
+      'Grateful',
+      'Service at home',
+      'I prepared breakfast quietly for my parents. May our home stay gentle and grateful.',
+    );
+    _addReflection(
+      'Reflection',
+      'Quiet',
+      'A slower morning',
+      'I let the first hour be slow. No phone, just the window and the light.',
+    );
+    _addReflection(
+      'Reflection',
+      'Hopeful',
+      'Beginning again',
+      'Consistency broke for a while. Today I begin again, gently.',
+    );
 
-    _addReading('Reading', 'Continue reading', 'On patience', 'A few quiet minutes on the virtue of steady, unhurried effort.');
-    _addReading('Reading', 'Lesson', 'The etiquette of remembrance', 'Remembrance is the heart returning, again and again, to its Lord.');
-    _addReading('Reading', 'Quran reflection', 'On the clearing of the heart', 'By the remembrance of Allah do hearts find rest.');
+    _addReading(
+      'Reading',
+      'Continue reading',
+      'On patience',
+      'A few quiet minutes on the virtue of steady, unhurried effort.',
+    );
+    _addReading(
+      'Reading',
+      'Lesson',
+      'The etiquette of remembrance',
+      'Remembrance is the heart returning, again and again, to its Lord.',
+    );
+    _addReading(
+      'Reading',
+      'Quran reflection',
+      'On the clearing of the heart',
+      'By the remembrance of Allah do hearts find rest.',
+    );
   }
 
   static void _addAdhkarCategory(String category, List<dynamic> duas) {
     for (final dua in duas) {
       final title = dua.commonName ?? category;
       final subtitle = dua.translation;
-      _index.add(JourneySearchResult(
-        category: category,
-        title: title,
-        subtitle: subtitle,
-        arabic: dua.arabic,
-        transliteration: dua.transliteration,
-        translation: dua.translation,
-        source: dua.source,
-        commonName: dua.commonName,
-        id: dua.id,
-        relevance: 0,
-      ));
+      _index.add(
+        JourneySearchResult(
+          category: category,
+          title: title,
+          subtitle: subtitle,
+          arabic: dua.arabic,
+          transliteration: dua.transliteration,
+          translation: dua.translation,
+          source: dua.source,
+          commonName: dua.commonName,
+          id: dua.id,
+          relevance: 0,
+        ),
+      );
     }
   }
 
-  static void _addReflection(String category, String mood, String title, String preview) {
-    _index.add(JourneySearchResult(
-      category: category,
-      title: title,
-      subtitle: preview,
-      id: 0,
-      relevance: 0,
-    ));
+  static void _addReflection(
+    String category,
+    String mood,
+    String title,
+    String preview,
+  ) {
+    _index.add(
+      JourneySearchResult(
+        category: category,
+        title: title,
+        subtitle: preview,
+        id: 0,
+        relevance: 0,
+      ),
+    );
   }
 
-  static void _addReading(String category, String type, String title, String copy) {
-    _index.add(JourneySearchResult(
-      category: category,
-      title: title,
-      subtitle: copy,
-      id: 0,
-      relevance: 0,
-    ));
+  static void _addReading(
+    String category,
+    String type,
+    String title,
+    String copy,
+  ) {
+    _index.add(
+      JourneySearchResult(
+        category: category,
+        title: title,
+        subtitle: copy,
+        id: 0,
+        relevance: 0,
+      ),
+    );
   }
 
   static List<JourneySearchResult> search(String query) {
@@ -144,18 +195,20 @@ class JourneySearchIndex {
     for (final item in _index) {
       final score = _score(item, words, normalized);
       if (score > 0) {
-        results.add(JourneySearchResult(
-          category: item.category,
-          title: item.title,
-          subtitle: item.subtitle,
-          arabic: item.arabic,
-          transliteration: item.transliteration,
-          translation: item.translation,
-          source: item.source,
-          commonName: item.commonName,
-          id: item.id,
-          relevance: score,
-        ));
+        results.add(
+          JourneySearchResult(
+            category: item.category,
+            title: item.title,
+            subtitle: item.subtitle,
+            arabic: item.arabic,
+            transliteration: item.transliteration,
+            translation: item.translation,
+            source: item.source,
+            commonName: item.commonName,
+            id: item.id,
+            relevance: score,
+          ),
+        );
       }
     }
 
@@ -178,7 +231,11 @@ class JourneySearchIndex {
     return null;
   }
 
-  static double _score(JourneySearchResult item, List<String> words, String fullQuery) {
+  static double _score(
+    JourneySearchResult item,
+    List<String> words,
+    String fullQuery,
+  ) {
     double score = 0;
     final titleN = normalize(item.title);
     final subtitleN = normalize(item.subtitle);
@@ -190,21 +247,41 @@ class JourneySearchIndex {
     final commonN = normalize(item.commonName ?? '');
 
     for (final word in words) {
-      if (titleN == word) { score += 100; }
-      else if (titleN.startsWith(word)) { score += 80; }
-      else if (titleN.contains(word)) { score += 60; }
+      if (titleN == word) {
+        score += 100;
+      } else if (titleN.startsWith(word)) {
+        score += 80;
+      } else if (titleN.contains(word)) {
+        score += 60;
+      }
 
-      if (commonN == word) { score += 90; }
-      else if (commonN.contains(word)) { score += 70; }
+      if (commonN == word) {
+        score += 90;
+      } else if (commonN.contains(word)) {
+        score += 70;
+      }
 
-      if (categoryN == word) { score += 50; }
-      else if (categoryN.contains(word)) { score += 30; }
+      if (categoryN == word) {
+        score += 50;
+      } else if (categoryN.contains(word)) {
+        score += 30;
+      }
 
-      if (translationN.contains(word)) { score += 25; }
-      if (translitN.contains(word)) { score += 20; }
-      if (arabicN.contains(word)) { score += 15; }
-      if (sourceN.contains(word)) { score += 10; }
-      if (subtitleN.contains(word)) { score += 5; }
+      if (translationN.contains(word)) {
+        score += 25;
+      }
+      if (translitN.contains(word)) {
+        score += 20;
+      }
+      if (arabicN.contains(word)) {
+        score += 15;
+      }
+      if (sourceN.contains(word)) {
+        score += 10;
+      }
+      if (subtitleN.contains(word)) {
+        score += 5;
+      }
     }
 
     return score;

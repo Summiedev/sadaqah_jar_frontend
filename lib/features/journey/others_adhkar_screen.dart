@@ -255,32 +255,35 @@ class _ToggleChip extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(99),
         child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: active ? kBronze : kIvory,
-          borderRadius: BorderRadius.circular(99),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: active ? Theme.of(context).colorScheme.onPrimary : kBronze,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: active ? kBronze : kIvory,
+            borderRadius: BorderRadius.circular(99),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
                 color:
                     active ? Theme.of(context).colorScheme.onPrimary : kBronze,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color:
+                      active
+                          ? Theme.of(context).colorScheme.onPrimary
+                          : kBronze,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

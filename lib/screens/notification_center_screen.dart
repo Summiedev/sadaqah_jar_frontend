@@ -152,8 +152,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       if (!mounted) return;
       // C5: don't blindly modify _items[index] after an await - the list may
       // have been refreshed/reordered. Look the item up by ID again.
-      final updatedIndex =
-          _items.indexWhere((item) => item.id == notificationId);
+      final updatedIndex = _items.indexWhere(
+        (item) => item.id == notificationId,
+      );
       if (updatedIndex == -1) return;
       setState(() {
         _items[updatedIndex] = NotificationItem(
@@ -210,8 +211,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       if (!mounted) return;
       // C5: same guard - find by ID after the await rather than using a
       // potentially stale index.
-      final updatedIndex =
-          _items.indexWhere((n) => n.id == item.id);
+      final updatedIndex = _items.indexWhere((n) => n.id == item.id);
       if (updatedIndex == -1) return;
       setState(() => _items.removeAt(updatedIndex));
       _fetchUnreadCount();
@@ -240,7 +240,6 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -691,7 +690,8 @@ class _NotificationCard extends StatelessWidget {
     final data = item.data;
     if (data == null || data.isEmpty) return null;
     final family = data['family_name']?.toString();
-    final actor = data['actor_name']?.toString() ?? data['username']?.toString();
+    final actor =
+        data['actor_name']?.toString() ?? data['username']?.toString();
     final goal = data['goal_title']?.toString();
     final detail = [
       if (family != null && family.isNotEmpty) 'Family: $family',

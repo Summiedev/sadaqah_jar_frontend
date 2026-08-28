@@ -12,7 +12,16 @@ import '../../../services/backend_api.dart';
 
 enum QuranReadingMode { mushaf, continuous, ayah }
 
-enum QuranDownloadState { idle, downloading, complete, failed }
+enum QuranDownloadState {
+  idle,
+  queued,
+  downloading,
+  waitingForNetwork,
+  paused,
+  complete,
+  failed,
+  cancelled,
+}
 
 class QuranDownloadStatus {
   const QuranDownloadStatus({
@@ -242,6 +251,10 @@ class QuranRepository {
   static const _settingsKey = 'mizan.quran.settings';
   static const _progressKey = 'mizan.quran.progress';
   static const _offlineReadyKey = 'mizan.quran.offline.ready.v3';
+  static const _completedChaptersKey =
+      'mizan.quran.offline.completed_chapters.v3';
+  static const _completedPagesKey = 'mizan.quran.offline.completed_pages.v3';
+  static const _downloadJobKey = 'mizan.quran.offline.job.v3';
   static const _translationIdKey = 'mizan.quran.translation.hilali_khan.id';
   // Bump this whenever the bundled/backend contract changes. Older local
   // content must never be presented as the current Mushaf dataset.
@@ -253,6 +266,83 @@ class QuranRepository {
   Directory? _filesDir;
 
   Stream<QuranDownloadStatus> get downloadStatus => _statusController.stream;
+
+  void emitDownloadStatus(QuranDownloadStatus status) {
+    _statusController.add(status);
+  }
+
+  Future<void> persistDownloadStatus(QuranDownloadStatus status) async {
+    final prefs = await SharedPreferences.getInstance();
+    var localPath = '';
+    try {
+      localPath = (await filesDir).path;
+    } catch (_) {}
+    await prefs.setString(
+      _downloadJobKey,
+      jsonEncode({
+        'download_id': 'quran-dataset-v$_datasetVersion',
+        'content_id': 'full-quran-uthmani-hilali-khan-ibn-kathir-mushaf',
+        'status': status.state.name,
+        'completed': status.completed,
+        'total': status.total,
+        'downloaded_bytes': prefs.getInt('$_downloadJobKey.bytes') ?? 0,
+        'total_bytes': 0,
+        'local_file_path': localPath,
+        'failure_reason':
+            status.state == QuranDownloadState.failed ? status.message : null,
+        'message': status.message,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }),
+    );
+  }
+
+  Future<void> refreshPersistedDownloadStatus() async {
+    emitDownloadStatus(await loadDownloadStatus());
+  }
+
+  Future<QuranDownloadStatus> loadDownloadStatus() async {
+    final ready = await isOfflineReady();
+    if (ready) {
+      return const QuranDownloadStatus(
+        state: QuranDownloadState.complete,
+        completed: _downloadTotal,
+        total: _downloadTotal,
+        message: 'Quran is ready offline',
+      );
+    }
+    final completed = await _downloadedUnitCount();
+    final prefs = await SharedPreferences.getInstance();
+    QuranDownloadState persistedState = QuranDownloadState.idle;
+    String persistedMessage = '';
+    try {
+      final raw = prefs.getString(_downloadJobKey);
+      final job = raw == null ? null : jsonDecode(raw);
+      if (job is Map) {
+        persistedState = QuranDownloadState.values.firstWhere(
+          (state) => state.name == job['status']?.toString(),
+          orElse: () => QuranDownloadState.idle,
+        );
+        persistedMessage = job['message']?.toString() ?? '';
+      }
+    } catch (_) {}
+    if (persistedState == QuranDownloadState.complete) {
+      persistedState = QuranDownloadState.failed;
+    }
+    return QuranDownloadStatus(
+      state:
+          persistedState == QuranDownloadState.idle && completed > 0
+              ? QuranDownloadState.paused
+              : persistedState,
+      completed: completed,
+      total: _downloadTotal,
+      message:
+          persistedMessage.isNotEmpty
+              ? persistedMessage
+              : completed == 0
+              ? 'Quran download is ready to start'
+              : 'Quran download can resume from $completed of $_downloadTotal',
+    );
+  }
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -307,7 +397,8 @@ class QuranRepository {
     final pageDir = Directory(p.join((await filesDir).path, 'pages'));
     for (var page = 1; page <= 604; page++) {
       final exists = ['png', 'jpg', 'jpeg', 'svg'].any(
-        (extension) => File(p.join(pageDir.path, '$page.$extension')).existsSync(),
+        (extension) =>
+            File(p.join(pageDir.path, '$page.$extension')).existsSync(),
       );
       if (!exists) return false;
     }
@@ -317,7 +408,7 @@ class QuranRepository {
   Future<void> ensureOfflineDataset() async {
     await _resetStaleDatasetIfNeeded();
     if (await isOfflineReady()) {
-      _statusController.add(
+      await _publishDownloadStatus(
         const QuranDownloadStatus(
           state: QuranDownloadState.complete,
           completed: _downloadTotal,
@@ -328,7 +419,7 @@ class QuranRepository {
       return;
     }
     var completed = await _downloadedUnitCount();
-    _statusController.add(
+    await _publishDownloadStatus(
       QuranDownloadStatus(
         state: QuranDownloadState.downloading,
         completed: completed,
@@ -337,28 +428,54 @@ class QuranRepository {
       ),
     );
     try {
-      final translationId = await _resolveHilaliKhanTranslationId();
-      for (var chapter = 1; chapter <= 114; chapter++) {
-        await _downloadChapter(chapter, translationId);
+      // Put the actual Mushaf pages first. The reader becomes useful early,
+      // instead of making users wait for all 114 text requests before page 1
+      // is even attempted. Four independent image requests also avoid a
+      // needlessly long serial download while keeping memory bounded.
+      for (var start = 1; start <= 604; start += 4) {
+        final pages = [
+          for (var page = start; page <= 604 && page < start + 4; page++)
+            page,
+        ];
+        final pending = <int>[];
+        for (final page in pages) {
+          if (!await _isPageDownloaded(page)) pending.add(page);
+        }
+        await Future.wait(
+          pending.map((page) async {
+            await _downloadPageImage(page);
+            await _markDownloadUnit(_completedPagesKey, page);
+          }),
+        );
         completed = await _downloadedUnitCount();
-        _statusController.add(
+        await _publishDownloadStatus(
+          QuranDownloadStatus(
+            state: QuranDownloadState.downloading,
+            completed: completed,
+            total: _downloadTotal,
+            message: 'Downloaded Mushaf pages through ${pages.last} of 604',
+          ),
+        );
+      }
+
+      final translationId = await _resolveHilaliKhanTranslationId();
+      final surahMetadata = await BackendApi.instance.getQuranSurahs();
+      for (var chapter = 1; chapter <= 114; chapter++) {
+        if (!await _isChapterDownloaded(chapter)) {
+          await _downloadChapter(
+            chapter,
+            translationId,
+            allSurahs: surahMetadata,
+          );
+          await _markDownloadUnit(_completedChaptersKey, chapter);
+        }
+        completed = await _downloadedUnitCount();
+        await _publishDownloadStatus(
           QuranDownloadStatus(
             state: QuranDownloadState.downloading,
             completed: completed,
             total: _downloadTotal,
             message: 'Downloaded surah $chapter of 114',
-          ),
-        );
-      }
-      for (var page = 1; page <= 604; page++) {
-        await _downloadPageImage(page);
-        completed = await _downloadedUnitCount();
-        _statusController.add(
-          QuranDownloadStatus(
-            state: QuranDownloadState.downloading,
-            completed: completed,
-            total: _downloadTotal,
-            message: 'Downloaded mushaf page $page of 604',
           ),
         );
       }
@@ -369,7 +486,7 @@ class QuranRepository {
         'key': 'dataset_version',
         'value': '$_datasetVersion',
       }, conflictAlgorithm: ConflictAlgorithm.replace);
-      _statusController.add(
+      await _publishDownloadStatus(
         const QuranDownloadStatus(
           state: QuranDownloadState.complete,
           completed: _downloadTotal,
@@ -380,16 +497,28 @@ class QuranRepository {
     } catch (error) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_offlineReadyKey, false);
-      _statusController.add(
+      final waiting = _isNetworkError(error);
+      await _publishDownloadStatus(
         QuranDownloadStatus(
-          state: QuranDownloadState.failed,
+          state:
+              waiting
+                  ? QuranDownloadState.waitingForNetwork
+                  : QuranDownloadState.failed,
           completed: completed,
           total: _downloadTotal,
-          message: _friendlyError(error),
+          message:
+              waiting
+                  ? 'Waiting for internet. Completed Quran content is available.'
+                  : _friendlyError(error),
         ),
       );
       rethrow;
     }
+  }
+
+  Future<void> _publishDownloadStatus(QuranDownloadStatus status) async {
+    await persistDownloadStatus(status);
+    _statusController.add(status);
   }
 
   Future<void> _resetStaleDatasetIfNeeded() async {
@@ -404,6 +533,13 @@ class QuranRepository {
     final storedValue = rows.isEmpty ? null : rows.first['value'];
     final version = int.tryParse(storedValue?.toString() ?? '');
     if (version == _datasetVersion) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_offlineReadyKey);
+    await prefs.remove(_completedChaptersKey);
+    await prefs.remove(_completedPagesKey);
+    await prefs.remove(_downloadJobKey);
+    await prefs.remove('$_downloadJobKey.bytes');
 
     await db.transaction((txn) async {
       await txn.delete('words');
@@ -420,34 +556,129 @@ class QuranRepository {
   }
 
   Future<int> _downloadedUnitCount() async {
-    var count = 0;
+    final prefs = await SharedPreferences.getInstance();
+    final chapters =
+        (prefs.getStringList(_completedChaptersKey) ?? const <String>[])
+            .map(int.tryParse)
+            .whereType<int>()
+            .where((chapter) => chapter >= 1 && chapter <= 114)
+            .toSet();
+    final pages =
+        (prefs.getStringList(_completedPagesKey) ?? const <String>[])
+            .map(int.tryParse)
+            .whereType<int>()
+            .where((page) => page >= 1 && page <= 604)
+            .toSet();
+    // Reconcile only complete surahs. A partial transaction must not make a
+    // surah appear available or advance the logical download count.
     try {
       final db = await database;
-      final chapterRows = await db.rawQuery(
-        'SELECT COUNT(DISTINCT surah_id) FROM verses',
+      final rows = await db.rawQuery(
+        'SELECT s.id FROM surahs s LEFT JOIN verses v ON v.surah_id = s.id '
+        'WHERE s.id BETWEEN 1 AND 114 GROUP BY s.id, s.verses_count '
+        'HAVING COUNT(v.verse_key) = s.verses_count',
       );
-      count += Sqflite.firstIntValue(chapterRows) ?? 0;
+      final actual = rows.map((row) => _asInt(row['id'], fallback: 0)).toSet();
+      chapters.retainAll(actual);
+      chapters.addAll(actual);
     } catch (_) {}
     try {
       final pageDir = Directory(p.join((await filesDir).path, 'pages'));
       if (await pageDir.exists()) {
-        count += pageDir
+        final actual = pageDir
             .listSync()
             .whereType<File>()
-            .where((file) => ['.svg', '.png', '.jpg', '.jpeg'].any(
-              (extension) => file.path.toLowerCase().endsWith(extension),
-            ))
-            .length
-            .clamp(0, 604);
+            .map((file) => int.tryParse(p.basenameWithoutExtension(file.path)))
+            .whereType<int>()
+            .where((page) => page >= 1 && page <= 604)
+            .toSet();
+        pages.retainAll(actual);
+        pages.addAll(actual);
       }
     } catch (_) {}
-    return count.clamp(0, _downloadTotal);
+    return (chapters.length + pages.length).clamp(0, _downloadTotal);
+  }
+
+  Future<void> _markDownloadUnit(String key, int number) async {
+    final prefs = await SharedPreferences.getInstance();
+    final values = {...?prefs.getStringList(key)}..add('$number');
+    final ordered =
+        values.toList()..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
+    await prefs.setStringList(key, ordered);
+  }
+
+  Future<bool> _isChapterDownloaded(int chapter) async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(v.verse_key) AS actual, s.verses_count AS expected '
+      'FROM surahs s LEFT JOIN verses v ON v.surah_id = s.id '
+      'WHERE s.id = ? GROUP BY s.id, s.verses_count',
+      [chapter],
+    );
+    if (rows.isEmpty) return false;
+    return _asInt(rows.first['actual'], fallback: 0) ==
+        _asInt(rows.first['expected'], fallback: -1);
+  }
+
+  Future<bool> _isPageDownloaded(int page) async {
+    final dir = Directory(p.join((await filesDir).path, 'pages'));
+    if (!await dir.exists()) return false;
+    return ['png', 'jpg', 'jpeg', 'svg'].any(
+      (extension) => File(p.join(dir.path, '$page.$extension')).existsSync(),
+    );
   }
 
   Future<List<QuranSurah>> surahs() async {
     final db = await database;
     final rows = await db.query('surahs', orderBy: 'id ASC');
-    return rows.map(QuranSurah.fromMap).toList();
+    if (rows.length == 114) return rows.map(QuranSurah.fromMap).toList();
+    try {
+      final remote = await BackendApi.instance.getQuranSurahs();
+      await _persistSurahMetadata(remote);
+      return remote.map((row) => _surahFromBackend(row)).toList();
+    } catch (_) {
+      return rows.map(QuranSurah.fromMap).toList();
+    }
+  }
+
+  QuranSurah _surahFromBackend(Map<String, dynamic> row) => QuranSurah(
+    id: _asInt(row['id'], fallback: 0),
+    nameArabic: (row['name_ar'] ?? '').toString(),
+    nameTransliteration: (row['name_transliteration'] ?? 'Surah').toString(),
+    nameEnglish: (row['name_en'] ?? '').toString(),
+    versesCount: _asInt(row['ayah_count'], fallback: 0),
+    revelationPlace: (row['revelation_type'] ?? '').toString(),
+    firstPage: _asInt(row['first_page'], fallback: 1),
+    lastPage: _asInt(row['last_page'], fallback: 1),
+    firstJuz: _asInt(row['first_juz'], fallback: 1),
+  );
+
+  Future<void> _persistSurahMetadata(
+    List<Map<String, dynamic>> rows,
+  ) async {
+    if (rows.isEmpty) return;
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final row in rows) {
+        final surah = _surahFromBackend(row);
+        if (surah.id < 1 || surah.id > 114) continue;
+        await txn.insert(
+          'surahs',
+          {
+            'id': surah.id,
+            'name_arabic': surah.nameArabic,
+            'name_transliterated': surah.nameTransliteration,
+            'name_english': surah.nameEnglish,
+            'revelation_place': surah.revelationPlace,
+            'verses_count': surah.versesCount,
+            'first_page': surah.firstPage,
+            'last_page': surah.lastPage,
+            'first_juz': surah.firstJuz,
+          },
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
   }
 
   Future<QuranSurah?> surahById(int id) async {
@@ -458,7 +689,15 @@ class QuranRepository {
       whereArgs: [id],
       limit: 1,
     );
-    return rows.isEmpty ? null : QuranSurah.fromMap(rows.first);
+    if (rows.isNotEmpty) return QuranSurah.fromMap(rows.first);
+    try {
+      final remote = await BackendApi.instance.getQuranSurahs();
+      await _persistSurahMetadata(remote);
+      final match = remote.where((row) => _asInt(row['id'], fallback: 0) == id);
+      return match.isEmpty ? null : _surahFromBackend(match.first);
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<List<QuranVerse>> versesForSurah(int surahId) async {
@@ -469,7 +708,31 @@ class QuranRepository {
       whereArgs: [surahId],
       orderBy: 'ayah ASC',
     );
-    return Future.wait(rows.map(_verseFromRow));
+    if (rows.isNotEmpty) {
+      final surah = await surahById(surahId);
+      if (surah == null || rows.length >= surah.versesCount) {
+        return Future.wait(rows.map(_verseFromRow));
+      }
+      try {
+        final remote = await BackendApi.instance.getQuranSurahAyahs(surahId);
+        await _persistBackendAyahs(remote);
+        return versesForSurah(surahId);
+      } catch (_) {
+        return Future.wait(rows.map(_verseFromRow));
+      }
+    }
+    try {
+      final remote = await BackendApi.instance.getQuranSurahAyahs(surahId);
+      await _persistSurahMetadata(
+        (await BackendApi.instance.getQuranSurahs())
+            .where((row) => _asInt(row['id'], fallback: 0) == surahId)
+            .toList(),
+      );
+      await _persistBackendAyahs(remote);
+      return versesForSurah(surahId);
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<List<QuranVerse>> versesForPage(int page) async {
@@ -480,7 +743,15 @@ class QuranRepository {
       whereArgs: [page],
       orderBy: 'surah_id ASC, ayah ASC',
     );
-    return Future.wait(rows.map(_verseFromRow));
+    if (rows.isNotEmpty) return Future.wait(rows.map(_verseFromRow));
+    try {
+      final remote = await BackendApi.instance.getQuranPage(page);
+      final ayahs = _mapList(remote['ayahs']);
+      await _persistBackendAyahs(ayahs);
+      return versesForPage(page);
+    } catch (_) {
+      return const [];
+    }
   }
 
   Future<QuranVerse> _verseFromRow(Map<String, Object?> row) async {
@@ -582,6 +853,18 @@ class QuranRepository {
         whereArgs: [number],
         orderBy: 'surah_id ASC, ayah ASC',
       );
+      if (rows.isEmpty && (field == 'juz' || field == 'hizb')) {
+        try {
+          final remote =
+              field == 'juz'
+                  ? await BackendApi.instance.getQuranJuzAyahs(number)
+                  : await BackendApi.instance.getQuranHizbAyahs(number);
+          await _persistBackendAyahs(remote);
+          return _rangeItems(field, count, label);
+        } catch (_) {
+          // Keep the item visible as unavailable until connectivity returns.
+        }
+      }
       if (rows.isEmpty) {
         items.add(
           QuranRangeItem(
@@ -620,6 +903,30 @@ class QuranRepository {
       if (file.existsSync()) return file;
     }
     return null;
+  }
+
+  /// Returns a cached Mushaf page, downloading it once when online reading
+  /// needs it. The same file is then reused by offline reading and downloads.
+  Future<File?> pageImage(int page) async {
+    final local = await localPageImage(page);
+    if (local != null) return local;
+    try {
+      final pageData = await BackendApi.instance.getQuranPage(page);
+      final imageUrl = pageData['image_url']?.toString();
+      if (imageUrl == null || imageUrl.isEmpty) return null;
+      final uri = Uri.parse(imageUrl);
+      final response = await http.get(uri).timeout(const Duration(seconds: 20));
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
+      final pagesDir = p.join((await filesDir).path, 'pages');
+      final file = File(p.join(pagesDir, '$page.png'));
+      final partial = File('${file.path}.part');
+      await partial.writeAsBytes(response.bodyBytes, flush: true);
+      if (await file.exists()) await file.delete();
+      await partial.rename(file.path);
+      return file;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Uri> audioUriFor(QuranVerse verse, QuranSettings _) async {
@@ -766,10 +1073,13 @@ class QuranRepository {
     return hilaliKhanTranslationId;
   }
 
-  Future<void> _downloadChapter(int chapter, int _) async {
+  Future<void> _downloadChapter(
+    int chapter,
+    int _, {
+    required List<Map<String, dynamic>> allSurahs,
+  }) async {
     final db = await database;
-    final surahs = await BackendApi.instance.getQuranSurahs();
-    final surahInfo = surahs.firstWhere(
+    final surahInfo = allSurahs.firstWhere(
       (surah) => _asInt(surah['id'], fallback: 0) == chapter,
       orElse:
           () =>
@@ -825,10 +1135,12 @@ class QuranRepository {
     await db.transaction((txn) async {
       for (final ayah in ayahs) {
         final verseKey = (ayah['verse_key'] ?? '').toString();
-        if (verseKey.isEmpty) continue;
         final arabic = Map<String, dynamic>.from(
           (ayah['arabic'] as Map?) ?? {},
         );
+        if (verseKey.isEmpty || (arabic['uthmani'] ?? '').toString().trim().isEmpty) {
+          throw FormatException('Quran ayah response is missing its Uthmani text');
+        }
         final translation = Map<String, dynamic>.from(
           (ayah['translation'] as Map?) ?? {},
         );
@@ -866,9 +1178,7 @@ class QuranRepository {
       );
     }
     final uri = Uri.parse(imageUrl);
-    final response = await http
-        .get(uri)
-        .timeout(const Duration(seconds: 20));
+    final response = await http.get(uri).timeout(const Duration(seconds: 20));
     if (response.statusCode != 200) {
       throw Exception(
         'Could not download mushaf page $page (${response.statusCode})',
@@ -876,8 +1186,21 @@ class QuranRepository {
     }
     final pathExtension = p.extension(uri.path).toLowerCase();
     final extension = pathExtension == '.svg' ? 'svg' : 'png';
-    final file = File(p.join((await filesDir).path, 'pages', '$page.$extension'));
-    await file.writeAsBytes(response.bodyBytes, flush: true);
+    final pagesDir = p.join((await filesDir).path, 'pages');
+    final file = File(p.join(pagesDir, '$page.$extension'));
+    final partial = File('${file.path}.part');
+    // A process kill can happen during the write. A .part file is never
+    // counted as a downloaded page and is safely replaced on retry.
+    if (await partial.exists()) await partial.delete();
+    await partial.writeAsBytes(response.bodyBytes, flush: true);
+    if (await file.exists()) await file.delete();
+    await partial.rename(file.path);
+    final prefs = await SharedPreferences.getInstance();
+    final bytesKey = '$_downloadJobKey.bytes';
+    await prefs.setInt(
+      bytesKey,
+      (prefs.getInt(bytesKey) ?? 0) + response.bodyBytes.length,
+    );
   }
 
   static String _stripHtml(String input) =>
@@ -935,5 +1258,15 @@ class QuranRepository {
       return 'A Quran data field arrived incomplete. The app kept the completed download and can retry safely.';
     }
     return text.replaceFirst('Exception: ', '');
+  }
+
+  static bool _isNetworkError(Object error) {
+    final text = error.toString().toLowerCase();
+    return error is SocketException ||
+        error is http.ClientException ||
+        text.contains('timeout') ||
+        text.contains('socket') ||
+        text.contains('connection') ||
+        text.contains('network');
   }
 }

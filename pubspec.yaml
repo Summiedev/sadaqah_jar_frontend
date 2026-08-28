@@ -56,6 +56,7 @@ dependencies:
   email_validator: ^2.1.17
   home_widget: ^0.9.3
   sqflite: ^2.3.3
+  workmanager: ^0.10.9
   connectivity_plus: ^6.0.5
   path: ^1.9.0
   path_provider: ^2.1.5

@@ -53,7 +53,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       await BackendApi.instance.forgotPassword(email: email);
       if (!mounted) return;
       setState(() {
-        _message = 'If an account exists for that email, reset instructions have been sent.';
+        _message =
+            'If an account exists for that email, reset instructions have been sent.';
         _cooldownSeconds = 30;
       });
       _timer?.cancel();
@@ -72,7 +73,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
+        _errorMessage = error
+            .toString()
+            .replaceFirst('BackendApiException(', '')
+            .replaceFirst(')', '');
       });
     } finally {
       if (mounted) {
@@ -105,14 +109,25 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       foregroundColor: kMuted,
                     ),
                     icon: const Icon(Icons.arrow_back, size: 16),
-                    label: const Text('Back', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    label: const Text(
+                      'Back',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 18),
               const Text(
                 'Forgot password',
-                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: kInk),
+                style: TextStyle(
+                  fontSize: 28,
+                  height: 1.1,
+                  fontWeight: FontWeight.w800,
+                  color: kInk,
+                ),
               ),
               const SizedBox(height: 10),
               const Text(
@@ -130,11 +145,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.mark_email_read_outlined, size: 38, color: kBronze),
+                    const Icon(
+                      Icons.mark_email_read_outlined,
+                      size: 38,
+                      color: kBronze,
+                    ),
                     const SizedBox(height: 14),
                     const Text(
                       'Enter your email address',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kInk),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
@@ -153,7 +176,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: kDangerBorder),
                         ),
-                        child: Text(_errorMessage!, style: const TextStyle(color: kDanger, fontSize: 13)),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: kDanger, fontSize: 13),
+                        ),
                       ),
                       const SizedBox(height: 10),
                     ],
@@ -165,34 +191,72 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: kSuccessBorder),
                         ),
-                        child: Text(_message!, style: const TextStyle(color: kSage, fontSize: 13)),
+                        child: Text(
+                          _message!,
+                          style: const TextStyle(color: kSage, fontSize: 13),
+                        ),
                       ),
                       const SizedBox(height: 10),
                     ],
                     _loading
                         ? SizedBox(
-                            height: 48,
-                            child: DecoratedBox(
-                              decoration: const BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))),
-                              child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Theme.of(context).colorScheme.onPrimary))),
+                          height: 48,
+                          child: DecoratedBox(
+                            decoration: const BoxDecoration(
+                              color: kBronze,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(16),
+                              ),
                             ),
-                          )
-                        : ElevatedButton(
-                            onPressed: _cooldownSeconds > 0 ? null : _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: kBronze,
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              elevation: 0,
+                            child: Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                              ),
                             ),
-                            child: Text(_cooldownSeconds > 0 ? 'Wait $_cooldownSeconds s' : 'Send reset instructions', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                           ),
+                        )
+                        : ElevatedButton(
+                          onPressed: _cooldownSeconds > 0 ? null : _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kBronze,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Text(
+                            _cooldownSeconds > 0
+                                ? 'Wait $_cooldownSeconds s'
+                                : 'Send reset instructions',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                     const SizedBox(height: 10),
                     TextButton(
-                      onPressed: _cooldownSeconds > 0 ? null : () => context.push('/reset-password'),
+                      onPressed:
+                          _cooldownSeconds > 0
+                              ? null
+                              : () => context.push('/reset-password'),
                       style: TextButton.styleFrom(foregroundColor: kMuted),
-                      child: const Text('I already have a reset token', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                      child: const Text(
+                        'I already have a reset token',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -206,7 +270,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 }
 
 class _Field extends StatelessWidget {
-  const _Field({required this.label, required this.hint, this.controller, this.keyboardType});
+  const _Field({
+    required this.label,
+    required this.hint,
+    this.controller,
+    this.keyboardType,
+  });
 
   final String label;
   final String hint;
@@ -218,7 +287,15 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 2, color: kMuted, fontWeight: FontWeight.w700)),
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 10,
+            letterSpacing: 2,
+            color: kMuted,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -228,10 +305,22 @@ class _Field extends StatelessWidget {
             hintStyle: const TextStyle(fontSize: 12, color: kMutedLight),
             filled: true,
             fillColor: kClayPale,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kBronzeLight)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kClay),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kClay),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kBronzeLight),
+            ),
           ),
         ),
       ],

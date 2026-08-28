@@ -10,7 +10,8 @@ class ModeSelectionScreen extends ConsumerStatefulWidget {
   const ModeSelectionScreen({super.key});
 
   @override
-  ConsumerState<ModeSelectionScreen> createState() => _ModeSelectionScreenState();
+  ConsumerState<ModeSelectionScreen> createState() =>
+      _ModeSelectionScreenState();
 }
 
 class _ModeSelectionScreenState extends ConsumerState<ModeSelectionScreen> {
@@ -78,7 +79,13 @@ class _Header extends StatelessWidget {
           children: const [
             Text(
               'M I Z A N',
-              style: TextStyle(fontSize: 10, letterSpacing: 4, fontWeight: FontWeight.w700, fontFamily: 'serif', color: kInk),
+              style: TextStyle(
+                fontSize: 10,
+                letterSpacing: 4,
+                fontWeight: FontWeight.w700,
+                fontFamily: 'serif',
+                color: kInk,
+              ),
             ),
           ],
         ),
@@ -86,13 +93,25 @@ class _Header extends StatelessWidget {
         const Text(
           'How would you like\nto begin?',
           textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, color: kInk, height: 1.25, letterSpacing: -0.4),
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.w800,
+            color: kInk,
+            height: 1.25,
+            letterSpacing: -0.4,
+          ),
         ),
         const SizedBox(height: 12),
-            Text(
-              'Choose what fits today. You can change it later.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, height: 1.55, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.8)),
+        Text(
+          'Choose what fits today. You can change it later.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.55,
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.8),
+          ),
         ),
       ],
     );
@@ -100,7 +119,11 @@ class _Header extends StatelessWidget {
 }
 
 class _ModeCard extends StatelessWidget {
-  const _ModeCard({required this.meta, required this.selected, required this.onTap});
+  const _ModeCard({
+    required this.meta,
+    required this.selected,
+    required this.onTap,
+  });
 
   final ModeMeta meta;
   final bool selected;
@@ -113,12 +136,21 @@ class _ModeCard extends StatelessWidget {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       decoration: BoxDecoration(
-            color: selected ? accent.withValues(alpha: 0.06) : Theme.of(context).colorScheme.surface,
+        color:
+            selected
+                ? accent.withValues(alpha: 0.06)
+                : Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: selected ? accent : kClayLight, width: selected ? 1.8 : 1),
+        border: Border.all(
+          color: selected ? accent : kClayLight,
+          width: selected ? 1.8 : 1,
+        ),
         boxShadow: [
           BoxShadow(
-                color: selected ? accent.withValues(alpha: 0.16) : kLine.withValues(alpha: 0.07),
+            color:
+                selected
+                    ? accent.withValues(alpha: 0.16)
+                    : kLine.withValues(alpha: 0.07),
             blurRadius: selected ? 22 : 10,
             offset: const Offset(0, 8),
           ),
@@ -137,7 +169,7 @@ class _ModeCard extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.12),
+                    color: accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Icon(meta.icon, size: 28, color: accent),
@@ -147,9 +179,23 @@ class _ModeCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(meta.label, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: kInk)),
+                      Text(
+                        meta.label,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: kInk,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text(meta.tagline, style: const TextStyle(fontSize: 12.5, height: 1.45, color: kMuted)),
+                      Text(
+                        meta.tagline,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          height: 1.45,
+                          color: kMuted,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -163,7 +209,14 @@ class _ModeCard extends StatelessWidget {
                     color: selected ? accent : Colors.transparent,
                     border: Border.all(color: accent, width: 1.6),
                   ),
-                  child: selected ? Icon(Icons.check, size: 15, color: Theme.of(context).colorScheme.onPrimary) : null,
+                  child:
+                      selected
+                          ? Icon(
+                            Icons.check,
+                            size: 15,
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          )
+                          : null,
                 ),
               ],
             ),
@@ -189,9 +242,15 @@ class _EnterButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: kInk,
           foregroundColor: kPaper,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
           elevation: 0,
-          textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+          textStyle: const TextStyle(
+            fontSize: 13.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
         ),
         child: const Text('Enter Mizan'),
       ),

@@ -7,10 +7,15 @@ import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
 
 class BookReaderScreen extends StatefulWidget {
-  const BookReaderScreen({super.key, required this.book, this.adminPreview = false});
+  const BookReaderScreen({
+    super.key,
+    required this.book,
+    this.adminPreview = false,
+  });
 
   final BookRead book;
   final bool adminPreview;
@@ -29,7 +34,10 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
   @override
   void initState() {
     super.initState();
-    _future = widget.adminPreview ? BackendApi.instance.getAdminBook(widget.book.id) : BackendApi.instance.getBook(widget.book.id);
+    _future =
+        widget.adminPreview
+            ? BackendApi.instance.getAdminBook(widget.book.id)
+            : BackendApi.instance.getBook(widget.book.id);
     if (!widget.adminPreview) _loadBookmark();
   }
 
@@ -37,21 +45,36 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
     try {
       final rows = await BackendApi.instance.getBookmarks();
       if (!mounted) return;
-      setState(() => _bookmarked = rows.any((row) => (row['book_id'] as num?)?.toInt() == widget.book.id));
+      setState(
+        () =>
+            _bookmarked = rows.any(
+              (row) => (row['book_id'] as num?)?.toInt() == widget.book.id,
+            ),
+      );
     } catch (_) {}
   }
 
   Future<void> _toggleBookmark() async {
     if (_bookmarkBusy || widget.adminPreview) return;
     final previous = _bookmarked;
-    setState(() { _bookmarkBusy = true; _bookmarked = !previous; });
+    setState(() {
+      _bookmarkBusy = true;
+      _bookmarked = !previous;
+    });
     try {
       if (_bookmarked) {
         await BackendApi.instance.bookmarkBook(bookId: widget.book.id);
       } else {
         await BackendApi.instance.unbookmarkBook(bookId: widget.book.id);
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_bookmarked ? 'Book saved' : 'Book removed from saved')));
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _bookmarked ? 'Book saved' : 'Book removed from saved',
+            ),
+          ),
+        );
     } catch (_) {
       if (mounted) setState(() => _bookmarked = previous);
     } finally {
@@ -72,13 +95,25 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.surface,
         surfaceTintColor: Colors.transparent,
-        title: Text(widget.book.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700)),
+        title: Text(
+          widget.book.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontFamily: 'Georgia',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         actions: [
           if (!widget.adminPreview)
             IconButton(
               onPressed: _bookmarkBusy ? null : _toggleBookmark,
               tooltip: _bookmarked ? 'Remove bookmark' : 'Save bookmark',
-              icon: Icon(_bookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded),
+              icon: Icon(
+                _bookmarked
+                    ? Icons.bookmark_rounded
+                    : Icons.bookmark_border_rounded,
+              ),
             ),
         ],
       ),
@@ -86,19 +121,37 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: kBronze));
+            return const Center(
+              child: CircularProgressIndicator(color: kBronze),
+            );
           }
           if (snapshot.hasError) {
-            return _ReaderState(icon: Icons.menu_book_outlined, title: 'This book is not available', body: 'It may have been unpublished or removed.');
+            return _ReaderState(
+              icon: Icons.menu_book_outlined,
+              title: 'This book is not available',
+              body: 'It may have been unpublished or removed.',
+            );
           }
           final book = snapshot.data!;
-          final format = (book.fileFormat ?? widget.book.fileFormat ?? '').toLowerCase();
+          final format =
+              (book.fileFormat ?? widget.book.fileFormat ?? '').toLowerCase();
           if (format == 'pdf' && (book.fileUrl ?? '').isNotEmpty) {
-            unawaited(BackendApi.instance.saveReadingProgress(bookId: book.id, chapterNumber: 1));
-            return _PdfBook(url: BackendApi.instance.absoluteApiUrl(book.fileUrl!), title: book.title);
+            unawaited(
+              BackendApi.instance.saveReadingProgress(
+                bookId: book.id,
+                chapterNumber: 1,
+              ),
+            );
+            return _PdfBook(
+              url: BackendApi.instance.absoluteApiUrl(book.fileUrl!),
+              title: book.title,
+            );
           }
           if (format == 'epub' && (book.fileUrl ?? '').isNotEmpty) {
-            return _EpubBook(url: BackendApi.instance.absoluteApiUrl(book.fileUrl!), controllerBuilder: _setEpubController);
+            return _EpubBook(
+              url: BackendApi.instance.absoluteApiUrl(book.fileUrl!),
+              controllerBuilder: _setEpubController,
+            );
           }
           if (format == 'images' || book.pages.isNotEmpty) {
             return _ImageBook(
@@ -110,7 +163,11 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
           if (book.chapters.isNotEmpty) {
             return _ChapterBook(chapters: book.chapters, bookId: book.id);
           }
-          return const _ReaderState(icon: Icons.hourglass_empty_rounded, title: 'Reading content is not ready yet', body: 'Please check back after this book has finished processing.');
+          return const _ReaderState(
+            icon: Icons.hourglass_empty_rounded,
+            title: 'Reading content is not ready yet',
+            body: 'Please check back after this book has finished processing.',
+          );
         },
       ),
     );
@@ -135,9 +192,12 @@ class _PdfBook extends StatelessWidget {
       url,
       canShowScrollHead: true,
       canShowScrollStatus: true,
-      onDocumentLoadFailed: (_) => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open this PDF. Please try again.')),
-      ),
+      onDocumentLoadFailed:
+          (_) => ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open this PDF. Please try again.'),
+            ),
+          ),
     );
   }
 }
@@ -178,7 +238,11 @@ class _EpubBookState extends State<_EpubBook> {
           return const Center(child: CircularProgressIndicator(color: kBronze));
         }
         if (snapshot.hasError) {
-          return const _ReaderState(icon: Icons.error_outline_rounded, title: 'Could not open EPUB', body: 'Try again in a moment.');
+          return const _ReaderState(
+            icon: Icons.error_outline_rounded,
+            title: 'Could not open EPUB',
+            body: 'Try again in a moment.',
+          );
         }
         return EpubView(controller: snapshot.data!);
       },
@@ -187,7 +251,11 @@ class _EpubBookState extends State<_EpubBook> {
 }
 
 class _ImageBook extends StatelessWidget {
-  const _ImageBook({required this.pages, required this.index, required this.onChanged});
+  const _ImageBook({
+    required this.pages,
+    required this.index,
+    required this.onChanged,
+  });
 
   final List<BookPageRead> pages;
   final int index;
@@ -196,15 +264,29 @@ class _ImageBook extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (pages.isEmpty) {
-      return const _ReaderState(icon: Icons.image_not_supported_outlined, title: 'No pages uploaded', body: 'This image-based book has no readable pages yet.');
+      return const _ReaderState(
+        icon: Icons.image_not_supported_outlined,
+        title: 'No pages uploaded',
+        body: 'This image-based book has no readable pages yet.',
+      );
     }
     return Column(
       children: [
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-          decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, border: Border(bottom: BorderSide(color: kLine))),
-          child: Text('Page ${index + 1} of ${pages.length}', textAlign: TextAlign.center, style: const TextStyle(color: kMuted, fontWeight: FontWeight.w700)),
+          decoration: BoxDecoration(
+            color: context.colors.surface,
+            border: Border(bottom: BorderSide(color: context.colors.border)),
+          ),
+          child: Text(
+            'Page ${index + 1} of ${pages.length}',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
         Expanded(
           child: PageView.builder(
@@ -219,8 +301,21 @@ class _ImageBook extends StatelessWidget {
                   child: Image.network(
                     page.imageUrl,
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const _ReaderState(icon: Icons.broken_image_outlined, title: 'Page image unavailable', body: 'This page could not be loaded.'),
-                    loadingBuilder: (context, child, event) => event == null ? child : const Center(child: CircularProgressIndicator(color: kBronze)),
+                    errorBuilder:
+                        (_, __, ___) => const _ReaderState(
+                          icon: Icons.broken_image_outlined,
+                          title: 'Page image unavailable',
+                          body: 'This page could not be loaded.',
+                        ),
+                    loadingBuilder:
+                        (context, child, event) =>
+                            event == null
+                                ? child
+                                : const Center(
+                                  child: CircularProgressIndicator(
+                                    color: kBronze,
+                                  ),
+                                ),
                   ),
                 ),
               );
@@ -258,13 +353,37 @@ class _ChapterBookState extends State<_ChapterBook> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(chapter.title, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 26, height: 1.3, fontWeight: FontWeight.w700)),
+                Text(
+                  chapter.title,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontFamily: 'Georgia',
+                    fontSize: 26,
+                    height: 1.3,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Chapter ${chapter.chapterNumber}', style: const TextStyle(color: kMuted, fontSize: 12.5, fontStyle: FontStyle.italic)),
+                Text(
+                  'Chapter ${chapter.chapterNumber}',
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 12.5,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
                 const SizedBox(height: 24),
-                const Divider(color: kLine),
+                Divider(color: context.colors.divider),
                 const SizedBox(height: 20),
-                Text(chapter.content ?? '', style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 19, height: 1.9)),
+                Text(
+                  chapter.content ?? '',
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontFamily: 'Georgia',
+                    fontSize: 19,
+                    height: 1.9,
+                  ),
+                ),
               ],
             ),
           ),
@@ -273,12 +392,52 @@ class _ChapterBookState extends State<_ChapterBook> {
           top: false,
           child: Container(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-            decoration: BoxDecoration(color: Theme.of(context).colorScheme.surface, border: Border(top: BorderSide(color: kLine))),
+            decoration: BoxDecoration(
+              color: context.colors.surface,
+              border: Border(top: BorderSide(color: context.colors.border)),
+            ),
             child: Row(
               children: [
-                Expanded(child: OutlinedButton.icon(onPressed: isFirst ? null : () { setState(() => _selectedIndex--); BackendApi.instance.saveReadingProgress(bookId: widget.bookId, chapterNumber: widget.chapters[_selectedIndex].chapterNumber); }, icon: const Icon(Icons.arrow_back_rounded, size: 18), label: const Text('Previous'))),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed:
+                        isFirst
+                            ? null
+                            : () {
+                              setState(() => _selectedIndex--);
+                              BackendApi.instance.saveReadingProgress(
+                                bookId: widget.bookId,
+                                chapterNumber:
+                                    widget
+                                        .chapters[_selectedIndex]
+                                        .chapterNumber,
+                              );
+                            },
+                    icon: const Icon(Icons.arrow_back_rounded, size: 18),
+                    label: const Text('Previous'),
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: FilledButton.icon(onPressed: isLast ? null : () { setState(() => _selectedIndex++); BackendApi.instance.saveReadingProgress(bookId: widget.bookId, chapterNumber: widget.chapters[_selectedIndex].chapterNumber); }, icon: const Icon(Icons.arrow_forward_rounded, size: 18), label: const Text('Next'), style: FilledButton.styleFrom(backgroundColor: kBronze))),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed:
+                        isLast
+                            ? null
+                            : () {
+                              setState(() => _selectedIndex++);
+                              BackendApi.instance.saveReadingProgress(
+                                bookId: widget.bookId,
+                                chapterNumber:
+                                    widget
+                                        .chapters[_selectedIndex]
+                                        .chapterNumber,
+                              );
+                            },
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    label: const Text('Next'),
+                    style: FilledButton.styleFrom(backgroundColor: kBronze),
+                  ),
+                ),
               ],
             ),
           ),
@@ -289,7 +448,11 @@ class _ChapterBookState extends State<_ChapterBook> {
 }
 
 class _ReaderState extends StatelessWidget {
-  const _ReaderState({required this.icon, required this.title, required this.body});
+  const _ReaderState({
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
 
   final IconData icon;
   final String title;
@@ -305,9 +468,25 @@ class _ReaderState extends StatelessWidget {
           children: [
             Icon(icon, color: kBronze, size: 48),
             const SizedBox(height: 14),
-            Text(title, textAlign: TextAlign.center, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 18, fontWeight: FontWeight.w700)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontFamily: 'Georgia',
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
             const SizedBox(height: 8),
-            Text(body, textAlign: TextAlign.center, style: const TextStyle(color: kMuted, height: 1.45)),
+            Text(
+              body,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                height: 1.45,
+              ),
+            ),
           ],
         ),
       ),

@@ -16,14 +16,17 @@ class LocationService {
     } else if (permission == LocationPermission.deniedForever) {
       await Geolocator.openAppSettings();
     }
-    return permission == LocationPermission.always || permission == LocationPermission.whileInUse;
+    return permission == LocationPermission.always ||
+        permission == LocationPermission.whileInUse;
   }
 
   Future<Position?> getCurrentPosition() async {
     try {
       final granted = await requestPermission();
       if (!granted) return null;
-      final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+      final pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
       await _storePosition(pos.latitude, pos.longitude);
       return pos;
     } catch (_) {

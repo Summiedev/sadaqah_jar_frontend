@@ -63,20 +63,37 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
             children: [
               Row(
                 children: [
-                  Expanded(child: _MetricCard(title: 'New users', value: data.dailyUsers.toString())),
+                  Expanded(
+                    child: _MetricCard(
+                      title: 'New users',
+                      value: data.dailyUsers.toString(),
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  Expanded(child: _MetricCard(title: 'Stars today', value: data.starsToday.toString())),
+                  Expanded(
+                    child: _MetricCard(
+                      title: 'Stars today',
+                      value: data.starsToday.toString(),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
-              const Text('Top acts', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const Text(
+                'Top acts',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 12),
               SizedBox(
                 height: 220,
                 child: BarChart(
                   BarChartData(
                     alignment: BarChartAlignment.spaceAround,
-                    maxY: (data.topActs.map((e) => e.count).fold<int>(0, (a, b) => a > b ? a : b)).toDouble() + 1,
+                    maxY:
+                        (data.topActs
+                            .map((e) => e.count)
+                            .fold<int>(0, (a, b) => a > b ? a : b)).toDouble() +
+                        1,
                     barTouchData: BarTouchData(enabled: false),
                     titlesData: const FlTitlesData(show: false),
                     borderData: FlBorderData(show: false),
@@ -99,7 +116,10 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              const Text('Donation intents', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const Text(
+                'Donation intents',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
               const SizedBox(height: 8),
               if (data.donationIntents.isEmpty)
                 const Text('No donation intent data.')
@@ -139,7 +159,10 @@ class _MetricCard extends StatelessWidget {
         children: [
           Text(title, style: const TextStyle(color: kMuted)),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+          ),
         ],
       ),
     );

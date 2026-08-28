@@ -36,6 +36,14 @@ class LocalReminderService {
         await prefs.setString('pending_notification_payload', payload);
       },
     );
+    final launchDetails = await _local.getNotificationAppLaunchDetails();
+    final launchPayload = launchDetails?.notificationResponse?.payload;
+    if (launchDetails?.didNotificationLaunchApp == true &&
+        launchPayload != null &&
+        launchPayload.isNotEmpty) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('pending_notification_payload', launchPayload);
+    }
     await _local
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin

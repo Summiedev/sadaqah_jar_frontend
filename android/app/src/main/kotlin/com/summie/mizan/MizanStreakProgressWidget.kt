@@ -1,4 +1,4 @@
-package com.example.sadaqah_jar
+package com.summie.mizan
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider

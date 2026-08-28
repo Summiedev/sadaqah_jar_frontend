@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
@@ -7,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../services/backend_api.dart';
+import '../../../services/quran_download_service.dart';
 import 'quran_data.dart';
 
 class QuranTab extends StatefulWidget {
@@ -30,6 +32,8 @@ class _QuranTabState extends State<QuranTab>
   bool _offlineReady = false;
   bool _downloadStarted = false;
   bool _openedInitialSurah = false;
+  StreamSubscription<QuranDownloadStatus>? _downloadSubscription;
+  Timer? _downloadPoller;
   String? _loadError;
   late Future<List<QuranSurah>> _surahsFuture;
 
@@ -39,22 +43,30 @@ class _QuranTabState extends State<QuranTab>
     _controller = TabController(length: 4, vsync: this);
     _surahsFuture = _repo.surahs();
     _restore();
-    _repo.downloadStatus.listen((status) {
+    _downloadSubscription = _repo.downloadStatus.listen((status) {
       if (mounted && status.state == QuranDownloadState.complete) {
         setState(() {
           _offlineReady = true;
           _downloadStarted = false;
           _surahsFuture = _repo.surahs();
         });
-      } else if (mounted && status.state == QuranDownloadState.failed) {
+      } else if (mounted &&
+          status.state != QuranDownloadState.downloading &&
+          status.state != QuranDownloadState.queued) {
         setState(() => _downloadStarted = false);
       }
+    });
+    _downloadPoller = Timer.periodic(const Duration(seconds: 1), (_) async {
+      if (!_downloadStarted) return;
+      await _repo.refreshPersistedDownloadStatus();
     });
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _downloadSubscription?.cancel();
+    _downloadPoller?.cancel();
     super.dispose();
   }
 
@@ -62,13 +74,17 @@ class _QuranTabState extends State<QuranTab>
     try {
       final progress = await _repo.loadProgress();
       final ready = await _repo.isOfflineReady();
+      final downloadStatus = await _repo.loadDownloadStatus();
       if (!mounted) return;
+      _repo.emitDownloadStatus(downloadStatus);
       setState(() {
         _progress = progress;
         _offlineReady = ready;
+        _downloadStarted =
+            downloadStatus.state == QuranDownloadState.queued ||
+            downloadStatus.state == QuranDownloadState.downloading;
       });
       _openInitialSurahIfNeeded();
-      if (!ready) _startDownload();
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -90,9 +106,10 @@ class _QuranTabState extends State<QuranTab>
 
   Future<void> _startDownload() async {
     if (_downloadStarted) return;
-    _downloadStarted = true;
+    setState(() => _downloadStarted = true);
     try {
-      await _repo.ensureOfflineDataset();
+      await QuranDownloadService.instance.enqueue();
+      await _repo.refreshPersistedDownloadStatus();
     } catch (error) {
       _downloadStarted = false;
       if (!mounted) return;
@@ -188,6 +205,7 @@ class _QuranTabState extends State<QuranTab>
                   child: _DownloadProgressCard(
                     offlineReady: _offlineReady,
                     onDownload: _startDownload,
+                    onCancel: QuranDownloadService.instance.cancel,
                   ),
                 ),
               ],
@@ -284,10 +302,12 @@ class _DownloadProgressCard extends StatelessWidget {
   const _DownloadProgressCard({
     required this.offlineReady,
     required this.onDownload,
+    required this.onCancel,
   });
 
   final bool offlineReady;
   final VoidCallback onDownload;
+  final Future<void> Function() onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -297,12 +317,18 @@ class _DownloadProgressCard extends StatelessWidget {
       builder: (context, snapshot) {
         final status = snapshot.data;
         final downloading = status?.state == QuranDownloadState.downloading;
+        final queued = status?.state == QuranDownloadState.queued;
+        final waiting = status?.state == QuranDownloadState.waitingForNetwork;
+        final active = downloading || queued || waiting;
         final failed = status?.state == QuranDownloadState.failed;
+        final paused = status?.state == QuranDownloadState.paused;
+        final cancelled = status?.state == QuranDownloadState.cancelled;
+        final resumable = failed || paused || cancelled;
         return Material(
           color: Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           child: InkWell(
-            onTap: offlineReady || downloading ? null : onDownload,
+            onTap: offlineReady || active ? null : onDownload,
             borderRadius: BorderRadius.circular(16),
             child: Container(
               constraints: const BoxConstraints(minHeight: 92),
@@ -312,7 +338,7 @@ class _DownloadProgressCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color:
-                      failed
+                      resumable
                           ? tokens.warning.withValues(alpha: 0.45)
                           : tokens.borderSubtle,
                 ),
@@ -320,14 +346,29 @@ class _DownloadProgressCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    offlineReady
-                        ? Icons.offline_pin_rounded
-                        : failed
-                        ? Icons.cloud_off_rounded
-                        : Icons.cloud_download_outlined,
-                    color: failed ? tokens.warning : tokens.primary,
-                    size: 19,
+                  Row(
+                    children: [
+                      Icon(
+                        offlineReady
+                            ? Icons.offline_pin_rounded
+                            : resumable
+                            ? Icons.cloud_off_rounded
+                            : Icons.cloud_download_outlined,
+                        color: resumable ? tokens.warning : tokens.primary,
+                        size: 19,
+                      ),
+                      const Spacer(),
+                      if (active)
+                        InkResponse(
+                          onTap: onCancel,
+                          radius: 18,
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: tokens.textSecondary,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 5),
                   Text(
@@ -335,6 +376,14 @@ class _DownloadProgressCard extends StatelessWidget {
                         ? 'Offline ready'
                         : failed
                         ? 'Retry download'
+                        : paused
+                        ? 'Resume download'
+                        : cancelled
+                        ? 'Download cancelled'
+                        : queued
+                        ? 'Queued'
+                        : waiting
+                        ? 'Waiting for internet'
                         : downloading
                         ? 'Downloading'
                         : 'Download Quran',
@@ -347,20 +396,25 @@ class _DownloadProgressCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 5),
-                  if (downloading || failed) ...[
+                  if (active || resumable) ...[
                     LinearProgressIndicator(
                       minHeight: 4,
                       value: status!.progress.clamp(0.0, 1.0),
-                      color: failed ? tokens.warning : tokens.primary,
+                      color: resumable ? tokens.warning : tokens.primary,
                       backgroundColor: tokens.surfaceContainerHigh,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      failed ? 'Tap to resume' : '${status.percent}% complete',
+                      waiting
+                          ? 'Will resume when online'
+                          : resumable
+                          ? 'Tap to resume'
+                          : '${status.percent}% complete',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: failed ? tokens.warning : tokens.textSecondary,
+                        color:
+                            resumable ? tokens.warning : tokens.textSecondary,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -468,24 +522,26 @@ class _QuranSegments extends StatelessWidget {
   final TabController controller;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    return Container(
     height: 46,
     margin: const EdgeInsets.only(bottom: 10),
     decoration: BoxDecoration(
-      color: kSoftBronze,
+      color: tokens.primaryContainer,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: kLine),
+      border: Border.all(color: tokens.border),
     ),
     child: TabBar(
       controller: controller,
       dividerColor: Colors.transparent,
       indicatorSize: TabBarIndicatorSize.tab,
       indicator: BoxDecoration(
-        color: kPaper,
+        color: context.colors.surfaceElevated,
         borderRadius: BorderRadius.circular(12),
       ),
-      labelColor: kInk,
-      unselectedLabelColor: kMuted,
+      labelColor: tokens.textPrimary,
+      unselectedLabelColor: tokens.textSecondary,
       labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
       tabs: const [
         Tab(text: 'Surah'),
@@ -494,7 +550,8 @@ class _QuranSegments extends StatelessWidget {
         Tab(text: 'Page'),
       ],
     ),
-  );
+    );
+  }
 }
 
 class _SurahList extends StatelessWidget {
@@ -566,16 +623,19 @@ class _UnavailableList extends StatelessWidget {
   const _UnavailableList();
 
   @override
-  Widget build(BuildContext context) => const Center(
-    child: Padding(
-      padding: EdgeInsets.all(22),
-      child: Text(
-        'Quran content is not available yet. Start the offline download first.',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: kMuted, height: 1.5),
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Text(
+          'Quran content is not available yet. Start the offline download first.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: tokens.textSecondary, height: 1.5),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _BrowseTile extends StatelessWidget {
@@ -597,8 +657,10 @@ class _BrowseTile extends StatelessWidget {
   final IconData? icon;
 
   @override
-  Widget build(BuildContext context) => Material(
-    color: kPaper,
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    return Material(
+    color: tokens.surfaceElevated,
     borderRadius: BorderRadius.circular(18),
     child: InkWell(
       onTap: onTap,
@@ -611,21 +673,21 @@ class _BrowseTile extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: kSoftBronze,
+                color: tokens.primaryContainer,
                 shape: BoxShape.circle,
-                border: Border.all(color: kLine),
+                border: Border.all(color: tokens.border),
               ),
               child: Center(
                 child:
                     icon == null
                         ? Text(
                           '$number',
-                          style: const TextStyle(
-                            color: kBronze,
+                          style: TextStyle(
+                            color: tokens.primary,
                             fontWeight: FontWeight.w900,
                           ),
                         )
-                        : Icon(icon, color: kBronze, size: 20),
+                        : Icon(icon, color: tokens.primary, size: 20),
               ),
             ),
             const SizedBox(width: 12),
@@ -637,8 +699,8 @@ class _BrowseTile extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: kInk,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
                       fontFamily: 'Georgia',
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -649,15 +711,15 @@ class _BrowseTile extends StatelessWidget {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: kMuted, fontSize: 12.5),
+                    style: TextStyle(color: tokens.textSecondary, fontSize: 12.5),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     meta,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: kBronze,
+                    style: TextStyle(
+                      color: tokens.primary,
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                     ),
@@ -672,8 +734,8 @@ class _BrowseTile extends StatelessWidget {
                 arabic,
                 textDirection: TextDirection.rtl,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: kInk,
+                style: TextStyle(
+                  color: tokens.textPrimary,
                   fontSize: 21,
                   fontWeight: FontWeight.w700,
                 ),
@@ -683,7 +745,8 @@ class _BrowseTile extends StatelessWidget {
         ),
       ),
     ),
-  );
+    );
+  }
 }
 
 class QuranReaderOverlay extends StatefulWidget {
@@ -708,10 +771,12 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
   bool _translationRevealed = false;
   List<QuranVerse> _currentVerses = const [];
   bool _continuousPlayback = false;
+  late final Future<(QuranSurah?, List<QuranVerse>)> _readerFuture;
 
   @override
   void initState() {
     super.initState();
+    _readerFuture = _readerData();
     _repo.loadSettings().then((settings) {
       if (mounted) setState(() => _settings = settings);
     });
@@ -728,7 +793,7 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
   Widget build(
     BuildContext context,
   ) => FutureBuilder<(QuranSurah?, List<QuranVerse>)>(
-    future: _readerData(),
+    future: _readerFuture,
     builder: (context, snapshot) {
       final tokens = context.colors;
       final surah = snapshot.data?.$1;
@@ -924,7 +989,7 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: kPaper,
+      backgroundColor: context.colors.surfaceElevated,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -937,16 +1002,19 @@ class _UnavailableReader extends StatelessWidget {
   const _UnavailableReader();
 
   @override
-  Widget build(BuildContext context) => const Center(
-    child: Padding(
-      padding: EdgeInsets.all(24),
-      child: Text(
-        'This surah has not been downloaded yet. The app will not substitute another surah here.',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: kMuted, height: 1.5),
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(
+          'This surah has not been downloaded yet. The app will not substitute another surah here.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: tokens.textSecondary, height: 1.5),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _ReaderTopBar extends StatelessWidget {
@@ -1197,7 +1265,7 @@ class _VerseCardState extends State<_VerseCard> {
   }
 }
 
-class _MushafPageMode extends StatelessWidget {
+class _MushafPageMode extends StatefulWidget {
   const _MushafPageMode({
     required this.page,
     required this.settings,
@@ -1214,90 +1282,131 @@ class _MushafPageMode extends StatelessWidget {
   final ValueChanged<int> onPageChanged;
 
   @override
+  State<_MushafPageMode> createState() => _MushafPageModeState();
+}
+
+class _MushafPageModeState extends State<_MushafPageMode> {
+  late Future<(File?, List<QuranVerse>)> _pageFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageFuture = _pageData(widget.page);
+  }
+
+  @override
+  void didUpdateWidget(covariant _MushafPageMode oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.page != widget.page) {
+      _pageFuture = _pageData(widget.page);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) =>
       FutureBuilder<(File?, List<QuranVerse>)>(
-        future: _pageData(),
+        future: _pageFuture,
         builder: (context, snapshot) {
           final file = snapshot.data?.$1;
           final verses = snapshot.data?.$2 ?? const <QuranVerse>[];
           return GestureDetector(
             onHorizontalDragEnd: (details) {
               final velocity = details.primaryVelocity ?? 0;
-              if (velocity < -120 && page < 604) onPageChanged(page + 1);
-              if (velocity > 120 && page > 1) onPageChanged(page - 1);
+              if (velocity < -120 && widget.page < 604) {
+                widget.onPageChanged(widget.page + 1);
+              }
+              if (velocity > 120 && widget.page > 1) {
+                widget.onPageChanged(widget.page - 1);
+              }
             },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 112),
+              padding: EdgeInsets.zero,
               children: [
-                Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    decoration: BoxDecoration(
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final basePageHeight = constraints.maxWidth * 1.55;
+                    // The source image remains the real 604-page Mushaf page.
+                    // Arabic-size preference controls its readable scale
+                    // without inventing new page breaks or reflowing verses.
+                    final pageScale = (widget.settings.arabicSize /
+                            QuranSettings.defaults.arabicSize)
+                        .clamp(0.86, 1.34);
+                    final pageWidth = constraints.maxWidth * pageScale;
+                    final pageHeight = basePageHeight * pageScale;
+                    return Container(
+                      width: constraints.maxWidth,
+                      height: basePageHeight,
                       color: context.colors.surfaceElevated,
-                      border: Border.symmetric(horizontal: BorderSide(color: context.colors.borderSubtle)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.06),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child:
+                      child:
                           file == null
-                              ? const Center(
+                              ? Center(
                                 child: Text(
                                   'Mushaf page image not downloaded yet.',
                                   textAlign: TextAlign.center,
-                                  style: TextStyle(color: kMuted),
+                                  style: TextStyle(
+                                    color: context.colors.textSecondary,
+                                  ),
                                 ),
                               )
                               : InteractiveViewer(
-                                minScale: 1,
-                                maxScale: 2.6,
-                                boundaryMargin: const EdgeInsets.symmetric(
-                                  vertical: 24,
-                                  horizontal: 12,
-                                ),
+                                minScale: 0.86,
+                                maxScale: 3,
+                                boundaryMargin: const EdgeInsets.all(24),
                                 panEnabled: true,
                                 scaleEnabled: true,
-                                child: file.path.toLowerCase().endsWith('.svg')
-                                    ? SvgPicture.file(file, fit: BoxFit.contain)
-                                    : Image.file(file, fit: BoxFit.contain),
+                                constrained: false,
+                                child: SizedBox(
+                                  width: pageWidth,
+                                  height: pageHeight,
+                                  child:
+                                      file.path.toLowerCase().endsWith('.svg')
+                                          ? SvgPicture.file(
+                                            file,
+                                            fit: BoxFit.fill,
+                                          )
+                                          : Image.file(file, fit: BoxFit.fill),
+                                ),
                               ),
-                  ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 12),
                 Center(
                   child: TextButton.icon(
-                    onPressed: onTapTranslation,
+                    onPressed: widget.onTapTranslation,
                     icon: Icon(
-                      translationRevealed
+                      widget.translationRevealed
                           ? Icons.visibility_off_outlined
                           : Icons.translate_rounded,
                       size: 18,
                     ),
                     label: Text(
-                      translationRevealed
+                      widget.translationRevealed
                           ? 'Hide translation'
                           : 'Reveal translation',
                     ),
-                    style: TextButton.styleFrom(foregroundColor: kBronze),
+                    style: TextButton.styleFrom(
+                      foregroundColor: context.colors.primary,
+                    ),
                   ),
                 ),
-                if (translationRevealed)
+                if (widget.translationRevealed)
                   Container(
                     margin: const EdgeInsets.only(top: 4),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: kPaper,
+                      color: context.colors.surfaceElevated,
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: kLine),
+                      border: Border.all(color: context.colors.border),
                     ),
                     child: Text(
                       verses
                           .map((verse) => '${verse.key} ${verse.translation}')
                           .join('\n\n'),
-                      style: const TextStyle(color: kMuted, height: 1.55),
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        height: 1.55,
+                      ),
                     ),
                   ),
               ],
@@ -1306,8 +1415,8 @@ class _MushafPageMode extends StatelessWidget {
         },
       );
 
-  Future<(File?, List<QuranVerse>)> _pageData() async => (
-    await QuranRepository.instance.localPageImage(page),
+  Future<(File?, List<QuranVerse>)> _pageData(int page) async => (
+    await QuranRepository.instance.pageImage(page),
     await QuranRepository.instance.versesForPage(page),
   );
 }
@@ -1334,9 +1443,9 @@ class _MiniPlayer extends StatelessWidget {
       16,
       14 + MediaQuery.paddingOf(context).bottom,
     ),
-    decoration: const BoxDecoration(
-      color: kSurface,
-      border: Border(top: BorderSide(color: kLine)),
+    decoration: BoxDecoration(
+      color: context.colors.surfaceContainer,
+      border: Border(top: BorderSide(color: context.colors.divider)),
     ),
     child: Row(
       children: [
@@ -1360,8 +1469,8 @@ class _MiniPlayer extends StatelessWidget {
                     : 'Now reciting $playingVerse',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: kInk,
+                style: TextStyle(
+                  color: tokens.textPrimary,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -1370,14 +1479,17 @@ class _MiniPlayer extends StatelessWidget {
                 reciter,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: kMuted, fontSize: 12),
+                style: TextStyle(color: tokens.textSecondary, fontSize: 12),
               ),
             ],
           ),
         ),
         IconButton(
           onPressed: onDownload,
-          icon: const Icon(Icons.download_for_offline_outlined, color: kBronze),
+          icon: Icon(
+            Icons.download_for_offline_outlined,
+            color: tokens.primary,
+          ),
         ),
       ],
     ),
@@ -1396,16 +1508,18 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
   late QuranSettings _settings = widget.settings;
 
   @override
-  Widget build(BuildContext context) => SafeArea(
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    return SafeArea(
     child: SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Quran settings',
             style: TextStyle(
-              color: kInk,
+              color: tokens.textPrimary,
               fontFamily: 'Georgia',
               fontSize: 24,
               fontWeight: FontWeight.w800,
@@ -1460,15 +1574,18 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
           ),
           const SizedBox(height: 14),
           Text(
-            'Arabic text size: ${_settings.arabicSize.round()}',
-            style: const TextStyle(color: kMuted, fontWeight: FontWeight.w700),
+            'Mushaf text size: ${_settings.arabicSize.round()}',
+            style: TextStyle(
+              color: context.colors.textSecondary,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           Slider(
             value: _settings.arabicSize,
             min: 24,
             max: 40,
             divisions: 8,
-            activeColor: kBronze,
+            activeColor: tokens.primary,
             onChanged:
                 (value) => setState(
                   () => _settings = _settings.copyWith(arabicSize: value),
@@ -1510,7 +1627,8 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
         ],
       ),
     ),
-  );
+    );
+  }
 }
 
 class _SettingSwitch extends StatelessWidget {
@@ -1525,7 +1643,10 @@ class _SettingSwitch extends StatelessWidget {
       Expanded(
         child: Text(
           label,
-          style: const TextStyle(color: kInk, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: context.colors.textPrimary,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
       Switch(value: value, onChanged: onChanged),
@@ -1647,7 +1768,7 @@ class _CircleButton extends StatelessWidget {
   Widget build(BuildContext context) => Tooltip(
     message: tooltip,
     child: Material(
-      color: kSoftBronze,
+      color: context.colors.primaryContainer,
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -1655,7 +1776,7 @@ class _CircleButton extends StatelessWidget {
         child: SizedBox(
           width: 42,
           height: 42,
-          child: Icon(icon, color: kBronze, size: 22),
+          child: Icon(icon, color: context.colors.primary, size: 22),
         ),
       ),
     ),

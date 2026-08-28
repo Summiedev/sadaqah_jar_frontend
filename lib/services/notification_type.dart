@@ -148,7 +148,8 @@ const Map<NotificationType, NotificationStyle> kNotificationStyles = {
 };
 
 NotificationStyle notificationStyle(NotificationType type) {
-  return kNotificationStyles[type] ?? kNotificationStyles[NotificationType.general]!;
+  return kNotificationStyles[type] ??
+      kNotificationStyles[NotificationType.general]!;
 }
 
 AndroidNotificationDetails androidNotificationDetails(NotificationType type) {

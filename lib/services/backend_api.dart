@@ -517,6 +517,7 @@ class BackendApi {
     required String username,
     required String email,
     required String password,
+    String? familyCode,
   }) async {
     final response = await _post(
       '/auth/register',
@@ -524,6 +525,8 @@ class BackendApi {
         'username': username,
         'email': email,
         'password': password,
+        if (familyCode != null && familyCode.trim().isNotEmpty)
+          'family_code': familyCode.trim().toUpperCase(),
       }),
     );
     final decoded = expectMap(_handleJson(response), context: 'auth');
@@ -1190,6 +1193,12 @@ class BackendApi {
     );
   }
 
+  Future<int> sendTestPush() async {
+    final response = await _post('/notifications/test-push', auth: true);
+    final decoded = expectMap(_handleJson(response), context: 'test push');
+    return (decoded['delivered'] as num?)?.toInt() ?? 0;
+  }
+
   Future<Map<String, dynamic>> getNotificationPreferences() async {
     final response = await _get('/notifications/preferences', auth: true);
     final decoded = _handleJson(response);
@@ -1428,9 +1437,7 @@ class BackendApi {
       },
       auth: false,
     );
-    return CharityPage.fromJson(
-      expectMap(_handleJson(response), context: 'charities'),
-    );
+    return CharityPage.fromJson(_handleJson(response));
   }
 
   Future<AdminEvidencePage> getAdminEvidence({
@@ -1839,6 +1846,22 @@ class BackendApi {
     ).map((item) => expectMap(item, context: 'quran ayah')).toList();
   }
 
+  Future<List<Map<String, dynamic>>> getQuranJuzAyahs(int juzNumber) async {
+    final response = await _get('/quran/juz/$juzNumber', auth: true);
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'quran juz ayahs')
+        .map((item) => expectMap(item, context: 'quran juz ayah'))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getQuranHizbAyahs(int hizbNumber) async {
+    final response = await _get('/quran/hizb/$hizbNumber', auth: true);
+    final decoded = _handleJson(response);
+    return expectList(decoded, context: 'quran hizb ayahs')
+        .map((item) => expectMap(item, context: 'quran hizb ayah'))
+        .toList();
+  }
+
   Future<Map<String, dynamic>> getQuranPage(int pageNumber) async {
     final response = await _get('/quran/pages/$pageNumber', auth: true);
     final decoded = _handleJson(response);
@@ -1912,6 +1935,30 @@ class BackendApi {
     );
     final decoded = _handleJson(response);
     return expectMap(decoded, context: 'notification preferences');
+  }
+
+  /// Archives the current active goal and creates its successor in one
+  /// backend transaction. Completed/replaced goals remain available in the
+  /// goal history; only one personal goal can be active at a time.
+  Future<Map<String, dynamic>> replaceGoal({
+    required int goalId,
+    required String title,
+    String? subtitle,
+    required int actsTarget,
+    String? month,
+  }) async {
+    final response = await _post(
+      '/goals/$goalId/replace',
+      auth: true,
+      body: jsonEncode({
+        'title': title,
+        if (subtitle != null && subtitle.isNotEmpty) 'subtitle': subtitle,
+        'acts_target': actsTarget,
+        if (month != null) 'month': month,
+      }),
+    );
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'replace goal');
   }
 
   Future<Map<String, dynamic>> updateGoalProgress(
@@ -2007,13 +2054,82 @@ class BackendApi {
     _getEnvelopeMessage(decoded);
   }
 
+  Future<Map<String, dynamic>> updateFamilyMemberRole({
+    required int familyId,
+    required int memberId,
+    required String role,
+  }) async {
+    final response = await _patch(
+      '/family/$familyId/members/$memberId/role',
+      auth: true,
+      body: jsonEncode({'role': role.toLowerCase()}),
+    );
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'family member role');
+  }
+
+  Future<Map<String, dynamic>> updateFamily({
+    required int familyId,
+    String? name,
+    String? coverIcon,
+  }) async {
+    final body = <String, dynamic>{};
+    if (name != null) body['name'] = name;
+    if (coverIcon != null) body['cover_icon'] = coverIcon;
+    final response = await _patch(
+      '/family/$familyId',
+      auth: true,
+      body: jsonEncode(body),
+    );
+    final decoded = _handleJson(response);
+    return expectMap(decoded, context: 'family');
+  }
+
   Future<List<Map<String, dynamic>>> getPendingInvitations() async {
     final response = await _get('/family/invitations', auth: true);
     final decoded = _handleJson(response);
     return expectList(
       decoded,
-      context: 'family members',
-    ).map((i) => expectMap(i, context: 'family member')).toList();
+      context: 'family invitations',
+    ).map((i) => expectMap(i, context: 'family invitation')).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getFamilyInvitations(int familyId) async {
+    final response = await _get('/family/$familyId/invitations', auth: true);
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'family invitations',
+    ).map((i) => expectMap(i, context: 'family invitation')).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> getIncomingFamilyInvitations() async {
+    final response = await _get('/family/invitations/incoming', auth: true);
+    final decoded = _handleJson(response);
+    return expectList(
+      decoded,
+      context: 'incoming family invitations',
+    ).map((i) => expectMap(i, context: 'incoming family invitation')).toList();
+  }
+
+  Future<Map<String, dynamic>> createTargetedFamilyInvitation({
+    required int familyId,
+    required String email,
+  }) async {
+    final response = await _post(
+      '/family/$familyId/invitations',
+      auth: true,
+      body: jsonEncode({'invited_email': email.trim()}),
+    );
+    return expectMap(_handleJson(response), context: 'family invitation');
+  }
+
+  Future<void> acceptFamilyInvitation(int invitationId) async {
+    await _post('/family/invitations/id/$invitationId/accept', auth: true);
+  }
+
+  Future<void> declineFamilyInvitation(int invitationId) async {
+    await _post('/family/invitations/id/$invitationId/decline', auth: true);
   }
 
   Future<void> cancelFamilyInvitation({
@@ -2586,6 +2702,13 @@ class BackendApiException implements Exception {
           : 'BackendApiException($statusCode, $code): $message';
 }
 
+String backendErrorMessage(Object error, {required String fallback}) {
+  if (error is BackendApiException && error.message.trim().isNotEmpty) {
+    return error.message.trim();
+  }
+  return fallback;
+}
+
 class PickedUploadFile {
   const PickedUploadFile({required this.filename, required this.bytes});
 
@@ -3105,7 +3228,24 @@ class CharityPage {
   final int offset;
   final List<CharityItem> data;
 
-  factory CharityPage.fromJson(Map<String, dynamic> json) {
+  factory CharityPage.fromJson(dynamic raw) {
+    if (raw is List) {
+      final rows = raw
+          .whereType<Map>()
+          .map((item) => CharityItem.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+      return CharityPage(
+        total: rows.length,
+        limit: rows.length,
+        offset: 0,
+        data: rows,
+      );
+    }
+    final json = raw is Map<String, dynamic>
+        ? raw
+        : raw is Map
+            ? Map<String, dynamic>.from(raw)
+            : <String, dynamic>{};
     final rows =
         (json['data'] as List<dynamic>? ?? [])
             .map(

@@ -60,7 +60,10 @@ class AdminForbiddenScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Access'), backgroundColor: kClayLight),
+      appBar: AppBar(
+        title: const Text('Admin Access'),
+        backgroundColor: kClayLight,
+      ),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),

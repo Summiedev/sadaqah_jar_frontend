@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'family_models.dart';
 import 'family_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 
 class ActivityTimelineScreen extends StatefulWidget {
   const ActivityTimelineScreen({required this.id, super.key});
@@ -24,9 +25,10 @@ class _ActivityTimelineScreenState extends State<ActivityTimelineScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final jar = _jar;
     return Scaffold(
-      backgroundColor: fIvory,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: FutureBuilder<void>(
           future: _load,
@@ -40,25 +42,33 @@ class _ActivityTimelineScreenState extends State<ActivityTimelineScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                     child: ScreenHeader(
                       title: 'Activity',
-                      subtitle: jar == null ? null : 'Quiet moments from ${jar.name}',
+                      subtitle:
+                          jar == null ? null : 'Quiet moments from ${jar.name}',
                     ),
                   ),
                 ),
                 if (snap.connectionState != ConnectionState.done)
-                  const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(20), child: DecoratedBox(decoration: BoxDecoration(color: fClayLight, borderRadius: BorderRadius.all(Radius.circular(20))))))
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(20),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.surfaceContainer,
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                        ),
+                      ),
+                    ),
+                  )
                 else if (groups.isEmpty)
                   const SliverFillRemaining(child: _EmptyTimeline())
                 else
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
                     sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final g = groups[index];
-                          return _DaySection(group: g);
-                        },
-                        childCount: groups.length,
-                      ),
+                      delegate: SliverChildBuilderDelegate((context, index) {
+                        final g = groups[index];
+                        return _DaySection(group: g);
+                      }, childCount: groups.length),
                     ),
                   ),
               ],
@@ -94,6 +104,7 @@ class _DaySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -101,9 +112,24 @@ class _DaySection extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Row(
             children: [
-              Container(width: 6, height: 6, decoration: const BoxDecoration(color: fBronze, shape: BoxShape.circle)),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                ),
+              ),
               const SizedBox(width: 10),
-              Text(group.day.toUpperCase(), style: const TextStyle(fontSize: 11, letterSpacing: 1.6, fontWeight: FontWeight.w700, color: fBronzeDark)),
+              Text(
+                group.day.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 11,
+                  letterSpacing: 1.6,
+                  fontWeight: FontWeight.w700,
+                  color: colors.primary,
+                ),
+              ),
             ],
           ),
         ),
@@ -113,25 +139,37 @@ class _DaySection extends StatelessWidget {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: group.items.length,
-            separatorBuilder: (_, __) => const Divider(height: 1, color: fClayLight, indent: 52),
+            separatorBuilder:
+                (_, __) =>
+                    Divider(height: 1, color: colors.divider, indent: 52),
             itemBuilder: (context, index) {
               final a = group.items[index];
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 12,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
                       width: 36,
                       height: 36,
-                      decoration: BoxDecoration(color: a.color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(12)),
+                      decoration: BoxDecoration(
+                        color: a.color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                       child: Icon(a.icon, size: 18, color: a.color),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         a.text,
-                        style: const TextStyle(fontSize: 13.5, height: 1.45, color: fWalnut),
+                        style: TextStyle(
+                          fontSize: 13.5,
+                          height: 1.45,
+                          color: colors.textPrimary,
+                        ),
                       ),
                     ),
                   ],
@@ -150,6 +188,7 @@ class _EmptyTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.all(28),
       child: Column(
@@ -158,13 +197,31 @@ class _EmptyTimeline extends StatelessWidget {
           Container(
             width: 88,
             height: 88,
-            decoration: BoxDecoration(color: fClayPale, shape: BoxShape.circle, border: Border.all(color: fClay)),
-            child: const Center(child: Icon(Icons.timeline_outlined, size: 38, color: fBronze)),
+            decoration: BoxDecoration(
+              color: colors.accentSoft,
+              shape: BoxShape.circle,
+              border: Border.all(color: colors.borderSubtle),
+            ),
+            child: Center(
+              child: Icon(Icons.timeline_outlined, size: 38, color: colors.primary),
+            ),
           ),
           const SizedBox(height: 18),
-          const Text('No activity yet', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: fWalnut, fontFamily: 'Georgia')),
+          Text(
+            'No activity yet',
+            style: TextStyle(
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              fontFamily: 'Georgia',
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('As your family gives, remembers, and reflects, gentle moments will appear here.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone)),
+          Text(
+            'As your family gives, remembers, and reflects, gentle moments will appear here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, height: 1.5, color: colors.textSecondary),
+          ),
         ],
       ),
     );

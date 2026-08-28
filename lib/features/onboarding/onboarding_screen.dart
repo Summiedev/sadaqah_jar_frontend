@@ -182,8 +182,7 @@ class _WelcomePage extends StatelessWidget {
     colors: colors,
     eyebrow: 'WELCOME TO MIZAN',
     title: 'A quieter space\nfor what matters.',
-    body:
-        'Keep your good intentions close, one small practice at a time.',
+    body: 'Keep your good intentions close, one small practice at a time.',
     visual: _WelcomeVisual(colors: colors),
   );
 }
@@ -278,7 +277,11 @@ class _WelcomeVisual extends StatelessWidget {
         Positioned(
           right: 24,
           top: 20,
-          child: Icon(Icons.nights_stay_rounded, size: 82, color: colors.primary),
+          child: Icon(
+            Icons.nights_stay_rounded,
+            size: 82,
+            color: colors.primary,
+          ),
         ),
         Positioned(
           left: 24,
@@ -297,7 +300,11 @@ class _WelcomeVisual extends StatelessWidget {
               const SizedBox(width: 10),
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Icon(Icons.auto_awesome, color: colors.primary, size: 18),
+                child: Icon(
+                  Icons.auto_awesome,
+                  color: colors.primary,
+                  size: 18,
+                ),
               ),
             ],
           ),
@@ -337,11 +344,23 @@ class _RhythmVisual extends StatelessWidget {
         const SizedBox(height: 16),
         Row(
           children: [
-            _RhythmItem(icon: Icons.menu_book_rounded, label: 'Read', colors: colors),
+            _RhythmItem(
+              icon: Icons.menu_book_rounded,
+              label: 'Read',
+              colors: colors,
+            ),
             _RhythmLine(colors: colors),
-            _RhythmItem(icon: Icons.edit_note_rounded, label: 'Reflect', colors: colors),
+            _RhythmItem(
+              icon: Icons.edit_note_rounded,
+              label: 'Reflect',
+              colors: colors,
+            ),
             _RhythmLine(colors: colors),
-            _RhythmItem(icon: Icons.volunteer_activism_rounded, label: 'Give', colors: colors),
+            _RhythmItem(
+              icon: Icons.volunteer_activism_rounded,
+              label: 'Give',
+              colors: colors,
+            ),
           ],
         ),
       ],
@@ -350,7 +369,11 @@ class _RhythmVisual extends StatelessWidget {
 }
 
 class _RhythmItem extends StatelessWidget {
-  const _RhythmItem({required this.icon, required this.label, required this.colors});
+  const _RhythmItem({
+    required this.icon,
+    required this.label,
+    required this.colors,
+  });
   final IconData icon;
   final String label;
   final MizanColors colors;
@@ -371,7 +394,10 @@ class _RhythmItem extends StatelessWidget {
         const SizedBox(height: 9),
         Text(
           label,
-          style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w800),
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ],
     ),
@@ -383,14 +409,16 @@ class _RhythmLine extends StatelessWidget {
   final MizanColors colors;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 18,
-    child: Divider(color: colors.border, thickness: 1.5),
-  );
+  Widget build(BuildContext context) =>
+      SizedBox(width: 18, child: Divider(color: colors.border, thickness: 1.5));
 }
 
 class _SpacePage extends StatelessWidget {
-  const _SpacePage({required this.colors, required this.selected, required this.onSelect});
+  const _SpacePage({
+    required this.colors,
+    required this.selected,
+    required this.onSelect,
+  });
   final MizanColors colors;
   final int selected;
   final ValueChanged<int> onSelect;
@@ -423,7 +451,11 @@ class _SpacePage extends StatelessWidget {
         const SizedBox(height: 14),
         Text(
           'Choose a starting point. You can change this later.',
-          style: TextStyle(color: colors.textSecondary, fontSize: 15, height: 1.4),
+          style: TextStyle(
+            color: colors.textSecondary,
+            fontSize: 15,
+            height: 1.4,
+          ),
         ),
         const SizedBox(height: 24),
         _Choice(
@@ -498,15 +530,32 @@ class _Choice extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(icon, color: active ? colors.primary : colors.iconSecondary, size: 24),
+              Icon(
+                icon,
+                color: active ? colors.primary : colors.iconSecondary,
+                size: 24,
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: TextStyle(color: colors.textPrimary, fontSize: 16, fontWeight: FontWeight.w800)),
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
                     const SizedBox(height: 3),
-                    Text(body, style: TextStyle(color: colors.textSecondary, fontSize: 13)),
+                    Text(
+                      body,
+                      style: TextStyle(
+                        color: colors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
                   ],
                 ),
               ),

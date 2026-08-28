@@ -19,7 +19,9 @@ class QiblaService {
     final phi2 = _degToRad(_kaabaLat);
     final deltaLambda = _degToRad(_kaabaLon - lon);
     final y = math.sin(deltaLambda) * math.cos(phi2);
-    final x = math.cos(phi1) * math.sin(phi2) - math.sin(phi1) * math.cos(phi2) * math.cos(deltaLambda);
+    final x =
+        math.cos(phi1) * math.sin(phi2) -
+        math.sin(phi1) * math.cos(phi2) * math.cos(deltaLambda);
     final bearing = (_radToDeg(math.atan2(y, x)) + 360) % 360;
     return bearing;
   }
@@ -29,7 +31,10 @@ class QiblaService {
 
   /// Stream combining compass heading (device) and qibla bearing.
   /// Emits the angle the UI should rotate (degrees clockwise from north).
-  Stream<double> qiblaAngleStream({required double latitude, required double longitude}) {
+  Stream<double> qiblaAngleStream({
+    required double latitude,
+    required double longitude,
+  }) {
     final qiblaBearing = computeQiblaBearing(latitude, longitude);
     return (FlutterCompass.events ?? const Stream.empty()).map((event) {
       final heading = event.heading ?? 0.0; // degrees from North

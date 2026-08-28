@@ -117,9 +117,6 @@ class _PullToRefreshWrapperState extends State<PullToRefreshWrapper> {
 
   @override
   Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _handleRefresh,
-      child: widget.child,
-    );
+    return RefreshIndicator(onRefresh: _handleRefresh, child: widget.child);
   }
 }

@@ -19,7 +19,11 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
   Future<AdminBookPage> _load() =>
       BackendApi.instance.getAdminBooks(limit: 100, offset: 0);
 
-  void _refresh() => setState(() => _future = _load());
+  void _refresh() {
+    setState(() {
+      _future = _load();
+    });
+  }
 
   Future<void> _openForm({AdminBookRecord? book}) async {
     final saved = await showModalBottomSheet<bool>(

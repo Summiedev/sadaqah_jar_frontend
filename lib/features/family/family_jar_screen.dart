@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../home/add_act_screen.dart';
 import 'family_theme.dart';
 import '../../services/backend_api.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/websocket_service.dart';
 
 class FamilyJarScreen extends StatefulWidget {
@@ -159,7 +160,7 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
 
     final choice = await showModalBottomSheet<String?>(
       context: context,
-      backgroundColor: fIvory,
+      backgroundColor: context.colors.surfaceElevated,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
       ),
@@ -181,11 +182,11 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
                   ),
                 ),
                 const SizedBox(height: 24),
-                const Text(
+                Text(
                   'How would you like to add it?',
                   style: TextStyle(
                     fontFamily: 'Georgia',
-                    color: fWalnut,
+                    color: context.colors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.w700,
                   ),
@@ -193,7 +194,10 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
                 const SizedBox(height: 7),
                 Text(
                   'Both choices grow the shared jar.',
-                  style: const TextStyle(color: fStone, fontSize: 13),
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    fontSize: 13,
+                  ),
                 ),
                 const SizedBox(height: 20),
                 _ContributionOption(
@@ -237,24 +241,27 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     if (_loading) {
-      return const Scaffold(
-        backgroundColor: fIvory,
-        body: Center(child: CircularProgressIndicator(color: fBronze)),
+      return Scaffold(
+        backgroundColor: context.colors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: context.colors.primary),
+        ),
       );
     }
     if (_notFound) {
       return Scaffold(
-        backgroundColor: fIvory,
+        backgroundColor: context.colors.background,
         body: Center(
           child: Column(
             children: [
-              const Icon(Icons.wifi_off_rounded, size: 48, color: fBronze),
+              Icon(Icons.wifi_off_rounded, size: 48, color: colors.primary),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Family not found',
                 style: TextStyle(
-                  color: fWalnut,
+                  color: colors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   fontFamily: 'Georgia',
@@ -273,16 +280,16 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
     }
     if (_family == null) {
       return Scaffold(
-        backgroundColor: fIvory,
+        backgroundColor: context.colors.background,
         body: Center(
           child: Column(
             children: [
-              const Icon(Icons.wifi_off_rounded, size: 48, color: fBronze),
+              Icon(Icons.wifi_off_rounded, size: 48, color: colors.primary),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Connection issue',
                 style: TextStyle(
-                  color: fWalnut,
+                  color: colors.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   fontFamily: 'Georgia',
@@ -292,8 +299,8 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
               Text(
                 'Could not reach the server. Please check your connection and try again.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: fStone,
+                style: TextStyle(
+                  color: colors.textSecondary,
                   fontSize: 13,
                   height: 1.4,
                 ),
@@ -313,7 +320,7 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: fIvory,
+        backgroundColor: context.colors.background,
         body: Column(
           children: [
             if (_refreshing)
@@ -348,6 +355,7 @@ class _JarBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final name = family['name']?.toString() ?? 'Family';
     final familyId = family['id'].toString();
     final members = (family['members'] as List?) ?? [];
@@ -360,19 +368,19 @@ class _JarBody extends StatelessWidget {
           Container(
             margin: const EdgeInsets.fromLTRB(20, 10, 20, 0),
             decoration: BoxDecoration(
-              color: fClayPale,
+              color: colors.surfaceContainer,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: fClay),
+              border: Border.all(color: colors.borderSubtle),
             ),
-            child: const TabBar(
+            child: TabBar(
               dividerColor: Colors.transparent,
               indicatorSize: TabBarIndicatorSize.tab,
               indicator: BoxDecoration(
-                color: fWhite,
+                color: colors.surfaceElevated,
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
-              labelColor: fWalnut,
-              unselectedLabelColor: fStoneLight,
+              labelColor: colors.textPrimary,
+              unselectedLabelColor: colors.textMuted,
               labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
               tabs: [
                 Tab(text: 'Home'),
@@ -415,9 +423,9 @@ class _JarAppBar extends StatelessWidget {
         IconButton(
           onPressed: () => context.pop(),
           tooltip: 'Back',
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: fWalnut,
+           icon: Icon(
+             Icons.arrow_back_ios_new_rounded,
+             color: context.colors.iconPrimary,
             size: 19,
           ),
         ),
@@ -427,17 +435,20 @@ class _JarAppBar extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+             style: TextStyle(
               fontFamily: 'Georgia',
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: fWalnut,
+               color: context.colors.textPrimary,
             ),
           ),
         ),
         PopupMenuButton<String>(
           tooltip: 'Family options',
-          icon: const Icon(Icons.more_horiz_rounded, color: fWalnut),
+           icon: Icon(
+             Icons.more_horiz_rounded,
+             color: context.colors.iconPrimary,
+           ),
           onSelected: (value) {
             if (value == 'settings') {
               context.push('/family/settings/$familyId');
@@ -472,7 +483,9 @@ class _JarHome extends StatelessWidget {
   final int optimisticActsDone;
 
   @override
-  Widget build(BuildContext context) => ListView(
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return ListView(
     physics: const BouncingScrollPhysics(),
     padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
     children: [
@@ -485,7 +498,7 @@ class _JarHome extends StatelessWidget {
       Center(
         child: Text(
           'Share an act with the family, or let it count privately.',
-          style: const TextStyle(fontSize: 11.5, color: fStoneLight),
+           style: TextStyle(fontSize: 11.5, color: colors.textMuted),
         ),
       ),
       const SizedBox(height: 30),
@@ -502,7 +515,8 @@ class _JarHome extends StatelessWidget {
       const SizedBox(height: 12),
       _PrayerPreview(familyId: family['id'].toString()),
     ],
-  );
+    );
+  }
 }
 
 class _GoalHero extends StatelessWidget {
@@ -523,6 +537,7 @@ class _GoalHero extends StatelessWidget {
     final remaining = (actsTarget - actsDone).clamp(0, actsTarget);
     return LayoutBuilder(
       builder: (context, constraints) {
+        final colors = context.colors;
         final compact = constraints.maxWidth < 340;
         final compactCopyWidth =
             constraints.maxWidth > 44
@@ -547,7 +562,7 @@ class _GoalHero extends StatelessWidget {
             Text(
               'OUR INTENTION',
               style: TextStyle(
-                color: kBronzeLight,
+                 color: colors.primary,
                 fontSize: 10,
                 letterSpacing: 1.1,
                 fontWeight: FontWeight.w800,
@@ -563,7 +578,7 @@ class _GoalHero extends StatelessWidget {
                   '$percentage%',
                   style: TextStyle(
                     fontFamily: 'Georgia',
-                    color: fWhite,
+                     color: colors.textPrimary,
                     fontSize: compact ? 28 : 31,
                     height: 1.0,
                     fontWeight: FontWeight.w800,
@@ -582,7 +597,7 @@ class _GoalHero extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: kClayLight,
+                           color: colors.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -593,7 +608,7 @@ class _GoalHero extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: kClayLight.withValues(alpha: 0.95),
+                           color: colors.textMuted,
                           fontSize: 11,
                         ),
                       ),
@@ -603,17 +618,17 @@ class _GoalHero extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            ProgressTrack(value: progress, height: 8, color: kBronze),
+             ProgressTrack(value: progress, height: 8, color: colors.primary),
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.group_outlined, size: 14, color: kClayLight),
+                 Icon(Icons.group_outlined, size: 14, color: colors.textSecondary),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
                     'Growing together',
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: kClayLight, fontSize: 12),
+                     style: TextStyle(color: colors.textSecondary, fontSize: 12),
                   ),
                 ),
               ],
@@ -624,11 +639,11 @@ class _GoalHero extends StatelessWidget {
         return Container(
           padding: const EdgeInsets.fromLTRB(17, 17, 14, 15),
           decoration: BoxDecoration(
-            color: fWalnut,
+             color: colors.surfaceContainerHigh,
             borderRadius: BorderRadius.circular(28),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: fShadowWarm,
+                 color: colors.scrim.withValues(alpha: 0.20),
                 blurRadius: 22,
                 offset: Offset(0, 10),
               ),
@@ -675,6 +690,7 @@ class _TodayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final contributed =
         members
             .where((m) => (m['contributed_today'] as bool?) ?? false)
@@ -712,31 +728,31 @@ class _TodayCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   '${names.length} family members have added goodness today.',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     height: 1.35,
-                    color: fWalnut,
+                     color: colors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
           ),
-          const Padding(
+           Padding(
             padding: EdgeInsets.symmetric(vertical: 14),
-            child: Divider(height: 1, color: fClayLight),
+            child: Divider(height: 1, color: colors.divider),
           ),
           Row(
             children: [
-              const Icon(Icons.auto_awesome_outlined, size: 17, color: fBronze),
+               Icon(Icons.auto_awesome_outlined, size: 17, color: colors.primary),
               const SizedBox(width: 9),
               Expanded(
                 child: Text(
                   'Family activities will appear here.',
-                  style: const TextStyle(color: fStone, fontSize: 12.5),
+                   style: TextStyle(color: colors.textSecondary, fontSize: 12.5),
                 ),
               ),
-              const Icon(Icons.arrow_forward_rounded, size: 17, color: fBronze),
+               Icon(Icons.arrow_forward_rounded, size: 17, color: colors.primary),
             ],
           ),
         ],
@@ -751,7 +767,9 @@ class _MilestoneCard extends StatelessWidget {
   final String jarId;
 
   @override
-  Widget build(BuildContext context) => SoftCard(
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SoftCard(
     onTap: () => context.push('/family/goals/$jarId'),
     padding: const EdgeInsets.all(17),
     child: Row(
@@ -760,10 +778,10 @@ class _MilestoneCard extends StatelessWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: fBronze.withValues(alpha: .18),
+             color: colors.primary.withValues(alpha: .18),
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(Icons.flag_outlined, color: fBronze),
+           child: Icon(Icons.flag_outlined, color: colors.primary),
         ),
         const SizedBox(width: 13),
         Expanded(
@@ -772,25 +790,26 @@ class _MilestoneCard extends StatelessWidget {
             children: [
               Text(
                 goal['title']?.toString() ?? 'Goal',
-                style: const TextStyle(
+                 style: TextStyle(
                   fontFamily: 'Georgia',
                   fontWeight: FontWeight.w700,
-                  color: fWalnut,
+                   color: colors.textPrimary,
                   fontSize: 16,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 '${goal['acts_done'] ?? 0} of ${goal['acts_target'] ?? 0} acts',
-                style: const TextStyle(fontSize: 12, color: fStone),
+                 style: TextStyle(fontSize: 12, color: colors.textSecondary),
               ),
             ],
           ),
         ),
-        const Icon(Icons.arrow_forward_rounded, color: fBronze),
+         Icon(Icons.arrow_forward_rounded, color: colors.primary),
       ],
     ),
-  );
+    );
+  }
 }
 
 class _PrayerPreview extends StatelessWidget {
@@ -798,9 +817,11 @@ class _PrayerPreview extends StatelessWidget {
   final String familyId;
 
   @override
-  Widget build(BuildContext context) => SoftCard(
-    color: fClayPale,
-    borderColor: fClay,
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SoftCard(
+    color: colors.primaryContainer,
+    borderColor: colors.borderSubtle,
     onTap: () => context.push('/family/prayers/$familyId'),
     padding: const EdgeInsets.all(17),
     child: Row(
@@ -810,33 +831,34 @@ class _PrayerPreview extends StatelessWidget {
           width: 42,
           height: 42,
           decoration: BoxDecoration(
-            color: fWhite,
+             color: colors.surfaceElevated,
             shape: BoxShape.circle,
-            border: Border.all(color: fClay),
+             border: Border.all(color: colors.borderSubtle),
           ),
-          child: const Icon(Icons.favorite_border_rounded, color: fBronze),
+           child: Icon(Icons.favorite_border_rounded, color: colors.primary),
         ),
         const SizedBox(width: 13),
-        const Expanded(
+         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 'Hold someone close in du\'a',
-                style: TextStyle(fontWeight: FontWeight.w800, color: fWalnut),
+                 style: TextStyle(fontWeight: FontWeight.w800, color: colors.textPrimary),
               ),
               SizedBox(height: 4),
               Text(
                 'Ask your family to remember someone in prayer.',
-                style: TextStyle(fontSize: 12.5, height: 1.35, color: fStone),
+                 style: TextStyle(fontSize: 12.5, height: 1.35, color: colors.textSecondary),
               ),
             ],
           ),
         ),
-        const Icon(Icons.arrow_forward_rounded, color: fBronze),
+         Icon(Icons.arrow_forward_rounded, color: colors.primary),
       ],
     ),
-  );
+    );
+  }
 }
 
 class _Activity extends StatefulWidget {
@@ -885,36 +907,37 @@ class _ActivityState extends State<_Activity> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final activities = _activities;
     if (_loading && activities.isEmpty) {
-      return const Center(child: CircularProgressIndicator(color: fBronze));
+      return Center(child: CircularProgressIndicator(color: colors.primary));
     }
     if (activities.isEmpty) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
         children: [
-          const Text(
+          Text(
             'Family activity',
             style: TextStyle(
               fontFamily: 'Georgia',
               fontSize: 23,
-              color: fWalnut,
+              color: colors.textPrimary,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 5),
-          const Text(
+          Text(
             'Small moments that are growing your shared intention.',
-            style: TextStyle(color: fStone, fontSize: 12.5),
+            style: TextStyle(color: colors.textSecondary, fontSize: 12.5),
           ),
           const SizedBox(height: 20),
           if (_error != null)
             TextButton(onPressed: _load, child: Text(_error!))
           else
-            const Center(
+            Center(
               child: Text(
                 'No activity yet. Start by adding an act to your family jar.',
-                style: TextStyle(color: fStoneLight, fontSize: 13),
+                style: TextStyle(color: colors.textMuted, fontSize: 13),
               ),
             ),
         ],
@@ -923,19 +946,19 @@ class _ActivityState extends State<_Activity> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
       children: [
-        const Text(
+        Text(
           'Family activity',
           style: TextStyle(
             fontFamily: 'Georgia',
             fontSize: 23,
-            color: fWalnut,
+            color: colors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 5),
-        const Text(
+        Text(
           'Small moments that are growing your shared intention.',
-          style: TextStyle(color: fStone, fontSize: 12.5),
+          style: TextStyle(color: colors.textSecondary, fontSize: 12.5),
         ),
         const SizedBox(height: 20),
         SoftCard(
@@ -976,6 +999,7 @@ class _ActivityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final rawEvent = activity['event_type']?.toString() ?? 'activity';
     final eventType = _eventLabels[rawEvent] ?? rawEvent;
     final createdAt = activity['created_at']?.toString() ?? '';
@@ -992,12 +1016,12 @@ class _ActivityRow extends StatelessWidget {
                 width: 37,
                 height: 37,
                 decoration: BoxDecoration(
-                  color: fBronze.withValues(alpha: .12),
+                  color: colors.primary.withValues(alpha: .12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.auto_awesome_outlined,
-                  color: fBronze,
+                  color: colors.primary,
                   size: 19,
                 ),
               ),
@@ -1010,16 +1034,16 @@ class _ActivityRow extends StatelessWidget {
                       actor == null || actor.isEmpty
                           ? eventType
                           : '$actor $eventType',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: fWalnut,
+                        color: colors.textPrimary,
                         height: 1.35,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       day,
-                      style: const TextStyle(fontSize: 11, color: fStoneLight),
+                      style: TextStyle(fontSize: 11, color: colors.textMuted),
                     ),
                   ],
                 ),
@@ -1027,7 +1051,7 @@ class _ActivityRow extends StatelessWidget {
             ],
           ),
         ),
-        if (divider) const Divider(height: 1, indent: 63, color: fClayLight),
+        if (divider) Divider(height: 1, indent: 63, color: colors.divider),
       ],
     );
   }
@@ -1040,23 +1064,24 @@ class _Together extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final familyId = family['id'].toString();
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
       children: [
-        const Text(
+        Text(
           'Together',
           style: TextStyle(
             fontFamily: 'Georgia',
             fontSize: 23,
-            color: fWalnut,
+            color: colors.textPrimary,
             fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 5),
-        const Text(
+        Text(
           'Care for one another beyond the numbers.',
-          style: TextStyle(color: fStone, fontSize: 12.5),
+          style: TextStyle(color: colors.textSecondary, fontSize: 12.5),
         ),
         const SizedBox(height: 22),
         _CareLink(
@@ -1076,12 +1101,12 @@ class _Together extends StatelessWidget {
         const _SectionTitle(title: 'Family members'),
         const SizedBox(height: 12),
         if (members.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Text(
               'No family members yet. Invite someone to get started.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: fStone, fontSize: 13),
+              style: TextStyle(color: colors.textSecondary, fontSize: 13),
             ),
           )
         else
@@ -1096,17 +1121,17 @@ class _Together extends StatelessWidget {
                   ),
                 ListTile(
                   onTap: () => context.push('/family/invitations/$familyId'),
-                  title: const Text(
+                  title: Text(
                     'Invite someone to the jar',
                     style: TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: fBronze,
+                      color: colors.primary,
                     ),
                   ),
-                  trailing: const Icon(
+                  trailing: Icon(
                     Icons.add_circle_outline_rounded,
-                    color: fBronze,
+                    color: colors.primary,
                   ),
                 ),
               ],
@@ -1129,7 +1154,9 @@ class _CareLink extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => SoftCard(
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SoftCard(
     onTap: onTap,
     padding: const EdgeInsets.all(17),
     child: Row(
@@ -1138,10 +1165,10 @@ class _CareLink extends StatelessWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: fClayPale,
+            color: colors.accentSoft,
             borderRadius: BorderRadius.circular(14),
           ),
-          child: Icon(icon, color: fBronze),
+          child: Icon(icon, color: colors.primary),
         ),
         const SizedBox(width: 13),
         Expanded(
@@ -1150,27 +1177,28 @@ class _CareLink extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  color: fWalnut,
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 body,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: fStone,
+                  color: colors.textSecondary,
                   height: 1.3,
                 ),
               ),
             ],
           ),
         ),
-        const Icon(Icons.arrow_forward_rounded, color: fBronze),
+        Icon(Icons.arrow_forward_rounded, color: colors.primary),
       ],
     ),
-  );
+    );
+  }
 }
 
 class _MemberRow extends StatelessWidget {
@@ -1180,6 +1208,7 @@ class _MemberRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final name = member['username']?.toString() ?? 'Unknown';
     final role = member['role']?.toString() ?? 'Member';
     return Column(
@@ -1187,25 +1216,25 @@ class _MemberRow extends StatelessWidget {
         ListTile(
           leading: MizanAvatar(
             name: name,
-            accent: fBronze,
+            accent: colors.primary,
             size: 40,
             contributed: member['contributed_today'] as bool? ?? false,
           ),
           title: Text(
             name,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: fWalnut,
+              color: colors.textPrimary,
               fontWeight: FontWeight.w700,
             ),
           ),
           subtitle: Text(
             role,
-            style: const TextStyle(fontSize: 11, color: fStoneLight),
+            style: TextStyle(fontSize: 11, color: colors.textMuted),
           ),
-          trailing: const Icon(Icons.person_outline_rounded, color: fStonePale),
+          trailing: Icon(Icons.person_outline_rounded, color: colors.iconSecondary),
         ),
-        if (divider) const Divider(height: 1, indent: 68, color: fClayLight),
+        if (divider) Divider(height: 1, indent: 68, color: colors.divider),
       ],
     );
   }
@@ -1215,15 +1244,18 @@ class _SectionTitle extends StatelessWidget {
   const _SectionTitle({required this.title});
   final String title;
   @override
-  Widget build(BuildContext context) => Text(
-    title,
-    style: const TextStyle(
-      fontFamily: 'Georgia',
-      fontSize: 19,
-      color: fWalnut,
-      fontWeight: FontWeight.w700,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Text(
+      title,
+      style: TextStyle(
+        fontFamily: 'Georgia',
+        fontSize: 19,
+        color: colors.textPrimary,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
 }
 
 class _ContributionOption extends StatelessWidget {
@@ -1237,46 +1269,49 @@ class _ContributionOption extends StatelessWidget {
   final String title, body;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => SoftCard(
-    onTap: onTap,
-    padding: const EdgeInsets.all(16),
-    child: Row(
-      children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: fClayPale,
-            borderRadius: BorderRadius.circular(13),
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SoftCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: colors.accentSoft,
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(icon, color: colors.primary),
           ),
-          child: Icon(icon, color: fBronze),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  color: fWalnut,
-                  fontWeight: FontWeight.w800,
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                body,
-                style: const TextStyle(
-                  fontSize: 11.5,
-                  height: 1.3,
-                  color: fStone,
+                const SizedBox(height: 3),
+                Text(
+                  body,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.3,
+                    color: colors.textSecondary,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        const Icon(Icons.arrow_forward_rounded, color: fBronze),
-      ],
-    ),
-  );
+          Icon(Icons.arrow_forward_rounded, color: colors.primary),
+        ],
+      ),
+    );
+  }
 }

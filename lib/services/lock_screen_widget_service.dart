@@ -28,7 +28,13 @@ class LockScreenWidgetService {
 
   Future<void> updateWidget({bool force = false}) async {
     final now = DateTime.now();
-    final verse = todaysVerse(now);
+    final rotation =
+        await HomeWidget.getWidgetData<int>(
+          'rhythm_rotation',
+          defaultValue: 0,
+        ) ??
+        0;
+    final verse = verseForTimeSlot(now, rotation: rotation);
     final contextLine = _contextLine(now);
 
     try {
@@ -53,6 +59,22 @@ class LockScreenWidgetService {
     } catch (_) {
       // Widget update is best-effort; failures should not crash the app.
     }
+  }
+
+  /// Rotates the reminder while keeping it in the current time-aware pool.
+  /// This is called by the refresh action rendered inside the Android widget.
+  Future<void> refreshFromWidget() async {
+    final current =
+        await HomeWidget.getWidgetData<int>(
+          'rhythm_rotation',
+          defaultValue: 0,
+        ) ??
+        0;
+    await HomeWidget.saveWidgetData<int>(
+      'rhythm_rotation',
+      (current + 1) % kDailyVerses.length,
+    );
+    await updateWidget(force: true);
   }
 
   Future<bool> _shouldRefresh(DateTime now) async {

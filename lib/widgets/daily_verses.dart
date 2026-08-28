@@ -1575,7 +1575,7 @@ const List<DailyVerse> kDailyVerses = [
 DailyVerse todaysVerse([DateTime? at]) =>
     verseForTimeSlot(at ?? DateTime.now());
 
-DailyVerse verseForTimeSlot(DateTime now) {
+DailyVerse verseForTimeSlot(DateTime now, {int rotation = 0}) {
   final category = _preferredCategory(now);
   final pool = kDailyVerses.where((v) => v.category == category).toList();
   final sourcePool = pool.isNotEmpty ? pool : kDailyVerses;
@@ -1588,7 +1588,8 @@ DailyVerse verseForTimeSlot(DateTime now) {
           ? 2
           : 3;
   final index =
-      (now.year * 366 + now.month * 31 + now.day + slot) % sourcePool.length;
+      (now.year * 366 + now.month * 31 + now.day + slot + rotation) %
+      sourcePool.length;
   return sourcePool[index];
 }
 

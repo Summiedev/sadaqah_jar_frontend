@@ -13,7 +13,8 @@ class GoalOnboardingScreen extends ConsumerStatefulWidget {
   const GoalOnboardingScreen({super.key});
 
   @override
-  ConsumerState<GoalOnboardingScreen> createState() => _GoalOnboardingScreenState();
+  ConsumerState<GoalOnboardingScreen> createState() =>
+      _GoalOnboardingScreenState();
 }
 
 class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
@@ -75,7 +76,8 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
 
     final suggestion = _suggestions[_selectedIndex];
     final now = DateTime.now();
-    final month = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final month =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
 
     try {
       await BackendApi.instance.createGoal(
@@ -91,7 +93,16 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save goal: $e'), backgroundColor: kDanger),
+          SnackBar(
+            content: Text(
+              backendErrorMessage(
+                e,
+                fallback:
+                    'Could not save your goal. Please try again.',
+              ),
+            ),
+            backgroundColor: kDanger,
+          ),
         );
       }
       return;
@@ -103,7 +114,6 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
       context.go('/home');
     }
   }
-
 
   Future<void> _skip() async {
     setState(() => _skipped = true);
@@ -148,11 +158,25 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(24, 18, 20, 0),
               child: Row(
                 children: [
-                  const Text('MIZAN', style: TextStyle(color: kBronze, fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 3.5)),
+                  const Text(
+                    'MIZAN',
+                    style: TextStyle(
+                      color: kBronze,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      letterSpacing: 3.5,
+                    ),
+                  ),
                   const Spacer(),
                   TextButton(
                     onPressed: _skipped ? null : _skip,
-                    child: const Text('Skip', style: TextStyle(color: kMuted, fontWeight: FontWeight.w700)),
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(
+                        color: kMuted,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -198,7 +222,8 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                             color: isSelected ? kClay : kWhite,
                             borderRadius: BorderRadius.circular(20),
                             child: InkWell(
-                              onTap: () => setState(() => _selectedIndex = index),
+                              onTap:
+                                  () => setState(() => _selectedIndex = index),
                               borderRadius: BorderRadius.circular(20),
                               child: AnimatedContainer(
                                 duration: MizanMotion.fast,
@@ -217,7 +242,12 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                       width: 44,
                                       height: 44,
                                       decoration: BoxDecoration(
-                                        color: isSelected ? kBronze.withValues(alpha: 0.18) : kSoftBronze,
+                                        color:
+                                            isSelected
+                                                ? kBronze.withValues(
+                                                  alpha: 0.18,
+                                                )
+                                                : kSoftBronze,
                                         borderRadius: BorderRadius.circular(14),
                                       ),
                                       child: Icon(
@@ -229,7 +259,8 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                     const SizedBox(width: 13),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
                                           Text(
                                             suggestion['title'] as String,
@@ -261,7 +292,9 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     Icon(
-                                      isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                                      isSelected
+                                          ? Icons.check_circle_rounded
+                                          : Icons.circle_outlined,
                                       color: isSelected ? kBronze : kStonePale,
                                       size: 22,
                                     ),
@@ -298,12 +331,17 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                     color: kSoftBronze,
                                     borderRadius: BorderRadius.circular(14),
                                   ),
-                                  child: const Icon(Icons.add_rounded, color: kBronze, size: 22),
+                                  child: const Icon(
+                                    Icons.add_rounded,
+                                    color: kBronze,
+                                    size: 22,
+                                  ),
                                 ),
                                 const SizedBox(width: 13),
                                 const Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Set a custom goal',
@@ -316,12 +354,19 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                       SizedBox(height: 3),
                                       Text(
                                         'Define your own intention',
-                                        style: TextStyle(color: kMuted, fontSize: 12),
+                                        style: TextStyle(
+                                          color: kMuted,
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const Icon(Icons.arrow_forward_rounded, color: kBronze, size: 20),
+                                const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: kBronze,
+                                  size: 20,
+                                ),
                               ],
                             ),
                           ),
@@ -340,15 +385,35 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                           key: ValueKey(_saving),
                           width: double.infinity,
                           child: FilledButton(
-                            onPressed: _selectedIndex >= 0 && !_saving ? _saveGoal : null,
+                            onPressed:
+                                _selectedIndex >= 0 && !_saving
+                                    ? _saveGoal
+                                    : null,
                             style: FilledButton.styleFrom(
                               backgroundColor: kBronze,
                               disabledBackgroundColor: kClay,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
-                            child: _saving
-                              ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
-                              : const Text('Begin with this intention', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                            child:
+                                _saving
+                                    ? SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.onPrimary,
+                                      ),
+                                    )
+                                    : const Text(
+                                      'Begin with this intention',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
                           ),
                         ),
                       ),
@@ -370,71 +435,91 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
 
     final _ = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) => DialogFadeScale(
-          child: AlertDialog(
-            backgroundColor: kSurface,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
-            title: const Text('Custom goal', style: TextStyle(fontFamily: 'Georgia', fontSize: 19, fontWeight: FontWeight.w700, color: kInk)),
-            content: Column(mainAxisSize: MainAxisSize.min, children: [
-              TextField(
-                controller: titleController,
-                decoration: const InputDecoration(
-                  labelText: 'What is your intention?',
-                  hintText: 'e.g. Pray 5 daily prayers',
-                  filled: true,
-                  fillColor: kPaper,
-                  border: OutlineInputBorder(),
+      builder:
+          (ctx) => StatefulBuilder(
+            builder:
+                (ctx, setDialogState) => DialogFadeScale(
+                  child: AlertDialog(
+                    backgroundColor: kSurface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    title: const Text(
+                      'Custom goal',
+                      style: TextStyle(
+                        fontFamily: 'Georgia',
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
+                      ),
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: titleController,
+                          decoration: const InputDecoration(
+                            labelText: 'What is your intention?',
+                            hintText: 'e.g. Pray 5 daily prayers',
+                            filled: true,
+                            fillColor: kPaper,
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: targetController,
+                          decoration: InputDecoration(
+                            labelText: 'Target count',
+                            hintText: 'e.g. 30',
+                            filled: true,
+                            fillColor: kPaper,
+                            border: const OutlineInputBorder(),
+                            errorText: targetError,
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text(
+                          'Cancel',
+                          style: TextStyle(color: kMuted),
+                        ),
+                      ),
+                      FilledButton(
+                        onPressed: () {
+                          final title = titleController.text.trim();
+                          final rawTarget = targetController.text.trim();
+                          final target = int.tryParse(rawTarget);
+                          if (target == null || target < 1 || target > 10000) {
+                            setDialogState(() {
+                              targetError =
+                                  'Enter a number between 1 and 10,000';
+                            });
+                            return;
+                          }
+                          if (title.isEmpty) return;
+                          Navigator.pop(ctx, true);
+                          _saveCustomGoal(title, target);
+                        },
+                        style: FilledButton.styleFrom(backgroundColor: kBronze),
+                        child: const Text('Set goal'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: targetController,
-                decoration: InputDecoration(
-                  labelText: 'Target count',
-                  hintText: 'e.g. 30',
-                  filled: true,
-                  fillColor: kPaper,
-                  border: const OutlineInputBorder(),
-                  errorText: targetError,
-                ),
-                keyboardType: TextInputType.number,
-              ),
-            ]),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel', style: TextStyle(color: kMuted)),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final title = titleController.text.trim();
-                  final rawTarget = targetController.text.trim();
-                  final target = int.tryParse(rawTarget);
-                  if (target == null || target < 1 || target > 10000) {
-                    setDialogState(() {
-                      targetError = 'Enter a number between 1 and 10,000';
-                    });
-                    return;
-                  }
-                  if (title.isEmpty) return;
-                  Navigator.pop(ctx, true);
-                  _saveCustomGoal(title, target);
-                },
-                style: FilledButton.styleFrom(backgroundColor: kBronze),
-                child: const Text('Set goal'),
-              ),
-            ],
           ),
-        ),
-      ),
     );
   }
 
   Future<void> _saveCustomGoal(String title, int target) async {
     setState(() => _saving = true);
     final now = DateTime.now();
-    final month = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    final month =
+        '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
 
     try {
       await BackendApi.instance.createGoal(
@@ -448,7 +533,10 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not save goal: $e'), backgroundColor: kDanger),
+          SnackBar(
+            content: Text('Could not save goal: $e'),
+            backgroundColor: kDanger,
+          ),
         );
       }
       return;
@@ -461,5 +549,3 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
     }
   }
 }
-
-

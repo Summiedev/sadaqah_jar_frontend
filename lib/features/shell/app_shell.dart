@@ -191,52 +191,30 @@ class _AppShellState extends ConsumerState<AppShell> {
     final isScrolled = ref.watch(isScrolledProvider);
 
     final tokens = context.colors;
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        if (_index != _kHome) {
-          final home = tabs.firstWhere(
-            (tab) => tab.page == _kHome,
-            orElse: () => tabs.first,
-          );
-          _goTo(home);
-          return;
-        }
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.only(bottom: 80, left: 16, right: 16),
-            content: const Text('You are already on your home screen.'),
-          ),
-        );
-      },
-      child: Scaffold(
-        body: PageView(
-          controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(),
-          onPageChanged: (i) => setState(() => _index = i),
-          children:
-              _pages
-                  .map(
-                    (p) =>
-                        _KeepAlivePage(key: ValueKey(p.runtimeType), child: p),
-                  )
-                  .toList(),
-        ),
-        bottomNavigationBar: BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 8,
-          height: 82,
-          elevation: 0,
-          color: isScrolled ? tokens.surfaceElevated : tokens.surface,
-          padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-          child: _DockedNavBar(
-            tabs: tabs,
-            selectedPage: _index,
-            onTap: _goTo,
-            onAdd: () => AddActScreen.show(context),
-          ),
+    return Scaffold(
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (i) => setState(() => _index = i),
+        children:
+            _pages
+                .map(
+                  (p) => _KeepAlivePage(key: ValueKey(p.runtimeType), child: p),
+                )
+                .toList(),
+      ),
+      bottomNavigationBar: BottomAppBar(
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        height: 82,
+        elevation: 0,
+        color: isScrolled ? tokens.surfaceElevated : tokens.surface,
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+        child: _DockedNavBar(
+          tabs: tabs,
+          selectedPage: _index,
+          onTap: _goTo,
+          onAdd: () => AddActScreen.show(context),
         ),
       ),
     );
@@ -325,11 +303,7 @@ class _DockedAddButton extends StatelessWidget {
               ),
             ],
           ),
-          child: Icon(
-            Icons.add_rounded,
-            color: tokens.onPrimary,
-            size: 22,
-          ),
+          child: Icon(Icons.add_rounded, color: tokens.onPrimary, size: 22),
         ),
       ),
     );

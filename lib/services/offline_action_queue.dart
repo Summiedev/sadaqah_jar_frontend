@@ -58,7 +58,9 @@ class OfflineQueueItem {
     final id = json['id']?.toString();
     if (id == null || id.isEmpty) return null;
 
-    final actionType = ActionTypeExtension.tryParse(json['action_type']?.toString());
+    final actionType = ActionTypeExtension.tryParse(
+      json['action_type']?.toString(),
+    );
     if (actionType == null) return null;
 
     final payloadRaw = json['payload'];
@@ -94,9 +96,10 @@ class OfflineQueueItem {
       payload: payload,
       createdAt: createdAt,
       status: status,
-      retryCount: (json['retry_count'] is num)
-          ? (json['retry_count'] as num).toInt()
-          : int.tryParse(json['retry_count']?.toString() ?? '') ?? 0,
+      retryCount:
+          (json['retry_count'] is num)
+              ? (json['retry_count'] as num).toInt()
+              : int.tryParse(json['retry_count']?.toString() ?? '') ?? 0,
       lastError: json['last_error']?.toString(),
     );
   }
@@ -185,7 +188,11 @@ class OfflineActionQueue {
     return items;
   }
 
-  Future<void> updateStatus(String id, QueueStatus status, {String? error}) async {
+  Future<void> updateStatus(
+    String id,
+    QueueStatus status, {
+    String? error,
+  }) async {
     await _ensureInitialized();
     // H4 fix: read retry_count, increment in Dart, write the integer.
     // Using 'retry_count + 1' as a bound value is a bug - sqflite treats it as
@@ -201,9 +208,8 @@ class OfflineActionQueue {
       );
       if (rows.isNotEmpty) {
         final raw = rows.first['retry_count'];
-        final parsed = raw is num
-            ? raw.toInt()
-            : int.tryParse(raw?.toString() ?? '') ?? 0;
+        final parsed =
+            raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '') ?? 0;
         newRetry = parsed + 1;
         if (newRetry < 0) newRetry = 1;
       } else {
@@ -219,16 +225,15 @@ class OfflineActionQueue {
       );
       if (rows.isNotEmpty) {
         final raw = rows.first['retry_count'];
-        newRetry = raw is num ? raw.toInt() : int.tryParse(raw?.toString() ?? '0') ?? 0;
+        newRetry =
+            raw is num
+                ? raw.toInt()
+                : int.tryParse(raw?.toString() ?? '0') ?? 0;
       }
     }
     await _db!.update(
       'offline_queue',
-      {
-        'status': status.name,
-        'retry_count': newRetry,
-        'last_error': error,
-      },
+      {'status': status.name, 'retry_count': newRetry, 'last_error': error},
       where: 'id = ?',
       whereArgs: [id],
     );
@@ -250,7 +255,11 @@ class OfflineActionQueue {
 
   Future<void> clearSynced() async {
     await _ensureInitialized();
-    await _db!.delete('offline_queue', where: 'status = ?', whereArgs: [QueueStatus.synced.name]);
+    await _db!.delete(
+      'offline_queue',
+      where: 'status = ?',
+      whereArgs: [QueueStatus.synced.name],
+    );
   }
 
   /// Removes every queued item — used on logout so a signed-out user's pending

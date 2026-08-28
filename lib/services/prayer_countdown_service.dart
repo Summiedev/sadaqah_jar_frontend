@@ -9,7 +9,11 @@ class PrayerTime {
   final int hour;
   final int minute;
 
-  const PrayerTime({required this.name, required this.hour, required this.minute});
+  const PrayerTime({
+    required this.name,
+    required this.hour,
+    required this.minute,
+  });
 }
 
 // Local fallback times used if remote fetch fails.
@@ -29,7 +33,10 @@ class PrayerCountdownService {
 
   /// Fetches prayer times for [date] using stored/available location.
   /// Falls back to local constants on error.
-  Future<List<PrayerTime>> getTimingsForDate(DateTime date, {bool forceRefresh = false}) async {
+  Future<List<PrayerTime>> getTimingsForDate(
+    DateTime date, {
+    bool forceRefresh = false,
+  }) async {
     final key = '$_prefsKeyPrefix${date.toIso8601String().substring(0, 10)}';
     final prefs = await SharedPreferences.getInstance();
     if (!forceRefresh) {
@@ -44,15 +51,24 @@ class PrayerCountdownService {
 
     // Attempt remote fetch
     try {
-      final pos = await LocationService.instance.getStoredPosition() ?? await LocationService.instance.getCurrentPosition().then((p) => p == null ? null : {'lat': p.latitude, 'lon': p.longitude});
+      final pos =
+          await LocationService.instance.getStoredPosition() ??
+          await LocationService.instance.getCurrentPosition().then(
+            (p) => p == null ? null : {'lat': p.latitude, 'lon': p.longitude},
+          );
       if (pos != null) {
         final lat = pos['lat'];
         final lon = pos['lon'];
-        final uri = Uri.https('api.aladhan.com', '/v1/timings/${date.toUtc().millisecondsSinceEpoch ~/ 1000}', {
-          'latitude': '$lat',
-          'longitude': '$lon',
-          'method': '2', // ISNA default; app can expose method selection later
-        });
+        final uri = Uri.https(
+          'api.aladhan.com',
+          '/v1/timings/${date.toUtc().millisecondsSinceEpoch ~/ 1000}',
+          {
+            'latitude': '$lat',
+            'longitude': '$lon',
+            'method':
+                '2', // ISNA default; app can expose method selection later
+          },
+        );
         final resp = await http.get(uri).timeout(const Duration(seconds: 10));
         if (resp.statusCode == 200) {
           final body = jsonDecode(resp.body) as Map<String, dynamic>;

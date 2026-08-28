@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/location_service.dart';
 import '../../services/qibla_service.dart';
 
@@ -67,17 +67,18 @@ class _QiblaScreenState extends ConsumerState<QiblaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: dark ? kScaffoldDark : kIvory,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text('Qibla'),
-        backgroundColor: dark ? kSurfaceDark : kClayLight,
-        foregroundColor: dark ? kInkDark : kInk,
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
         surfaceTintColor: Colors.transparent,
         elevation: dark ? 0 : 10,
         scrolledUnderElevation: dark ? 0 : 10,
-        shadowColor: Colors.black.withValues(alpha: dark ? 0 : 0.18),
+        shadowColor: colors.scrim.withValues(alpha: dark ? 0 : 0.18),
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -140,19 +141,20 @@ class _QiblaHeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: dark ? kElevatedDark : kPaper,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: dark ? kLineDark : kLine),
+        border: Border.all(color: colors.border),
         boxShadow:
             dark
                 ? null
                 : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
+                    color: colors.scrim.withValues(alpha: 0.08),
                     blurRadius: 18,
                     offset: const Offset(0, 8),
                   ),
@@ -164,15 +166,10 @@ class _QiblaHeroCard extends StatelessWidget {
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color:
-                  dark ? kBronzeDarkMode.withValues(alpha: 0.18) : kSoftBronze,
+              color: colors.primaryContainer,
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              Icons.explore_rounded,
-              color: dark ? kBronzeDarkMode : kBronze,
-              size: 28,
-            ),
+            child: Icon(Icons.explore_rounded, color: colors.primary, size: 28),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -182,7 +179,7 @@ class _QiblaHeroCard extends StatelessWidget {
                 Text(
                   'Qibla Finder',
                   style: TextStyle(
-                    color: dark ? kInkDark : kInk,
+                    color: colors.textPrimary,
                     fontFamily: 'Georgia',
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
@@ -197,7 +194,7 @@ class _QiblaHeroCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: dark ? kMutedDark : kMuted,
+                    color: colors.textSecondary,
                     fontSize: 13,
                     height: 1.4,
                   ),
@@ -218,6 +215,7 @@ class _CompassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final size =
         math
@@ -227,15 +225,15 @@ class _CompassCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
       decoration: BoxDecoration(
-        color: dark ? kElevatedDark : kPaper,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: dark ? kLineDark : kLine),
+        border: Border.all(color: colors.border),
         boxShadow:
             dark
                 ? null
                 : [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.10),
+                    color: colors.scrim.withValues(alpha: 0.10),
                     blurRadius: 24,
                     offset: const Offset(0, 12),
                   ),
@@ -252,12 +250,9 @@ class _CompassCard extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: dark ? kPaperDark : kIvory,
+                    color: colors.surface,
                     border: Border.all(
-                      color:
-                          dark
-                              ? kLineDark
-                              : kBronzeLight.withValues(alpha: 0.45),
+                      color: colors.primary.withValues(alpha: 0.45),
                       width: 2,
                     ),
                   ),
@@ -267,7 +262,7 @@ class _CompassCard extends StatelessWidget {
                   height: size * 0.78,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: dark ? kLineDark : kLine),
+                    border: Border.all(color: colors.borderSubtle),
                   ),
                 ),
                 for (var i = 0; i < 36; i++)
@@ -280,10 +275,7 @@ class _CompassCard extends StatelessWidget {
                         height: i % 3 == 0 ? 16 : 8,
                         margin: const EdgeInsets.only(top: 10),
                         decoration: BoxDecoration(
-                          color:
-                              dark
-                                  ? kMutedDark.withValues(alpha: 0.32)
-                                  : kBronze.withValues(alpha: 0.28),
+                          color: colors.primary.withValues(alpha: 0.28),
                           borderRadius: BorderRadius.circular(4),
                         ),
                       ),
@@ -298,19 +290,16 @@ class _CompassCard extends StatelessWidget {
                   child: Icon(
                     Icons.navigation_rounded,
                     size: size * 0.48,
-                    color: dark ? kBronzeDarkMode : kBronze,
+                    color: colors.primary,
                   ),
                 ),
                 Container(
                   width: 18,
                   height: 18,
                   decoration: BoxDecoration(
-                    color: dark ? kBronzeDarkMode : kBronze,
+                    color: colors.primary,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: dark ? kSurfaceDark : kPaper,
-                      width: 4,
-                    ),
+                    border: Border.all(color: colors.surfaceElevated, width: 4),
                   ),
                 ),
               ],
@@ -320,7 +309,7 @@ class _CompassCard extends StatelessWidget {
           Text(
             '${angle.toStringAsFixed(0)} deg',
             style: TextStyle(
-              color: dark ? kBronzeDarkMode : kBronze,
+              color: colors.primary,
               fontSize: 30,
               fontWeight: FontWeight.w900,
             ),
@@ -329,7 +318,7 @@ class _CompassCard extends StatelessWidget {
           Text(
             'Turn gently until the arrow settles toward Qibla.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: dark ? kMutedDark : kMuted, height: 1.45),
+            style: TextStyle(color: colors.textSecondary, height: 1.45),
           ),
         ],
       ),
@@ -343,11 +332,11 @@ class _CompassLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.colors;
     return Text(
       label,
       style: TextStyle(
-        color: dark ? kMutedDark : kMuted,
+        color: colors.textSecondary,
         fontSize: 12,
         fontWeight: FontWeight.w900,
       ),
@@ -360,25 +349,22 @@ class _GuidanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: dark ? kSurfaceDark : kClayPale,
+        color: colors.primaryContainer,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: dark ? kLineDark : kLine),
+        border: Border.all(color: colors.border),
       ),
       child: Row(
         children: [
-          Icon(
-            Icons.my_location_rounded,
-            color: dark ? kBronzeDarkMode : kBronze,
-          ),
+          Icon(Icons.my_location_rounded, color: colors.primary),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               'Keep the phone flat and away from magnets for the clearest compass reading.',
-              style: TextStyle(color: dark ? kMutedDark : kMuted, height: 1.4),
+              style: TextStyle(color: colors.onPrimaryContainer, height: 1.4),
             ),
           ),
         ],
@@ -393,26 +379,22 @@ class _LocationRequiredCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: dark ? kElevatedDark : kPaper,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: dark ? kLineDark : kLine),
+        border: Border.all(color: colors.border),
       ),
       child: Column(
         children: [
-          Icon(
-            Icons.location_off_outlined,
-            size: 42,
-            color: dark ? kBronzeDarkMode : kBronze,
-          ),
+          Icon(Icons.location_off_outlined, size: 42, color: colors.primary),
           const SizedBox(height: 12),
           Text(
             'Location required',
             style: TextStyle(
-              color: dark ? kInkDark : kInk,
+              color: colors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w800,
             ),
@@ -421,7 +403,7 @@ class _LocationRequiredCard extends StatelessWidget {
           Text(
             'Grant location access to enable the Qibla compass.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: dark ? kMutedDark : kMuted, height: 1.45),
+            style: TextStyle(color: colors.textSecondary, height: 1.45),
           ),
           const SizedBox(height: 16),
           FilledButton.icon(

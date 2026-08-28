@@ -54,6 +54,7 @@ class SessionController extends ChangeNotifier {
           // older app version.
           _goalSetupComplete = true;
           await prefs.setBool('mizan.goal_setup_complete', true);
+          unawaited(PushNotificationService.instance.syncAfterAuthentication());
         }
       } catch (_) {
         // [C6] A network failure (offline, DNS, timeout, 5xx) is NOT an auth

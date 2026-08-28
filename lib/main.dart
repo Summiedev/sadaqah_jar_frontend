@@ -6,8 +6,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:home_widget/home_widget.dart';
 
+import 'core/act_store.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_extensions.dart';
 import 'core/theme/theme_mode_provider.dart';
 import 'core/session_controller.dart';
 import 'features/auth/auth_screen.dart';
@@ -47,9 +50,11 @@ import 'services/lock_screen_widget_service.dart';
 import 'services/next_prayer_widget_service.dart';
 import 'services/offline_action_queue.dart';
 import 'services/push_notification_service.dart';
+import 'services/quran_download_service.dart';
 import 'services/local_reminder_service.dart';
 import 'services/location_service.dart';
 import 'services/notification_route_resolver.dart';
+import 'services/streak_progress_widget_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 
@@ -58,10 +63,20 @@ import 'firebase_options.dart';
 /// resolve in a few milliseconds and the router redirects away before the
 /// splash entrance animation gets a single frame. Keep this in sync with
 /// the entrance AnimationController duration in SplashScreen.
-const splashMinDuration = Duration(milliseconds: 1800);
+const splashMinDuration = Duration(milliseconds: 1200);
 
 /// Flips to true once [splashMinDuration] has elapsed since app start.
 final splashMinElapsedProvider = StateProvider<bool>((ref) => false);
+
+Future<FirebaseApp>? _firebaseReady;
+final _rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
+@pragma('vm:entry-point')
+Future<void> _widgetInteractionCallback(Uri? uri) async {
+  if (uri?.host == 'refresh_rhythm') {
+    await LockScreenWidgetService.instance.refreshFromWidget();
+  }
+}
 
 /// Validates that a route path parameter is a proper integer string.
 /// Returns the id string if valid, or null if missing/non-numeric so callers
@@ -82,9 +97,10 @@ String? _requireValidIntId(String? raw) {
 void _reportError(Object error, StackTrace stack) {
   // Never include secrets in logging. Only log the exception type and message,
   // which may contain a user-visible API error message.
-  final safeMessage = error.toString().length > 500
-      ? '${error.toString().substring(0, 500)}...'
-      : error.toString();
+  final safeMessage =
+      error.toString().length > 500
+          ? '${error.toString().substring(0, 500)}...'
+          : error.toString();
   debugPrint('Mizan error: $safeMessage');
   if (kDebugMode) {
     debugPrintStack(stackTrace: stack, label: 'Mizan error stack');
@@ -102,30 +118,14 @@ void main() async {
     _reportError(error, stack);
     return true; // handled - don't crash the isolate
   };
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  // Register background message handler so data-only messages are
-  // persisted while the app is backgrounded/terminated.
+  // Start Firebase immediately, but do not block the first Flutter frame on
+  // it, notification payload inspection, or widget/storage warm-up.
+  _firebaseReady = Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // Register synchronously during process startup. Android may launch the
+  // background isolate before the visible app finishes its deferred startup.
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  // If the app was launched from a terminated state via a notification,
-  // getInitialMessage() will return that message. Persist its data so the
-  // existing startup routing path can handle it uniformly.
-  try {
-    final initial = await FirebaseMessaging.instance.getInitialMessage();
-    if (initial != null) {
-      final data = initial.data;
-      if (data.isNotEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        // H1: store structured JSON, not key=value&key=value.
-        await prefs.setString(
-          'pending_notification_payload',
-          encodeNotificationPayload(data),
-        );
-      }
-    }
-  } catch (_) {}
-  await OfflineActionQueue.instance.initialize();
-  await LockScreenWidgetService.instance.initialize();
-  await NextPrayerWidgetService.instance.start();
   final initialThemeMode = await loadInitialThemeMode();
   runApp(
     ProviderScope(
@@ -133,6 +133,22 @@ void main() async {
       child: const MizanApp(),
     ),
   );
+  unawaited(_finishStartup(_firebaseReady!));
+}
+
+Future<void> _finishStartup(Future<FirebaseApp> firebaseReady) async {
+  try {
+    await firebaseReady;
+  } catch (_) {}
+
+  // These services are not required to draw the first screen.
+  try {
+    await HomeWidget.registerInteractivityCallback(_widgetInteractionCallback);
+    await OfflineActionQueue.instance.initialize();
+    await LockScreenWidgetService.instance.initialize();
+    await NextPrayerWidgetService.instance.start();
+    await QuranDownloadService.instance.reconcile();
+  } catch (_) {}
 }
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -283,9 +299,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/home',
-            builder: (context, state) => HomeScreen(
-              openSadaqah: state.uri.queryParameters['open'] == 'sadaqah',
-            ),
+            builder:
+                (context, state) => HomeScreen(
+                  openSadaqah: state.uri.queryParameters['open'] == 'sadaqah',
+                ),
           ),
           GoRoute(
             path: '/qibla',
@@ -442,13 +459,13 @@ class _AdhkarStandalonePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: dark ? kScaffoldDark : kIvory,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: Text(title),
-        backgroundColor: dark ? kSurfaceDark : kClayLight,
-        foregroundColor: dark ? kInkDark : kInk,
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
         surfaceTintColor: Colors.transparent,
       ),
       body: child,
@@ -477,11 +494,9 @@ class _MizanAppState extends ConsumerState<MizanApp>
         ref.read(splashMinElapsedProvider.notifier).state = true;
       }
     });
-    // Initialize local services: reminders and location
-    LocalReminderService.instance.initialize();
-    // Initialize push notifications: register token + foreground listeners
-    // if permission is already granted; otherwise prepare for opt-in later.
-    unawaited(PushNotificationService.instance.initialize());
+    // Initialize reminders and push only after Firebase is ready. This keeps
+    // the first Flutter frame fast while preserving background delivery.
+    unawaited(_initializeNotificationServices());
     // Try to warm location permission state
     LocationService.instance.getStoredPosition();
     // Observe lifecycle to consume pending notifications on resume
@@ -497,7 +512,8 @@ class _MizanAppState extends ConsumerState<MizanApp>
       final path = data['deep_link'] ?? data['path'] ?? data['link'];
       if (notification != null && mounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          final messenger = ScaffoldMessenger.of(context);
+          final messenger = _rootScaffoldMessengerKey.currentState;
+          if (messenger == null) return;
           messenger.showSnackBar(
             SnackBar(
               content: Text(
@@ -509,7 +525,7 @@ class _MizanAppState extends ConsumerState<MizanApp>
                         label: 'Open',
                         onPressed: () {
                           if (mounted && path.isNotEmpty) {
-                            GoRouter.of(context).go(path);
+                            ref.read(routerProvider).go(path);
                           }
                         },
                       )
@@ -520,6 +536,19 @@ class _MizanAppState extends ConsumerState<MizanApp>
         });
       }
     });
+  }
+
+  Future<void> _initializeNotificationServices() async {
+    await LocalReminderService.instance.initialize();
+    try {
+      await _firebaseReady;
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null && initial.data.isNotEmpty) {
+        await persistFcmPayload(Map<String, dynamic>.from(initial.data));
+      }
+      await PushNotificationService.instance.initialize();
+      await _consumePendingNotification();
+    } catch (_) {}
   }
 
   @override
@@ -534,11 +563,25 @@ class _MizanAppState extends ConsumerState<MizanApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _consumePendingNotification();
+      if (ref.read(sessionProvider).isAuthenticated) {
+        unawaited(ref.read(actStoreProvider).refresh());
+        unawaited(LockScreenWidgetService.instance.updateWidget(force: true));
+        unawaited(NextPrayerWidgetService.instance.update());
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<ActStore>(actStoreProvider, (_, store) {
+      // ChangeNotifierProvider keeps the same store instance while notifying
+      // listeners, so every notification is a meaningful widget update.
+      unawaited(StreakProgressWidgetService.instance.update(store));
+    });
+    // Seed the platform widget once before the first ChangeNotifier update.
+    unawaited(
+      StreakProgressWidgetService.instance.update(ref.read(actStoreProvider)),
+    );
     final router = ref.watch(routerProvider);
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
@@ -547,16 +590,22 @@ class _MizanAppState extends ConsumerState<MizanApp>
       darkTheme: buildDarkTheme(),
       themeMode: ref.watch(themeModeProvider),
       routerConfig: router,
+      scaffoldMessengerKey: _rootScaffoldMessengerKey,
       builder: (context, child) {
+        final path = router.routeInformationProvider.value.uri.path;
+        final atHome = path.isEmpty || path == '/home';
+        final stackCanPop = router.canPop();
+        final allowSystemExit =
+            atHome || path == '/auth' || path == '/onboarding';
         return PopScope(
-          // Android back should always return to a safe app destination,
-          // rather than closing the process from a deep link or detail page.
-          canPop: false,
+          // Preserve real pushed-route history. Only intercept a root tab that
+          // was reached with go() so it can return to Sanctuary instead of
+          // exiting the process.
+          canPop: stackCanPop || allowSystemExit,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
-            final path = router.routeInformationProvider.value.uri.path;
             if (ref.read(sessionProvider).isAuthenticated) {
-              if (path != '/home') router.go('/home');
+              if (!atHome) router.go('/home');
             } else if (path != '/onboarding') {
               router.go('/onboarding');
             }
@@ -578,8 +627,7 @@ class _MizanAppState extends ConsumerState<MizanApp>
         final decoded = decodeNotificationPayload(payload);
         final resolved = resolveNotificationDestination(decoded);
         if (resolved != null && mounted) {
-          // Use GoRouter to navigate now that the first frame has rendered.
-          GoRouter.of(context).go(resolved.route);
+          ref.read(routerProvider).go(resolved.route);
         }
       }
     } catch (_) {}

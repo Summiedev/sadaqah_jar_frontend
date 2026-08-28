@@ -5,7 +5,6 @@ import 'package:http/http.dart' as http;
 
 import '../services/backend_api.dart';
 
-
 String userMessageForError(Object error) {
   // BackendApiException carries a status code + already-safe message.
   if (error is BackendApiException) {
@@ -40,7 +39,8 @@ String _messageForStatus(int statusCode, String fallback) {
     case >= 500:
       return 'Something went wrong on our side. Please try again.';
     default:
-   
-      return fallback.isNotEmpty ? fallback : 'Something went wrong. Please try again.';
+      return fallback.isNotEmpty
+          ? fallback
+          : 'Something went wrong. Please try again.';
   }
 }

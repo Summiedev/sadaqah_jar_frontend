@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../core/theme/app_theme.dart';
+import '../core/theme/theme_extensions.dart';
 import '../services/backend_api.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
@@ -29,7 +30,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   bool _isStrongPassword(String value) {
-    return value.length >= 8 && RegExp(r'[A-Za-z]').hasMatch(value) && RegExp(r'\d').hasMatch(value);
+    return value.length >= 8 &&
+        RegExp(r'[A-Za-z]').hasMatch(value) &&
+        RegExp(r'\d').hasMatch(value);
   }
 
   Future<void> _changePassword() async {
@@ -51,7 +54,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
     if (!_isStrongPassword(newPassword)) {
-      setState(() => _errorMessage = 'Password must be at least 8 characters with a letter and a number.');
+      setState(
+        () =>
+            _errorMessage =
+                'Password must be at least 8 characters with a letter and a number.',
+      );
       return;
     }
 
@@ -73,7 +80,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
+        _errorMessage = error
+            .toString()
+            .replaceFirst('BackendApiException(', '')
+            .replaceFirst(')', '');
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -83,9 +93,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        backgroundColor: kSurface,
+        backgroundColor: context.colors.background,
         surfaceTintColor: Colors.transparent,
         title: const Text('Change password', style: TextStyle(color: kInk)),
         iconTheme: const IconThemeData(color: kInk),
@@ -99,7 +109,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: kPaper,
+                  color: context.colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: kLine),
                 ),
@@ -115,7 +125,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                             color: kSoftBronze,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(Icons.lock_outline, color: kBronze, size: 22),
+                          child: const Icon(
+                            Icons.lock_outline,
+                            color: kBronze,
+                            size: 22,
+                          ),
                         ),
                         const SizedBox(width: 14),
                         const Expanded(
@@ -133,7 +147,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                               SizedBox(height: 3),
                               Text(
                                 'Use a strong password you haven\'t used elsewhere.',
-                                style: TextStyle(fontSize: 12.5, color: kMuted, height: 1.35),
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  color: kMuted,
+                                  height: 1.35,
+                                ),
                               ),
                             ],
                           ),
@@ -145,21 +163,28 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       label: 'Current password',
                       controller: _currentController,
                       obscureText: !_currentVisible,
-                      onToggleVisibility: () => setState(() => _currentVisible = !_currentVisible),
+                      onToggleVisibility:
+                          () => setState(
+                            () => _currentVisible = !_currentVisible,
+                          ),
                     ),
                     const SizedBox(height: 14),
                     _Field(
                       label: 'New password',
                       controller: _newController,
                       obscureText: !_newVisible,
-                      onToggleVisibility: () => setState(() => _newVisible = !_newVisible),
+                      onToggleVisibility:
+                          () => setState(() => _newVisible = !_newVisible),
                     ),
                     const SizedBox(height: 14),
                     _Field(
                       label: 'Confirm new password',
                       controller: _confirmController,
                       obscureText: !_confirmVisible,
-                      onToggleVisibility: () => setState(() => _confirmVisible = !_confirmVisible),
+                      onToggleVisibility:
+                          () => setState(
+                            () => _confirmVisible = !_confirmVisible,
+                          ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -187,13 +212,32 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       child: FilledButton(
                         style: FilledButton.styleFrom(
                           backgroundColor: kBronze,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(18),
+                          ),
                           padding: const EdgeInsets.symmetric(vertical: 16),
                         ),
                         onPressed: _loading ? null : _changePassword,
-                        child: _loading
-                          ? SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Theme.of(context).colorScheme.onPrimary))
-                          : Text('Change password', style: TextStyle(fontSize: 15, color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.w700)),
+                        child:
+                            _loading
+                                ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                  ),
+                                )
+                                : Text(
+                                  'Change password',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color:
+                                        Theme.of(context).colorScheme.onPrimary,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                       ),
                     ),
                   ],
@@ -227,7 +271,12 @@ class _Field extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(fontSize: 10, letterSpacing: 2, color: kMuted, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            fontSize: 10,
+            letterSpacing: 2,
+            color: kMuted,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         const SizedBox(height: 6),
         TextField(
@@ -238,17 +287,36 @@ class _Field extends StatelessWidget {
             hintStyle: const TextStyle(fontSize: 12, color: kMutedLight),
             filled: true,
             fillColor: kClayPale,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kBronzeLight)),
-            suffixIcon: onToggleVisibility != null
-                ? IconButton(
-                    onPressed: onToggleVisibility,
-                    icon: Icon(obscureText ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: kBronze),
-                    tooltip: obscureText ? 'Show password' : 'Hide password',
-                  )
-                : null,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kClay),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kClay),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kBronzeLight),
+            ),
+            suffixIcon:
+                onToggleVisibility != null
+                    ? IconButton(
+                      onPressed: onToggleVisibility,
+                      icon: Icon(
+                        obscureText
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        size: 18,
+                        color: kBronze,
+                      ),
+                      tooltip: obscureText ? 'Show password' : 'Hide password',
+                    )
+                    : null,
           ),
         ),
       ],

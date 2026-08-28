@@ -39,6 +39,16 @@
             android:textColor="#CCFFFFFF"
             android:textSize="10sp"
             android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/widget_refresh"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="@android:color/transparent"
+            android:contentDescription="Show another reminder"
+            android:padding="7dp"
+            android:src="@android:drawable/ic_popup_sync"
+            android:tint="#FFF0D8B8" />
     </LinearLayout>
 
     <TextView

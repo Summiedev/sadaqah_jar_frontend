@@ -1,4 +1,4 @@
-package com.example.sadaqah_jar
+package com.summie.mizan
 
 import io.flutter.embedding.android.FlutterActivity
 

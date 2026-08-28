@@ -29,7 +29,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   }
 
   bool _isStrongPassword(String value) {
-    return value.length >= 8 && RegExp(r'[A-Za-z]').hasMatch(value) && RegExp(r'\d').hasMatch(value);
+    return value.length >= 8 &&
+        RegExp(r'[A-Za-z]').hasMatch(value) &&
+        RegExp(r'\d').hasMatch(value);
   }
 
   Future<void> _submit() async {
@@ -47,7 +49,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       return;
     }
     if (!_isStrongPassword(password)) {
-      setState(() => _errorMessage = 'Password must be at least 8 characters and include a letter and a number.');
+      setState(
+        () =>
+            _errorMessage =
+                'Password must be at least 8 characters and include a letter and a number.',
+      );
       return;
     }
 
@@ -57,7 +63,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     });
 
     try {
-      await BackendApi.instance.resetPassword(token: token, newPassword: password);
+      await BackendApi.instance.resetPassword(
+        token: token,
+        newPassword: password,
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Password reset. Please sign in.')),
@@ -66,7 +75,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = error.toString().replaceFirst('BackendApiException(', '').replaceFirst(')', '');
+        _errorMessage = error
+            .toString()
+            .replaceFirst('BackendApiException(', '')
+            .replaceFirst(')', '');
       });
     } finally {
       if (mounted) {
@@ -99,14 +111,25 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       foregroundColor: kMuted,
                     ),
                     icon: const Icon(Icons.arrow_back, size: 16),
-                    label: const Text('Back', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    label: const Text(
+                      'Back',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 18),
               const Text(
                 'Reset password',
-                style: TextStyle(fontSize: 28, height: 1.1, fontWeight: FontWeight.w800, color: kInk),
+                style: TextStyle(
+                  fontSize: 28,
+                  height: 1.1,
+                  fontWeight: FontWeight.w800,
+                  color: kInk,
+                ),
               ),
               const SizedBox(height: 10),
               const Text(
@@ -124,11 +147,19 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.lock_reset_outlined, size: 38, color: kBronze),
+                    const Icon(
+                      Icons.lock_reset_outlined,
+                      size: 38,
+                      color: kBronze,
+                    ),
                     const SizedBox(height: 14),
                     const Text(
                       'Choose a new password',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: kInk),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: kInk,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
@@ -165,29 +196,56 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: kDangerBorder),
                         ),
-                        child: Text(_errorMessage!, style: const TextStyle(color: kDanger, fontSize: 13)),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: kDanger, fontSize: 13),
+                        ),
                       ),
                     ],
                     const SizedBox(height: 16),
                     _loading
                         ? SizedBox(
-                            height: 48,
-                            child: DecoratedBox(
-                              decoration: const BoxDecoration(color: kBronze, borderRadius: BorderRadius.all(Radius.circular(16))),
-                              child: Center(child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.2, color: Theme.of(context).colorScheme.onPrimary))),
+                          height: 48,
+                          child: DecoratedBox(
+                            decoration: const BoxDecoration(
+                              color: kBronze,
+                              borderRadius: BorderRadius.all(
+                                Radius.circular(16),
+                              ),
                             ),
-                          )
-                        : ElevatedButton(
-                            onPressed: _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: kBronze,
-                              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                              elevation: 0,
+                            child: Center(
+                              child: SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
+                                ),
+                              ),
                             ),
-                            child: const Text('Reset password', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                           ),
+                        )
+                        : ElevatedButton(
+                          onPressed: _submit,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kBronze,
+                            foregroundColor:
+                                Theme.of(context).colorScheme.onPrimary,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: const Text(
+                            'Reset password',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
                   ],
                 ),
               ),
@@ -200,7 +258,12 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 }
 
 class _Field extends StatelessWidget {
-  const _Field({required this.label, required this.hint, this.controller, this.obscureText = false});
+  const _Field({
+    required this.label,
+    required this.hint,
+    this.controller,
+    this.obscureText = false,
+  });
 
   final String label;
   final String hint;
@@ -212,7 +275,15 @@ class _Field extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, letterSpacing: 2, color: kMuted, fontWeight: FontWeight.w700)),
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            fontSize: 10,
+            letterSpacing: 2,
+            color: kMuted,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -222,10 +293,22 @@ class _Field extends StatelessWidget {
             hintStyle: const TextStyle(fontSize: 12, color: kMutedLight),
             filled: true,
             fillColor: kClayPale,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kClay)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: kBronzeLight)),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kClay),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kClay),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kBronzeLight),
+            ),
           ),
         ),
       ],

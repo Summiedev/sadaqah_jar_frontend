@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'journey_search_data.dart';
 
@@ -55,20 +56,29 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
 
   void _onQueryChanged(String value) {
     if (value.isEmpty) {
-      setState(() { _results = const []; _isSearching = false; });
+      setState(() {
+        _results = const [];
+        _isSearching = false;
+      });
       return;
     }
     setState(() => _isSearching = true);
     Future.delayed(const Duration(milliseconds: 250), () {
       if (!mounted) return;
       final results = JourneySearchIndex.search(_controller.text);
-      setState(() { _results = results; _isSearching = false; });
+      setState(() {
+        _results = results;
+        _isSearching = false;
+      });
     });
   }
 
   void _clear() {
     _controller.clear();
-    setState(() { _results = const []; _isSearching = false; });
+    setState(() {
+      _results = const [];
+      _isSearching = false;
+    });
     _focusNode.requestFocus();
   }
 
@@ -85,7 +95,10 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded, color: kInk),
+          icon: Icon(
+            Icons.arrow_back_rounded,
+            color: context.colors.iconPrimary,
+          ),
         ),
         titleSpacing: 0,
         title: _SearchField(
@@ -95,26 +108,32 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
           onClear: _clear,
         ),
       ),
-      body: hasResults
-          ? ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-              physics: const BouncingScrollPhysics(),
-              itemCount: _results.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final result = _results[index];
-                return _SearchResultTile(
-                  result: result,
-                  query: _controller.text,
-                  onTap: () {
-                    widget.onResultSelected?.call(result);
-                    Navigator.of(context).pop();
-                  },
-                );
-              },
-            )
-          : hasQuery && _isSearching
-              ? const Center(child: Padding(padding: EdgeInsets.only(top: 40), child: CircularProgressIndicator(color: kBronze)))
+      body:
+          hasResults
+              ? ListView.separated(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                physics: const BouncingScrollPhysics(),
+                itemCount: _results.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final result = _results[index];
+                  return _SearchResultTile(
+                    result: result,
+                    query: _controller.text,
+                    onTap: () {
+                      widget.onResultSelected?.call(result);
+                      Navigator.of(context).pop();
+                    },
+                  );
+                },
+              )
+              : hasQuery && _isSearching
+              ? const Center(
+                child: Padding(
+                  padding: EdgeInsets.only(top: 40),
+                  child: CircularProgressIndicator(color: kBronze),
+                ),
+              )
               : _buildEmptyState(),
     );
   }
@@ -124,14 +143,31 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(40, 40, 40, 20),
-          child: Column(children: [
-            Icon(Icons.search_off_rounded, size: 64, color: kClay),
-            const SizedBox(height: 20),
-            Text('No results found', style: TextStyle(color: kInk, fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
-            const SizedBox(height: 12),
-            Text('Try a different spelling, search by category, or use an English translation or Arabic text.',
-              textAlign: TextAlign.center, style: TextStyle(color: kMuted, fontSize: 14, height: 1.5)),
-          ]),
+          child: Column(
+            children: [
+              Icon(Icons.search_off_rounded, size: 64, color: kClay),
+              const SizedBox(height: 20),
+              Text(
+                'No results found',
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: 'Georgia',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Try a different spelling, search by category, or use an English translation or Arabic text.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -141,15 +177,34 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
         if (_recent.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-            child: Row(children: [
-              Text('Recent', style: TextStyle(color: kBronze, fontSize: 13, fontWeight: FontWeight.w800)),
-              const Spacer(),
-              TextButton(onPressed: () async {
-                final prefs = await SharedPreferences.getInstance();
-                await prefs.remove(_recentKey);
-                setState(() => _recent = const []);
-              }, child: Text('Clear', style: TextStyle(color: kBronze, fontSize: 12, fontWeight: FontWeight.w700))),
-            ]),
+            child: Row(
+              children: [
+                Text(
+                  'Recent',
+                  style: TextStyle(
+                    color: kBronze,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () async {
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.remove(_recentKey);
+                    setState(() => _recent = const []);
+                  },
+                  child: Text(
+                    'Clear',
+                    style: TextStyle(
+                      color: kBronze,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           Expanded(
             child: ListView.separated(
@@ -160,12 +215,25 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
               itemBuilder: (context, index) {
                 final query = _recent[index];
                 return Material(
-                  color: kPaper,
+                  color: context.colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(16),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                    leading: const Icon(Icons.history_rounded, color: kBronze, size: 20),
-                    title: Text(query, style: const TextStyle(color: kInk, fontSize: 15)),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
+                    leading: const Icon(
+                      Icons.history_rounded,
+                      color: kBronze,
+                      size: 20,
+                    ),
+                    title: Text(
+                      query,
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 15,
+                      ),
+                    ),
                     onTap: () {
                       _controller.text = query;
                       _onQueryChanged(query);
@@ -181,22 +249,79 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
             child: Center(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(40, 40, 40, 20),
-                child: Column(children: [
-                  Icon(Icons.search_rounded, size: 64, color: kClay),
-                  const SizedBox(height: 20),
-                  Text('Search Journey', style: TextStyle(color: kInk, fontSize: 20, fontWeight: FontWeight.w700, fontFamily: 'Georgia')),
-                  const SizedBox(height: 12),
-                    Text('Search across adhkar, reflections, and readings by Arabic, translation, or transliteration.',
-                      textAlign: TextAlign.center, style: TextStyle(color: kMuted, fontSize: 14, height: 1.5)),
-                  const SizedBox(height: 24),
-                  Wrap(spacing: 10, runSpacing: 10, alignment: WrapAlignment.center, children: [
-                    _SuggestionChip(label: 'Ayat al-Kursi', onTap: () { _controller.text = 'Ayat al-Kursi'; _onQueryChanged('Ayat al-Kursi'); _saveRecent('Ayat al-Kursi'); }),
-                    _SuggestionChip(label: 'Morning', onTap: () { _controller.text = 'Morning'; _onQueryChanged('Morning'); _saveRecent('Morning'); }),
-                    _SuggestionChip(label: 'Protection', onTap: () { _controller.text = 'Protection'; _onQueryChanged('Protection'); _saveRecent('Protection'); }),
-                    _SuggestionChip(label: 'SubhanAllah', onTap: () { _controller.text = 'SubhanAllah'; _onQueryChanged('SubhanAllah'); _saveRecent('SubhanAllah'); }),
-                    _SuggestionChip(label: 'Travel', onTap: () { _controller.text = 'Travel'; _onQueryChanged('Travel'); _saveRecent('Travel'); }),
-                  ]),
-                ]),
+                child: Column(
+                  children: [
+                    Icon(Icons.search_rounded, size: 64, color: kClay),
+                    const SizedBox(height: 20),
+                    Text(
+                      'Search Journey',
+                      style: TextStyle(
+                        color: context.colors.textPrimary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        fontFamily: 'Georgia',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Search across adhkar, reflections, and readings by Arabic, translation, or transliteration.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: context.colors.textSecondary,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _SuggestionChip(
+                          label: 'Ayat al-Kursi',
+                          onTap: () {
+                            _controller.text = 'Ayat al-Kursi';
+                            _onQueryChanged('Ayat al-Kursi');
+                            _saveRecent('Ayat al-Kursi');
+                          },
+                        ),
+                        _SuggestionChip(
+                          label: 'Morning',
+                          onTap: () {
+                            _controller.text = 'Morning';
+                            _onQueryChanged('Morning');
+                            _saveRecent('Morning');
+                          },
+                        ),
+                        _SuggestionChip(
+                          label: 'Protection',
+                          onTap: () {
+                            _controller.text = 'Protection';
+                            _onQueryChanged('Protection');
+                            _saveRecent('Protection');
+                          },
+                        ),
+                        _SuggestionChip(
+                          label: 'SubhanAllah',
+                          onTap: () {
+                            _controller.text = 'SubhanAllah';
+                            _onQueryChanged('SubhanAllah');
+                            _saveRecent('SubhanAllah');
+                          },
+                        ),
+                        _SuggestionChip(
+                          label: 'Travel',
+                          onTap: () {
+                            _controller.text = 'Travel';
+                            _onQueryChanged('Travel');
+                            _saveRecent('Travel');
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -206,7 +331,12 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField({required this.controller, required this.focusNode, required this.onChanged, required this.onClear});
+  const _SearchField({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onClear,
+  });
   final TextEditingController controller;
   final FocusNode focusNode;
   final ValueChanged<String> onChanged;
@@ -220,34 +350,54 @@ class _SearchField extends StatelessWidget {
       decoration: BoxDecoration(
         color: hasText ? kPaper : kSoftBronze,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: hasText ? kBronze : Colors.transparent, width: 1.5),
-      ),
-      child: Row(children: [
-        const Padding(padding: EdgeInsets.only(left: 14), child: Icon(Icons.search_rounded, color: kBronze, size: 20)),
-        Expanded(
-          child: TextField(
-            controller: controller,
-            focusNode: focusNode,
-            onChanged: onChanged,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: 'Search adhkar, reflections...',
-              hintStyle: const TextStyle(color: kMutedLight, fontSize: 14),
-              border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            ),
-            style: const TextStyle(color: kInk, fontSize: 15),
-          ),
+        border: Border.all(
+          color: hasText ? kBronze : Colors.transparent,
+          width: 1.5,
         ),
-        if (hasText)
-          IconButton(onPressed: onClear, icon: const Icon(Icons.close_rounded, color: kBronze, size: 18), tooltip: 'Clear', splashRadius: 18),
-      ]),
+      ),
+      child: Row(
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(left: 14),
+            child: Icon(Icons.search_rounded, color: kBronze, size: 20),
+          ),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              onChanged: onChanged,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search adhkar, reflections...',
+                hintStyle: const TextStyle(color: kMutedLight, fontSize: 14),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
+              ),
+              style: const TextStyle(color: kInk, fontSize: 15),
+            ),
+          ),
+          if (hasText)
+            IconButton(
+              onPressed: onClear,
+              icon: const Icon(Icons.close_rounded, color: kBronze, size: 18),
+              tooltip: 'Clear',
+              splashRadius: 18,
+            ),
+        ],
+      ),
     );
   }
 }
 
 class _SearchResultTile extends StatelessWidget {
-  const _SearchResultTile({required this.result, required this.query, required this.onTap});
+  const _SearchResultTile({
+    required this.result,
+    required this.query,
+    required this.onTap,
+  });
   final JourneySearchResult result;
   final String query;
   final VoidCallback onTap;
@@ -258,40 +408,106 @@ class _SearchResultTile extends StatelessWidget {
     final highlightedSubtitle = _highlight(result.subtitle, query);
 
     return Material(
-      color: kPaper,
+      color: context.colors.surfaceElevated,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: kSoftBronze, borderRadius: BorderRadius.circular(99)),
-                child: Text(result.category, style: const TextStyle(color: kBronze, fontSize: 11, fontWeight: FontWeight.w800)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kSoftBronze,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(
+                      result.category,
+                      style: const TextStyle(
+                        color: kBronze,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  if (result.commonName != null &&
+                      result.commonName!.isNotEmpty)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: kSoftSage,
+                        borderRadius: BorderRadius.circular(99),
+                      ),
+                      child: Text(
+                        result.commonName!,
+                        style: const TextStyle(
+                          color: kSage,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                ],
               ),
-              const SizedBox(width: 8),
-              if (result.commonName != null && result.commonName!.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(color: kSoftSage, borderRadius: BorderRadius.circular(99)),
-                  child: Text(result.commonName!, style: const TextStyle(color: kSage, fontSize: 11, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 10),
+              if (result.arabic != null && result.arabic!.isNotEmpty)
+                Text(
+                  result.arabic!,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    color: context.colors.textPrimary,
+                    fontSize: 22,
+                    height: 1.6,
+                  ),
                 ),
-            ]),
-            const SizedBox(height: 10),
-            if (result.arabic != null && result.arabic!.isNotEmpty)
-              Text(result.arabic!, textDirection: TextDirection.rtl, textAlign: TextAlign.right, style: const TextStyle(color: kInk, fontSize: 22, height: 1.6)),
-            if (result.arabic != null && result.arabic!.isNotEmpty) const SizedBox(height: 8),
-            Text(highlightedTitle, style: const TextStyle(color: kInk, fontFamily: 'Georgia', fontSize: 17, fontWeight: FontWeight.w700, height: 1.3)),
-            const SizedBox(height: 4),
-            Text(highlightedSubtitle, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: kMuted, height: 1.5)),
-            if (result.source != null && result.source!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(result.source!, style: const TextStyle(color: kMutedLight, fontSize: 11, fontStyle: FontStyle.italic)),
+              if (result.arabic != null && result.arabic!.isNotEmpty)
+                const SizedBox(height: 8),
+              Text(
+                highlightedTitle,
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontFamily: 'Georgia',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                highlightedSubtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: context.colors.textSecondary,
+                  height: 1.5,
+                ),
+              ),
+              if (result.source != null && result.source!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  result.source!,
+                  style: TextStyle(
+                    color: context.colors.textMuted,
+                    fontSize: 11,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
             ],
-          ]),
+          ),
         ),
       ),
     );
@@ -304,7 +520,8 @@ class _SearchResultTile extends StatelessWidget {
     final lowerText = text.toLowerCase();
     final lowerQuery = query.toLowerCase();
 
-    if (normalizedQuery.isEmpty || !normalized.contains(normalizedQuery)) return text;
+    if (normalizedQuery.isEmpty || !normalized.contains(normalizedQuery))
+      return text;
 
     final buffer = StringBuffer();
     int lastEnd = 0;
@@ -315,7 +532,9 @@ class _SearchResultTile extends StatelessWidget {
     final originalStart = _originalIndex(text, start);
     buffer.write(lowerText.substring(lastEnd, originalStart));
     buffer.write('<b>');
-    buffer.write(lowerText.substring(originalStart, originalStart + lowerQuery.length));
+    buffer.write(
+      lowerText.substring(originalStart, originalStart + lowerQuery.length),
+    );
     buffer.write('</b>');
     lastEnd = originalStart + lowerQuery.length;
 
@@ -339,4 +558,28 @@ class _SearchResultTile extends StatelessWidget {
   }
 }
 
-class _SuggestionChip extends StatelessWidget { const _SuggestionChip({required this.label, required this.onTap}); final String label; final VoidCallback onTap; @override Widget build(BuildContext context) => InkWell(onTap: onTap, borderRadius: BorderRadius.circular(99), child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), decoration: BoxDecoration(color: kSoftBronze, borderRadius: BorderRadius.circular(99)), child: Text(label, style: const TextStyle(color: kBronze, fontSize: 13, fontWeight: FontWeight.w700)))); }
+class _SuggestionChip extends StatelessWidget {
+  const _SuggestionChip({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(99),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: kSoftBronze,
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: kBronze,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  );
+}
