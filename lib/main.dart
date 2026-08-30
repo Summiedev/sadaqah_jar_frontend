@@ -564,6 +564,12 @@ class _MizanAppState extends ConsumerState<MizanApp>
     if (state == AppLifecycleState.resumed) {
       _consumePendingNotification();
       if (ref.read(sessionProvider).isAuthenticated) {
+        // Startup can finish before the persisted session is restored. Retry
+        // registration after the app returns to the foreground so scheduled
+        // pushes use the current FCM token for the authenticated account.
+        unawaited(
+          PushNotificationService.instance.syncAfterAuthentication(),
+        );
         unawaited(ref.read(actStoreProvider).refresh());
         unawaited(LockScreenWidgetService.instance.updateWidget(force: true));
         unawaited(NextPrayerWidgetService.instance.update());

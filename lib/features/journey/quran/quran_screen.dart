@@ -1436,7 +1436,9 @@ class _MiniPlayer extends StatelessWidget {
   final VoidCallback? onDownload;
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    return Container(
     padding: EdgeInsets.fromLTRB(
       16,
       10,
@@ -1493,7 +1495,8 @@ class _MiniPlayer extends StatelessWidget {
         ),
       ],
     ),
-  );
+    );
+  }
 }
 
 class _QuranSettingsSheet extends StatefulWidget {
