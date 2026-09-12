@@ -23,7 +23,7 @@
                 android:layout_height="16dp"
                 android:layout_gravity="center"
                 android:src="@android:drawable/ic_menu_view"
-                android:tint="#FFF0D8B8" />
+                android:tint="#FFD2A875" />
         </FrameLayout>
 
         <TextView
@@ -36,7 +36,7 @@
             android:letterSpacing="0.08"
             android:maxLines="1"
             android:text="QURAN LIGHT"
-            android:textColor="#CCFFFFFF"
+            android:textColor="#FFD1C7BB"
             android:textSize="10sp"
             android:textStyle="bold" />
 
@@ -48,7 +48,7 @@
             android:contentDescription="Show another reminder"
             android:padding="7dp"
             android:src="@android:drawable/ic_popup_sync"
-            android:tint="#FFF0D8B8" />
+            android:tint="#FFD2A875" />
     </LinearLayout>
 
     <TextView
@@ -65,7 +65,7 @@
         android:maxLines="3"
         android:padding="12dp"
         android:text="Remember Allah with much remembrance."
-        android:textColor="#FFFFFFFF"
+        android:textColor="#FFF3ECE4"
         android:textSize="15sp"
         android:textStyle="bold" />
 
@@ -83,7 +83,7 @@
         android:paddingEnd="10dp"
         android:paddingBottom="5dp"
         android:text="Quran 33:41-42"
-        android:textColor="#FFF0D8B8"
+        android:textColor="#FFD2A875"
         android:textSize="11sp"
         android:textStyle="bold|italic" />
 
@@ -94,7 +94,7 @@
         android:ellipsize="end"
         android:maxLines="1"
         android:text="Remember Allah often"
-        android:textColor="#FFFFFFFF"
+        android:textColor="#FFF3ECE4"
         android:textSize="13sp"
         android:textStyle="bold"
         android:visibility="gone" />

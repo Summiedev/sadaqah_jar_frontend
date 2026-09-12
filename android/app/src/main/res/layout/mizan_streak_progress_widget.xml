@@ -19,7 +19,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="serif"
             android:text="4"
-            android:textColor="#FFFFFFFF"
+            android:textColor="#FFF3ECE4"
             android:textSize="28sp"
             android:textStyle="bold" />
 
@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             android:fontFamily="serif"
             android:text="60%"
-            android:textColor="#FFFFFFFF"
+            android:textColor="#FFF3ECE4"
             android:textSize="28sp"
             android:textStyle="bold"
             android:visibility="gone" />
@@ -43,7 +43,7 @@
             android:ellipsize="end"
             android:maxLines="1"
             android:text="day streak"
-            android:textColor="#D9FFFFFF"
+            android:textColor="#FFD1C7BB"
             android:textSize="14sp"
             android:textStyle="bold" />
 
@@ -56,7 +56,7 @@
             android:paddingEnd="10dp"
             android:paddingBottom="5dp"
             android:text="Week"
-            android:textColor="#FFF0D8B8"
+            android:textColor="#FFD2A875"
             android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -84,7 +84,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="This week"
-                android:textColor="#FFFFFFFF"
+                android:textColor="#FFF3ECE4"
                 android:textSize="12sp"
                 android:textStyle="bold" />
 
@@ -95,7 +95,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="4/7"
-                android:textColor="#FFF0D8B8"
+                android:textColor="#FFD2A875"
                 android:textSize="11sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -116,7 +116,7 @@
                 android:gravity="center"
                 android:includeFontPadding="false"
                 android:text="Sun"
-                android:textColor="#FF0A3B34"
+                android:textColor="#FF2F2B27"
                 android:textSize="9sp"
                 android:textStyle="bold" />
 
@@ -130,7 +130,7 @@
                 android:gravity="center"
                 android:includeFontPadding="false"
                 android:text="Mon"
-                android:textColor="#FF0A3B34"
+                android:textColor="#FF2F2B27"
                 android:textSize="9sp"
                 android:textStyle="bold" />
 
@@ -144,7 +144,7 @@
                 android:gravity="center"
                 android:includeFontPadding="false"
                 android:text="Tue"
-                android:textColor="#FF0A3B34"
+                android:textColor="#FF2F2B27"
                 android:textSize="9sp"
                 android:textStyle="bold" />
 
@@ -158,7 +158,7 @@
                 android:gravity="center"
                 android:includeFontPadding="false"
                 android:text="Wed"
-                android:textColor="#FF0A3B34"
+                android:textColor="#FF2F2B27"
                 android:textSize="9sp"
                 android:textStyle="bold" />
 
@@ -172,7 +172,7 @@
                 android:gravity="center"
                 android:includeFontPadding="false"
                 android:text="Thu"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#FFD1C7BB"
                 android:textSize="9sp"
                 android:textStyle="bold" />
 
@@ -186,7 +186,7 @@
                 android:gravity="center"
                 android:includeFontPadding="false"
                 android:text="Fri"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#FFD1C7BB"
                 android:textSize="9sp"
                 android:textStyle="bold" />
 
@@ -200,7 +200,7 @@
                 android:gravity="center"
                 android:includeFontPadding="false"
                 android:text="Sat"
-                android:textColor="#CCFFFFFF"
+                android:textColor="#FFD1C7BB"
                 android:textSize="9sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -214,7 +214,7 @@
             android:gravity="center"
             android:maxLines="1"
             android:text="18 of 25 acts"
-            android:textColor="#FFF0D8B8"
+            android:textColor="#FFD2A875"
             android:textSize="12sp"
             android:textStyle="bold"
             android:visibility="gone" />
@@ -229,7 +229,7 @@
             android:indeterminate="false"
             android:max="100"
             android:progress="60"
-            android:progressTint="#FFF0D8B8"
+            android:progressTint="#FFD2A875"
             android:visibility="gone" />
     </LinearLayout>
 </LinearLayout>

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_extensions.dart';
 import '../services/prayer_countdown_service.dart';
 
 class NextPrayerRectangular extends StatefulWidget {
@@ -44,6 +45,7 @@ class _NextPrayerRectangularState extends State<NextPrayerRectangular> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final supportText =
         _minutes <= 5 ? 'Time to pause and pray' : 'Prepare with presence';
     final label = 'Next prayer: $_prayer. $supportText';
@@ -58,7 +60,7 @@ class _NextPrayerRectangularState extends State<NextPrayerRectangular> {
                 const _WidgetIcon(icon: Icons.notifications_none_rounded),
                 const SizedBox(width: 10),
                 const Expanded(child: _Eyebrow('PRAYER RHYTHM')),
-                const _WidgetChip('Salah'),
+                _WidgetChip('Salah', colors: colors),
               ],
             ),
             const SizedBox(height: 16),
@@ -66,9 +68,9 @@ class _NextPrayerRectangularState extends State<NextPrayerRectangular> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.09),
+                color: colors.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                border: Border.all(color: colors.borderSubtle),
               ),
               child: Row(
                 children: [
@@ -81,8 +83,8 @@ class _NextPrayerRectangularState extends State<NextPrayerRectangular> {
                           _prayer,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: colors.textPrimary,
                             fontFamily: 'Georgia',
                             fontSize: 25,
                             fontWeight: FontWeight.w800,
@@ -93,8 +95,8 @@ class _NextPrayerRectangularState extends State<NextPrayerRectangular> {
                           supportText,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFFF0D8B8),
+                          style: TextStyle(
+                            color: colors.accent,
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                           ),
@@ -103,9 +105,9 @@ class _NextPrayerRectangularState extends State<NextPrayerRectangular> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Icon(
+                  Icon(
                     Icons.explore_outlined,
-                    color: Colors.white70,
+                    color: colors.iconSecondary,
                     size: 28,
                   ),
                 ],
@@ -194,15 +196,11 @@ class _WidgetPreviewCard extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 132),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF06433B), Color(0xFF0B302B), Color(0xFF201A16)],
-        ),
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
+            color: context.colors.scrim.withValues(alpha: 0.16),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -220,14 +218,15 @@ class _WidgetIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       width: 34,
       height: 34,
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
+        color: colors.accentSoft,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Icon(icon, color: const Color(0xFFF0D8B8), size: 18),
+      child: Icon(icon, color: colors.accent, size: 18),
     );
   }
 }
@@ -239,12 +238,13 @@ class _Eyebrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Text(
       text,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        color: Colors.white70,
+      style: TextStyle(
+        color: colors.textSecondary,
         fontSize: 10.5,
         fontWeight: FontWeight.w900,
       ),
@@ -253,25 +253,26 @@ class _Eyebrow extends StatelessWidget {
 }
 
 class _WidgetChip extends StatelessWidget {
-  const _WidgetChip(this.text);
+  const _WidgetChip(this.text, {required this.colors});
 
   final String text;
+  final MizanColors colors;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: kBronze.withValues(alpha: 0.22),
+        color: colors.accentSoft,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: kBronze.withValues(alpha: 0.35)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.45)),
       ),
       child: Text(
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Color(0xFFF0D8B8),
+        style: TextStyle(
+          color: colors.accent,
           fontSize: 11,
           fontWeight: FontWeight.w900,
         ),

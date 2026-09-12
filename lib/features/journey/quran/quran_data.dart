@@ -434,8 +434,7 @@ class QuranRepository {
       // needlessly long serial download while keeping memory bounded.
       for (var start = 1; start <= 604; start += 4) {
         final pages = [
-          for (var page = start; page <= 604 && page < start + 4; page++)
-            page,
+          for (var page = start; page <= 604 && page < start + 4; page++) page,
         ];
         final pending = <int>[];
         for (final page in pages) {
@@ -585,13 +584,16 @@ class QuranRepository {
     try {
       final pageDir = Directory(p.join((await filesDir).path, 'pages'));
       if (await pageDir.exists()) {
-        final actual = pageDir
-            .listSync()
-            .whereType<File>()
-            .map((file) => int.tryParse(p.basenameWithoutExtension(file.path)))
-            .whereType<int>()
-            .where((page) => page >= 1 && page <= 604)
-            .toSet();
+        final actual =
+            pageDir
+                .listSync()
+                .whereType<File>()
+                .map(
+                  (file) => int.tryParse(p.basenameWithoutExtension(file.path)),
+                )
+                .whereType<int>()
+                .where((page) => page >= 1 && page <= 604)
+                .toSet();
         pages.retainAll(actual);
         pages.addAll(actual);
       }
@@ -653,30 +655,24 @@ class QuranRepository {
     firstJuz: _asInt(row['first_juz'], fallback: 1),
   );
 
-  Future<void> _persistSurahMetadata(
-    List<Map<String, dynamic>> rows,
-  ) async {
+  Future<void> _persistSurahMetadata(List<Map<String, dynamic>> rows) async {
     if (rows.isEmpty) return;
     final db = await database;
     await db.transaction((txn) async {
       for (final row in rows) {
         final surah = _surahFromBackend(row);
         if (surah.id < 1 || surah.id > 114) continue;
-        await txn.insert(
-          'surahs',
-          {
-            'id': surah.id,
-            'name_arabic': surah.nameArabic,
-            'name_transliterated': surah.nameTransliteration,
-            'name_english': surah.nameEnglish,
-            'revelation_place': surah.revelationPlace,
-            'verses_count': surah.versesCount,
-            'first_page': surah.firstPage,
-            'last_page': surah.lastPage,
-            'first_juz': surah.firstJuz,
-          },
-          conflictAlgorithm: ConflictAlgorithm.replace,
-        );
+        await txn.insert('surahs', {
+          'id': surah.id,
+          'name_arabic': surah.nameArabic,
+          'name_transliterated': surah.nameTransliteration,
+          'name_english': surah.nameEnglish,
+          'revelation_place': surah.revelationPlace,
+          'verses_count': surah.versesCount,
+          'first_page': surah.firstPage,
+          'last_page': surah.lastPage,
+          'first_juz': surah.firstJuz,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
   }
@@ -716,7 +712,7 @@ class QuranRepository {
       try {
         final remote = await BackendApi.instance.getQuranSurahAyahs(surahId);
         await _persistBackendAyahs(remote);
-        return versesForSurah(surahId);
+        return await versesForSurah(surahId);
       } catch (_) {
         return Future.wait(rows.map(_verseFromRow));
       }
@@ -729,7 +725,7 @@ class QuranRepository {
             .toList(),
       );
       await _persistBackendAyahs(remote);
-      return versesForSurah(surahId);
+      return await versesForSurah(surahId);
     } catch (_) {
       return const [];
     }
@@ -748,7 +744,7 @@ class QuranRepository {
       final remote = await BackendApi.instance.getQuranPage(page);
       final ayahs = _mapList(remote['ayahs']);
       await _persistBackendAyahs(ayahs);
-      return versesForPage(page);
+      return await versesForPage(page);
     } catch (_) {
       return const [];
     }
@@ -860,7 +856,7 @@ class QuranRepository {
                   ? await BackendApi.instance.getQuranJuzAyahs(number)
                   : await BackendApi.instance.getQuranHizbAyahs(number);
           await _persistBackendAyahs(remote);
-          return _rangeItems(field, count, label);
+          return await _rangeItems(field, count, label);
         } catch (_) {
           // Keep the item visible as unavailable until connectivity returns.
         }
@@ -1138,8 +1134,11 @@ class QuranRepository {
         final arabic = Map<String, dynamic>.from(
           (ayah['arabic'] as Map?) ?? {},
         );
-        if (verseKey.isEmpty || (arabic['uthmani'] ?? '').toString().trim().isEmpty) {
-          throw FormatException('Quran ayah response is missing its Uthmani text');
+        if (verseKey.isEmpty ||
+            (arabic['uthmani'] ?? '').toString().trim().isEmpty) {
+          throw FormatException(
+            'Quran ayah response is missing its Uthmani text',
+          );
         }
         final translation = Map<String, dynamic>.from(
           (ayah['translation'] as Map?) ?? {},

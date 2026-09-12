@@ -23,7 +23,7 @@
                 android:layout_height="18dp"
                 android:layout_gravity="center"
             android:src="@android:drawable/ic_dialog_info"
-            android:tint="#FFF0D8B8" />
+            android:tint="#FFD2A875" />
         </FrameLayout>
 
         <TextView
@@ -36,7 +36,7 @@
             android:letterSpacing="0.08"
             android:maxLines="1"
             android:text="PRAYER RHYTHM"
-            android:textColor="#CCFFFFFF"
+            android:textColor="#FFD1C7BB"
             android:textSize="10sp"
             android:textStyle="bold" />
 
@@ -52,7 +52,7 @@
             android:paddingEnd="10dp"
             android:paddingBottom="5dp"
             android:text="Next: Asr"
-            android:textColor="#FFF0D8B8"
+            android:textColor="#FFD2A875"
             android:textSize="11sp"
             android:textStyle="bold" />
     </LinearLayout>
@@ -81,7 +81,7 @@
                 android:fontFamily="serif"
                 android:maxLines="1"
                 android:text="Asr"
-                android:textColor="#FFFFFFFF"
+                android:textColor="#FFF3ECE4"
                 android:textSize="24sp"
                 android:textStyle="bold" />
 
@@ -93,7 +93,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Prepare with presence"
-                android:textColor="#FFF0D8B8"
+                android:textColor="#FFD2A875"
                 android:textSize="13sp"
                 android:textStyle="bold" />
         </LinearLayout>
@@ -103,6 +103,6 @@
             android:layout_height="28dp"
             android:layout_marginStart="10dp"
             android:src="@android:drawable/ic_dialog_map"
-            android:tint="#CCFFFFFF" />
+            android:tint="#FFD1C7BB" />
     </LinearLayout>
 </LinearLayout>

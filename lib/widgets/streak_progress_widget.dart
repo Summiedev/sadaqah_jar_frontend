@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../core/act_store.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_extensions.dart';
 
 class StreakProgressRectangular extends ConsumerWidget {
   const StreakProgressRectangular({super.key});
@@ -12,6 +13,7 @@ class StreakProgressRectangular extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final store = ref.watch(actStoreProvider);
+    final colors = context.colors;
     final streak = store.currentStreak ?? 0;
     final progress = store.progress.clamp(0.0, 1.0).toDouble();
     final totalStars = store.totalStars;
@@ -30,8 +32,8 @@ class StreakProgressRectangular extends ConsumerWidget {
               children: [
                 Text(
                   streak > 0 ? '$streak' : '${(progress * 100).round()}%',
-                  style: const TextStyle(
-                    color: Colors.white,
+                  style: TextStyle(
+                    color: colors.textPrimary,
                     fontFamily: 'Georgia',
                     fontSize: 30,
                     fontWeight: FontWeight.w900,
@@ -43,14 +45,14 @@ class StreakProgressRectangular extends ConsumerWidget {
                     streak > 0 ? 'day streak' : 'monthly progress',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: colors.textSecondary,
                       fontSize: 14,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
                 ),
-                const _WidgetChip('Week'),
+                _WidgetChip('Week', colors: colors),
               ],
             ),
             const SizedBox(height: 14),
@@ -58,9 +60,9 @@ class StreakProgressRectangular extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.09),
+                color: colors.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                border: Border.all(color: colors.borderSubtle),
               ),
               child:
                   streak > 0
@@ -73,12 +75,8 @@ class StreakProgressRectangular extends ConsumerWidget {
                             child: LinearProgressIndicator(
                               value: progress,
                               minHeight: 8,
-                              backgroundColor: Colors.white.withValues(
-                                alpha: 0.18,
-                              ),
-                              valueColor: const AlwaysStoppedAnimation(
-                                Color(0xFFF0D8B8),
-                              ),
+                              backgroundColor: colors.border,
+                              valueColor: AlwaysStoppedAnimation(colors.accent),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -86,8 +84,8 @@ class StreakProgressRectangular extends ConsumerWidget {
                             '$totalStars of ${totalStars + remaining} acts',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Color(0xFFF0D8B8),
+                            style: TextStyle(
+                              color: colors.accent,
                               fontSize: 12.5,
                               fontWeight: FontWeight.w800,
                             ),
@@ -109,6 +107,7 @@ class _WeekDots extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final days = const ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     final completed = min(streak, days.length);
     return Column(
@@ -116,13 +115,13 @@ class _WeekDots extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Text(
                 'This week',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Colors.white,
+                  color: colors.textPrimary,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w900,
                 ),
@@ -130,8 +129,8 @@ class _WeekDots extends StatelessWidget {
             ),
             Text(
               '$completed/${days.length}',
-              style: const TextStyle(
-                color: Color(0xFFF0D8B8),
+              style: TextStyle(
+                color: colors.accent,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w900,
               ),
@@ -169,25 +168,21 @@ class _WeekCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       margin: EdgeInsets.only(left: isFirst ? 0 : 5),
       padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 7),
       decoration: BoxDecoration(
-        color:
-            done
-                ? Colors.white.withValues(alpha: 0.94)
-                : Colors.white.withValues(alpha: 0.08),
+        color: done ? colors.accentSoft : colors.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: done ? Colors.white : Colors.white.withValues(alpha: 0.22),
-        ),
+        border: Border.all(color: done ? colors.accent : colors.borderSubtle),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             done ? Icons.check_rounded : Icons.remove_rounded,
-            color: done ? const Color(0xFF0A3B34) : Colors.white54,
+            color: done ? colors.primary : colors.iconSecondary,
             size: 14,
           ),
           const SizedBox(height: 3),
@@ -197,7 +192,7 @@ class _WeekCell extends StatelessWidget {
               label,
               maxLines: 1,
               style: TextStyle(
-                color: done ? const Color(0xFF0A3B34) : Colors.white70,
+                color: done ? colors.primary : colors.textSecondary,
                 fontSize: 9,
                 fontWeight: FontWeight.w900,
               ),
@@ -215,6 +210,7 @@ class StreakProgressCircular extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final store = ref.watch(actStoreProvider);
+    final colors = context.colors;
     final streak = store.currentStreak ?? 0;
     final progress = store.progress;
     final totalStars = store.totalStars;
@@ -225,15 +221,14 @@ class StreakProgressCircular extends ConsumerWidget {
         streak: streak,
         progress: progress,
         totalStars: totalStars,
-        onSurface: Theme.of(context).colorScheme.onSurface,
+        onSurface: colors.textPrimary,
+        accent: colors.accent,
       ),
       child: Center(
         child: Text(
           streak > 0 ? '$streak' : '${(progress * 100).round()}%',
           style: TextStyle(
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.87),
+            color: colors.textPrimary,
             fontSize: 22,
             fontWeight: FontWeight.w800,
             fontFamily: 'Georgia',
@@ -250,12 +245,14 @@ class _CircularPainter extends CustomPainter {
     required this.progress,
     required this.totalStars,
     required this.onSurface,
+    required this.accent,
   });
 
   final int streak;
   final double progress;
   final int totalStars;
   final Color onSurface;
+  final Color accent;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -271,7 +268,7 @@ class _CircularPainter extends CustomPainter {
 
     final arc =
         Paint()
-          ..color = kBronze
+          ..color = accent
           ..style = PaintingStyle.stroke
           ..strokeWidth = strokeWidth
           ..strokeCap = StrokeCap.round;
@@ -297,7 +294,8 @@ class _CircularPainter extends CustomPainter {
   bool shouldRepaint(covariant _CircularPainter old) {
     return old.streak != streak ||
         old.progress != progress ||
-        old.onSurface != onSurface;
+        old.onSurface != onSurface ||
+        old.accent != accent;
   }
 }
 
@@ -307,6 +305,7 @@ class StreakProgressInline extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final store = ref.watch(actStoreProvider);
+    final colors = context.colors;
     final streak = store.currentStreak ?? 0;
     final label =
         streak > 0 ? '$streak day streak' : '${store.totalStars} this month';
@@ -321,9 +320,7 @@ class StreakProgressInline extends ConsumerWidget {
                 ? Icons.local_fire_department_rounded
                 : Icons.track_changes_rounded,
             size: 14,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.7),
+            color: colors.iconSecondary,
           ),
           const SizedBox(width: 6),
           Flexible(
@@ -332,7 +329,7 @@ class StreakProgressInline extends ConsumerWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
+                color: colors.textPrimary,
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'Georgia',
@@ -366,19 +363,16 @@ class _WidgetPreviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       constraints: const BoxConstraints(minHeight: 132),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF06433B), Color(0xFF0B302B), Color(0xFF201A16)],
-        ),
+        color: colors.surface,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.22),
+            color: colors.scrim.withValues(alpha: 0.16),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -390,25 +384,26 @@ class _WidgetPreviewCard extends StatelessWidget {
 }
 
 class _WidgetChip extends StatelessWidget {
-  const _WidgetChip(this.text);
+  const _WidgetChip(this.text, {required this.colors});
 
   final String text;
+  final MizanColors colors;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: kBronze.withValues(alpha: 0.22),
+        color: colors.accentSoft,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: kBronze.withValues(alpha: 0.35)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.45)),
       ),
       child: Text(
         text,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Color(0xFFF0D8B8),
+        style: TextStyle(
+          color: colors.accent,
           fontSize: 11,
           fontWeight: FontWeight.w900,
         ),

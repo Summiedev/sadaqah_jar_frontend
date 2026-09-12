@@ -5,7 +5,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
-import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../services/backend_api.dart';
 import '../../../services/quran_download_service.dart';
@@ -525,31 +524,31 @@ class _QuranSegments extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.colors;
     return Container(
-    height: 46,
-    margin: const EdgeInsets.only(bottom: 10),
-    decoration: BoxDecoration(
-      color: tokens.primaryContainer,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: tokens.border),
-    ),
-    child: TabBar(
-      controller: controller,
-      dividerColor: Colors.transparent,
-      indicatorSize: TabBarIndicatorSize.tab,
-      indicator: BoxDecoration(
-        color: context.colors.surfaceElevated,
-        borderRadius: BorderRadius.circular(12),
+      height: 46,
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: tokens.primaryContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: tokens.border),
       ),
-      labelColor: tokens.textPrimary,
-      unselectedLabelColor: tokens.textSecondary,
-      labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-      tabs: const [
-        Tab(text: 'Surah'),
-        Tab(text: 'Juz'),
-        Tab(text: 'Hizb'),
-        Tab(text: 'Page'),
-      ],
-    ),
+      child: TabBar(
+        controller: controller,
+        dividerColor: Colors.transparent,
+        indicatorSize: TabBarIndicatorSize.tab,
+        indicator: BoxDecoration(
+          color: context.colors.surfaceElevated,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        labelColor: tokens.textPrimary,
+        unselectedLabelColor: tokens.textSecondary,
+        labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        tabs: const [
+          Tab(text: 'Surah'),
+          Tab(text: 'Juz'),
+          Tab(text: 'Hizb'),
+          Tab(text: 'Page'),
+        ],
+      ),
     );
   }
 }
@@ -660,91 +659,94 @@ class _BrowseTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.colors;
     return Material(
-    color: tokens.surfaceElevated,
-    borderRadius: BorderRadius.circular(18),
-    child: InkWell(
-      onTap: onTap,
+      color: tokens.surfaceElevated,
       borderRadius: BorderRadius.circular(18),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: tokens.primaryContainer,
-                shape: BoxShape.circle,
-                border: Border.all(color: tokens.border),
-              ),
-              child: Center(
-                child:
-                    icon == null
-                        ? Text(
-                          '$number',
-                          style: TextStyle(
-                            color: tokens.primary,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        )
-                        : Icon(icon, color: tokens.primary, size: 20),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontFamily: 'Georgia',
-                      fontSize: 17,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: tokens.textSecondary, fontSize: 12.5),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    meta,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: tokens.primary,
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 10),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 100),
-              child: Text(
-                arabic,
-                textDirection: TextDirection.rtl,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 21,
-                  fontWeight: FontWeight.w700,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: tokens.primaryContainer,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: tokens.border),
+                ),
+                child: Center(
+                  child:
+                      icon == null
+                          ? Text(
+                            '$number',
+                            style: TextStyle(
+                              color: tokens.primary,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          )
+                          : Icon(icon, color: tokens.primary, size: 20),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontFamily: 'Georgia',
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: tokens.textSecondary,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: tokens.primary,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 100),
+                child: Text(
+                  arabic,
+                  textDirection: TextDirection.rtl,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
-    ),
     );
   }
 }
@@ -1286,139 +1288,289 @@ class _MushafPageMode extends StatefulWidget {
 }
 
 class _MushafPageModeState extends State<_MushafPageMode> {
-  late Future<(File?, List<QuranVerse>)> _pageFuture;
+  late Future<List<QuranVerse>> _versesFuture;
+  File? _pageImage;
+  bool _pageImageLoading = true;
+  int _pageRequest = 0;
 
   @override
   void initState() {
     super.initState();
-    _pageFuture = _pageData(widget.page);
+    _beginPageLoad();
   }
 
   @override
   void didUpdateWidget(covariant _MushafPageMode oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.page != widget.page) {
-      _pageFuture = _pageData(widget.page);
+      _beginPageLoad();
     }
   }
 
+  void _beginPageLoad() {
+    final request = ++_pageRequest;
+    _versesFuture = QuranRepository.instance.versesForPage(widget.page);
+    _pageImage = null;
+    _pageImageLoading = true;
+    // Artwork is deliberately independent of text. A cached/local page can
+    // render immediately while a missing image is fetched in the background.
+    QuranRepository.instance.pageImage(widget.page).then((file) {
+      if (!mounted || request != _pageRequest) return;
+      setState(() {
+        _pageImage = file;
+        _pageImageLoading = false;
+      });
+    });
+  }
+
   @override
-  Widget build(BuildContext context) =>
-      FutureBuilder<(File?, List<QuranVerse>)>(
-        future: _pageFuture,
-        builder: (context, snapshot) {
-          final file = snapshot.data?.$1;
-          final verses = snapshot.data?.$2 ?? const <QuranVerse>[];
-          return GestureDetector(
-            onHorizontalDragEnd: (details) {
-              final velocity = details.primaryVelocity ?? 0;
-              if (velocity < -120 && widget.page < 604) {
-                widget.onPageChanged(widget.page + 1);
-              }
-              if (velocity > 120 && widget.page > 1) {
-                widget.onPageChanged(widget.page - 1);
-              }
-            },
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final basePageHeight = constraints.maxWidth * 1.55;
-                    // The source image remains the real 604-page Mushaf page.
-                    // Arabic-size preference controls its readable scale
-                    // without inventing new page breaks or reflowing verses.
-                    final pageScale = (widget.settings.arabicSize /
-                            QuranSettings.defaults.arabicSize)
-                        .clamp(0.86, 1.34);
-                    final pageWidth = constraints.maxWidth * pageScale;
-                    final pageHeight = basePageHeight * pageScale;
-                    return Container(
-                      width: constraints.maxWidth,
-                      height: basePageHeight,
-                      color: context.colors.surfaceElevated,
-                      child:
-                          file == null
-                              ? Center(
-                                child: Text(
-                                  'Mushaf page image not downloaded yet.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: context.colors.textSecondary,
-                                  ),
-                                ),
-                              )
-                              : InteractiveViewer(
-                                minScale: 0.86,
-                                maxScale: 3,
-                                boundaryMargin: const EdgeInsets.all(24),
-                                panEnabled: true,
-                                scaleEnabled: true,
-                                constrained: false,
-                                child: SizedBox(
-                                  width: pageWidth,
-                                  height: pageHeight,
-                                  child:
-                                      file.path.toLowerCase().endsWith('.svg')
-                                          ? SvgPicture.file(
-                                            file,
-                                            fit: BoxFit.fill,
-                                          )
-                                          : Image.file(file, fit: BoxFit.fill),
-                                ),
-                              ),
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                Center(
-                  child: TextButton.icon(
-                    onPressed: widget.onTapTranslation,
-                    icon: Icon(
-                      widget.translationRevealed
-                          ? Icons.visibility_off_outlined
-                          : Icons.translate_rounded,
-                      size: 18,
+  Widget build(BuildContext context) => FutureBuilder<List<QuranVerse>>(
+    future: _versesFuture,
+    builder: (context, snapshot) {
+      final tokens = context.colors;
+      final file = _pageImage;
+      final verses = snapshot.data ?? const <QuranVerse>[];
+      final loading =
+          file == null &&
+          verses.isEmpty &&
+          (snapshot.connectionState != ConnectionState.done ||
+              _pageImageLoading);
+      return GestureDetector(
+        onHorizontalDragEnd: (details) {
+          final velocity = details.primaryVelocity ?? 0;
+          if (velocity < -120 && widget.page < 604) {
+            widget.onPageChanged(widget.page + 1);
+          }
+          if (velocity > 120 && widget.page > 1) {
+            widget.onPageChanged(widget.page - 1);
+          }
+        },
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Madani page proportions are kept stable so the reader
+                // feels like one complete page rather than a clipped card.
+                final pageRatio = 0.707;
+                if (loading) {
+                  return AspectRatio(
+                    aspectRatio: pageRatio,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        border: Border.all(color: tokens.borderSubtle),
+                      ),
+                      child: Center(
+                        child: CircularProgressIndicator(color: tokens.primary),
+                      ),
                     ),
-                    label: Text(
-                      widget.translationRevealed
-                          ? 'Hide translation'
-                          : 'Reveal translation',
+                  );
+                }
+                if (file != null) {
+                  return AspectRatio(
+                    aspectRatio: pageRatio,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: tokens.surfaceElevated,
+                        border: Border.all(color: tokens.borderSubtle),
+                      ),
+                      child: ClipRect(
+                        child: InteractiveViewer(
+                          minScale: 1,
+                          maxScale: 3,
+                          boundaryMargin: const EdgeInsets.all(24),
+                          child:
+                              file.path.toLowerCase().endsWith('.svg')
+                                  ? SvgPicture.file(file, fit: BoxFit.contain)
+                                  : Image.file(file, fit: BoxFit.contain),
+                        ),
+                      ),
                     ),
-                    style: TextButton.styleFrom(
-                      foregroundColor: context.colors.primary,
-                    ),
-                  ),
-                ),
-                if (widget.translationRevealed)
-                  Container(
-                    margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.all(16),
+                  );
+                }
+                if (verses.isNotEmpty) {
+                  return _UthmaniTextPage(
+                    page: widget.page,
+                    verses: verses,
+                    arabicSize: widget.settings.arabicSize,
+                  );
+                }
+                return AspectRatio(
+                  aspectRatio: pageRatio,
+                  child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: context.colors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: context.colors.border),
+                      color: tokens.surfaceElevated,
+                      border: Border.all(color: tokens.borderSubtle),
                     ),
-                    child: Text(
-                      verses
-                          .map((verse) => '${verse.key} ${verse.translation}')
-                          .join('\n\n'),
-                      style: TextStyle(
-                        color: context.colors.textSecondary,
-                        height: 1.55,
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          'This Mushaf page is not available yet. Connect to the internet or continue the offline download.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: tokens.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-              ],
+                );
+              },
             ),
-          );
-        },
+            if (file == null && verses.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Mushaf page artwork is still downloading. The Uthmani text above is from Mizan\'s verified Quran dataset.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: tokens.textMuted,
+                    fontSize: 11,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Center(
+              child: TextButton.icon(
+                onPressed: widget.onTapTranslation,
+                icon: Icon(
+                  widget.translationRevealed
+                      ? Icons.visibility_off_outlined
+                      : Icons.translate_rounded,
+                  size: 18,
+                ),
+                label: Text(
+                  widget.translationRevealed
+                      ? 'Hide translation'
+                      : 'Reveal translation',
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: context.colors.primary,
+                ),
+              ),
+            ),
+            if (widget.translationRevealed)
+              Container(
+                margin: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: context.colors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: context.colors.border),
+                ),
+                child: Text(
+                  verses
+                      .map((verse) => '${verse.key} ${verse.translation}')
+                      .join('\n\n'),
+                  style: TextStyle(
+                    color: context.colors.textSecondary,
+                    height: 1.55,
+                  ),
+                ),
+              ),
+          ],
+        ),
       );
-
-  Future<(File?, List<QuranVerse>)> _pageData(int page) async => (
-    await QuranRepository.instance.pageImage(page),
-    await QuranRepository.instance.versesForPage(page),
+    },
   );
+}
+
+class _UthmaniTextPage extends StatelessWidget {
+  const _UthmaniTextPage({
+    required this.page,
+    required this.verses,
+    required this.arabicSize,
+  });
+
+  final int page;
+  final List<QuranVerse> verses;
+  final double arabicSize;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    final size = arabicSize.clamp(22.0, 48.0).toDouble();
+    return Container(
+      width: double.infinity,
+      constraints: BoxConstraints(
+        minHeight: MediaQuery.sizeOf(context).width * 1.414,
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
+      decoration: BoxDecoration(
+        color: tokens.surfaceElevated,
+        border: Border.all(color: tokens.borderSubtle),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(child: Divider(color: tokens.borderSubtle)),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text(
+                  '\u0645\u0635\u062D\u0641  \u2022  $page',
+                  textDirection: TextDirection.rtl,
+                  style: TextStyle(
+                    color: tokens.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Expanded(child: Divider(color: tokens.borderSubtle)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Directionality(
+            textDirection: TextDirection.rtl,
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  for (final verse in verses) ...[
+                    TextSpan(
+                      text: verse.arabic,
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontFamily: 'Noto Naskh Arabic',
+                        fontSize: size,
+                        height: 2.0,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '  \u06DD${_arabicIndicNumber(verse.ayah)}  ',
+                      style: TextStyle(
+                        color: tokens.primary,
+                        fontFamily: 'Noto Naskh Arabic',
+                        fontSize: size * 0.72,
+                        height: 2.0,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              textAlign: TextAlign.justify,
+              textDirection: TextDirection.rtl,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _arabicIndicNumber(int value) {
+  const digits = '\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669';
+  return value
+      .toString()
+      .split('')
+      .map((digit) => digits[int.parse(digit)])
+      .join();
 }
 
 class _MiniPlayer extends StatelessWidget {
@@ -1439,62 +1591,62 @@ class _MiniPlayer extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.colors;
     return Container(
-    padding: EdgeInsets.fromLTRB(
-      16,
-      10,
-      16,
-      14 + MediaQuery.paddingOf(context).bottom,
-    ),
-    decoration: BoxDecoration(
-      color: context.colors.surfaceContainer,
-      border: Border(top: BorderSide(color: context.colors.divider)),
-    ),
-    child: Row(
-      children: [
-        _CircleButton(
-          icon:
-              continuousPlayback
-                  ? Icons.pause_rounded
-                  : Icons.play_arrow_rounded,
-          tooltip: 'Play surah',
-          onTap: onToggle,
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                playingVerse == null
-                    ? 'Ready to recite'
-                    : 'Now reciting $playingVerse',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontWeight: FontWeight.w800,
+      padding: EdgeInsets.fromLTRB(
+        16,
+        10,
+        16,
+        14 + MediaQuery.paddingOf(context).bottom,
+      ),
+      decoration: BoxDecoration(
+        color: context.colors.surfaceContainer,
+        border: Border(top: BorderSide(color: context.colors.divider)),
+      ),
+      child: Row(
+        children: [
+          _CircleButton(
+            icon:
+                continuousPlayback
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+            tooltip: 'Play surah',
+            onTap: onToggle,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  playingVerse == null
+                      ? 'Ready to recite'
+                      : 'Now reciting $playingVerse',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: tokens.textPrimary,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                reciter,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: tokens.textSecondary, fontSize: 12),
-              ),
-            ],
+                const SizedBox(height: 2),
+                Text(
+                  reciter,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: tokens.textSecondary, fontSize: 12),
+                ),
+              ],
+            ),
           ),
-        ),
-        IconButton(
-          onPressed: onDownload,
-          icon: Icon(
-            Icons.download_for_offline_outlined,
-            color: tokens.primary,
+          IconButton(
+            onPressed: onDownload,
+            icon: Icon(
+              Icons.download_for_offline_outlined,
+              color: tokens.primary,
+            ),
           ),
-        ),
-      ],
-    ),
+        ],
+      ),
     );
   }
 }
@@ -1514,122 +1666,124 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
   Widget build(BuildContext context) {
     final tokens = context.colors;
     return SafeArea(
-    child: SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Quran settings',
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontFamily: 'Georgia',
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 14),
-          _SettingSwitch(
-            'Pronunciation',
-            _settings.showPronunciation,
-            (value) => setState(
-              () => _settings = _settings.copyWith(showPronunciation: value),
-            ),
-          ),
-          _SettingSwitch(
-            'Translation',
-            _settings.showTranslation,
-            (value) => setState(
-              () => _settings = _settings.copyWith(showTranslation: value),
-            ),
-          ),
-          _SettingSwitch(
-            'Word meanings',
-            _settings.showWordMeanings,
-            (value) => setState(
-              () => _settings = _settings.copyWith(showWordMeanings: value),
-            ),
-          ),
-          _SettingSwitch(
-            'Explanation',
-            _settings.showTafsir,
-            (value) => setState(
-              () => _settings = _settings.copyWith(showTafsir: value),
-            ),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            initialValue: _settings.reciter,
-            decoration: const InputDecoration(labelText: 'Reciter'),
-            items:
-                QuranRepository.reciters.keys
-                    .map(
-                      (reciter) => DropdownMenuItem(
-                        value: reciter,
-                        child: Text(reciter, overflow: TextOverflow.ellipsis),
-                      ),
-                    )
-                    .toList(),
-            onChanged:
-                (value) => setState(
-                  () => _settings = _settings.copyWith(reciter: value),
-                ),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            'Mushaf text size: ${_settings.arabicSize.round()}',
-            style: TextStyle(
-              color: context.colors.textSecondary,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          Slider(
-            value: _settings.arabicSize,
-            min: 24,
-            max: 40,
-            divisions: 8,
-            activeColor: tokens.primary,
-            onChanged:
-                (value) => setState(
-                  () => _settings = _settings.copyWith(arabicSize: value),
-                ),
-          ),
-          SegmentedButton<QuranReadingMode>(
-            segments: const [
-              ButtonSegment(
-                value: QuranReadingMode.mushaf,
-                icon: Icon(Icons.menu_book_outlined),
-                label: Text('Mushaf'),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Quran settings',
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontFamily: 'Georgia',
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
               ),
-              ButtonSegment(
-                value: QuranReadingMode.continuous,
-                icon: Icon(Icons.format_align_right_rounded),
-                label: Text('Flow'),
-              ),
-              ButtonSegment(
-                value: QuranReadingMode.ayah,
-                icon: Icon(Icons.format_list_numbered_rtl),
-                label: Text('Ayah'),
-              ),
-            ],
-            selected: {_settings.readingMode},
-            onSelectionChanged:
-                (value) => setState(
-                  () =>
-                      _settings = _settings.copyWith(readingMode: value.first),
-                ),
-          ),
-          const SizedBox(height: 18),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: () => Navigator.pop(context, _settings),
-              child: const Text('Done'),
             ),
-          ),
-        ],
+            const SizedBox(height: 14),
+            _SettingSwitch(
+              'Pronunciation',
+              _settings.showPronunciation,
+              (value) => setState(
+                () => _settings = _settings.copyWith(showPronunciation: value),
+              ),
+            ),
+            _SettingSwitch(
+              'Translation',
+              _settings.showTranslation,
+              (value) => setState(
+                () => _settings = _settings.copyWith(showTranslation: value),
+              ),
+            ),
+            _SettingSwitch(
+              'Word meanings',
+              _settings.showWordMeanings,
+              (value) => setState(
+                () => _settings = _settings.copyWith(showWordMeanings: value),
+              ),
+            ),
+            _SettingSwitch(
+              'Explanation',
+              _settings.showTafsir,
+              (value) => setState(
+                () => _settings = _settings.copyWith(showTafsir: value),
+              ),
+            ),
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              initialValue: _settings.reciter,
+              decoration: const InputDecoration(labelText: 'Reciter'),
+              items:
+                  QuranRepository.reciters.keys
+                      .map(
+                        (reciter) => DropdownMenuItem(
+                          value: reciter,
+                          child: Text(reciter, overflow: TextOverflow.ellipsis),
+                        ),
+                      )
+                      .toList(),
+              onChanged:
+                  (value) => setState(
+                    () => _settings = _settings.copyWith(reciter: value),
+                  ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Mushaf text size: ${_settings.arabicSize.round()}',
+              style: TextStyle(
+                color: context.colors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Slider(
+              value: _settings.arabicSize,
+              min: 24,
+              max: 40,
+              divisions: 8,
+              activeColor: tokens.primary,
+              onChanged:
+                  (value) => setState(
+                    () => _settings = _settings.copyWith(arabicSize: value),
+                  ),
+            ),
+            SegmentedButton<QuranReadingMode>(
+              segments: const [
+                ButtonSegment(
+                  value: QuranReadingMode.mushaf,
+                  icon: Icon(Icons.menu_book_outlined),
+                  label: Text('Mushaf'),
+                ),
+                ButtonSegment(
+                  value: QuranReadingMode.continuous,
+                  icon: Icon(Icons.format_align_right_rounded),
+                  label: Text('Flow'),
+                ),
+                ButtonSegment(
+                  value: QuranReadingMode.ayah,
+                  icon: Icon(Icons.format_list_numbered_rtl),
+                  label: Text('Ayah'),
+                ),
+              ],
+              selected: {_settings.readingMode},
+              onSelectionChanged:
+                  (value) => setState(
+                    () =>
+                        _settings = _settings.copyWith(
+                          readingMode: value.first,
+                        ),
+                  ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(context, _settings),
+                child: const Text('Done'),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 }

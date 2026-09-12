@@ -45,7 +45,7 @@ class MizanStreakProgressWidget : AppWidgetProvider() {
                 )
                 views.setTextColor(
                     dayIds[i],
-                    if (done) Color.parseColor("#FF0A3B34") else Color.parseColor("#CCFFFFFF"),
+                    if (done) Color.parseColor("#FF2F2B27") else Color.parseColor("#FFD1C7BB"),
                 )
             }
 

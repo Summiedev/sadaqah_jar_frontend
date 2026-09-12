@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_theme.dart';
+import '../core/theme/theme_extensions.dart';
 import 'daily_verses.dart';
 
 class LockScreenRectangular extends StatelessWidget {
@@ -10,6 +11,7 @@ class LockScreenRectangular extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final v = verse ?? todaysVerse();
     final label =
         v.source.startsWith('Quran') ? 'QURAN LIGHT' : 'GENTLE REMINDER';
@@ -19,15 +21,11 @@ class LockScreenRectangular extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 132),
         padding: const EdgeInsets.all(17),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF06433B), Color(0xFF0B302B), Color(0xFF201A16)],
-          ),
+          color: colors.surface,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.22),
+              color: colors.scrim.withValues(alpha: 0.16),
               blurRadius: 24,
               offset: const Offset(0, 12),
             ),
@@ -43,12 +41,12 @@ class LockScreenRectangular extends StatelessWidget {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: colors.accentSoft,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.menu_book_outlined,
-                    color: Color(0xFFF0D8B8),
+                    color: colors.accent,
                     size: 18,
                   ),
                 ),
@@ -58,15 +56,15 @@ class LockScreenRectangular extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white70,
+                    style: TextStyle(
+                      color: colors.textSecondary,
                       fontSize: 10.5,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Flexible(child: _SourceChip(v.source)),
+                Flexible(child: _SourceChip(v.source, colors: colors)),
               ],
             ),
             const SizedBox(height: 12),
@@ -74,16 +72,16 @@ class LockScreenRectangular extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
+                color: colors.surfaceContainerHigh,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+                border: Border.all(color: colors.borderSubtle),
               ),
               child: Text(
                 v.text,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: colors.textPrimary,
                   fontFamily: 'Georgia',
                   fontSize: 16,
                   height: 1.28,
@@ -99,25 +97,26 @@ class LockScreenRectangular extends StatelessWidget {
 }
 
 class _SourceChip extends StatelessWidget {
-  const _SourceChip(this.source);
+  const _SourceChip(this.source, {required this.colors});
 
   final String source;
+  final MizanColors colors;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
       decoration: BoxDecoration(
-        color: kBronze.withValues(alpha: 0.18),
+        color: colors.accentSoft,
         borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: kBronze.withValues(alpha: 0.32)),
+        border: Border.all(color: colors.accent.withValues(alpha: 0.42)),
       ),
       child: Text(
         source,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          color: Color(0xFFF0D8B8),
+        style: TextStyle(
+          color: colors.accent,
           fontSize: 10.5,
           fontStyle: FontStyle.italic,
           fontWeight: FontWeight.w800,
@@ -135,9 +134,8 @@ class LockScreenInline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final v = verse ?? todaysVerse();
-    final textColor = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: 0.87);
+    final colors = context.colors;
+    final textColor = colors.textPrimary;
     final maxWidth = MediaQuery.of(context).size.width * 0.72;
 
     return Semantics(
@@ -145,7 +143,7 @@ class LockScreenInline extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.auto_awesome_outlined, size: 14, color: kBronze),
+          Icon(Icons.auto_awesome_outlined, size: 14, color: colors.accent),
           const SizedBox(width: 6),
           SizedBox(
             width: maxWidth,

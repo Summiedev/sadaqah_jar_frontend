@@ -79,6 +79,7 @@ class PushNotificationService {
   static final instance = PushNotificationService._();
   static const _deviceIdKey = 'push_device_id';
   bool _configured = false;
+  bool _tokenRotatedForSession = false;
   Future<bool>? _tokenRegistrationFuture;
   StreamSubscription<String>? _tokenRefreshSubscription;
   StreamSubscription<RemoteMessage>? _foregroundSubscription;
@@ -92,6 +93,11 @@ class PushNotificationService {
 
   Future<bool> enableForReminders() async {
     if (kIsWeb) return false;
+    try {
+      await FirebaseMessaging.instance.setAutoInitEnabled(true);
+    } catch (error) {
+      debugPrint('Unable to enable Firebase messaging auto-init: $error');
+    }
     final settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
@@ -112,6 +118,7 @@ class PushNotificationService {
       await FirebaseMessaging.instance.deleteToken();
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_deviceIdKey);
+      _tokenRotatedForSession = true;
     } catch (_) {}
     final registered = await _registerCurrentToken();
     if (!registered) return false;
@@ -140,6 +147,21 @@ class PushNotificationService {
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
         await _configureForegroundNotifications();
+        // FCM can retain a token that the provider has already invalidated.
+        // Rotate it once per authenticated app session so a previous
+        // NotRegistered delivery does not require reinstalling Mizan.
+        if (!_tokenRotatedForSession) {
+          try {
+            await FirebaseMessaging.instance.deleteToken();
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.remove(_deviceIdKey);
+          } catch (_) {
+            // A token rotation failure is recoverable; registration below can
+            // still succeed with the current Firebase token.
+          } finally {
+            _tokenRotatedForSession = true;
+          }
+        }
         await _registerCurrentToken();
         _listenForTokenRefresh();
       }
@@ -160,6 +182,7 @@ class PushNotificationService {
     _foregroundSubscription = null;
     _openedAppSubscription = null;
     _configured = false;
+    _tokenRotatedForSession = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_deviceIdKey);
   }
@@ -211,10 +234,13 @@ class PushNotificationService {
           await persistFcmPayload(Map<String, dynamic>.from(message.data));
         } catch (_) {}
       });
-    } catch (e) {
-      // Firebase may not be initialized in some environments.
+      _configured = true;
+    } catch (error) {
+      // Firebase may not be initialized yet. Keep this false so startup or
+      // the next foreground transition can retry instead of permanently
+      // caching a failed setup.
+      debugPrint('Foreground notification setup deferred: $error');
     }
-    _configured = true;
   }
 
   void _listenForTokenRefresh() {
