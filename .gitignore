@@ -33,11 +33,48 @@ migrate_working_dir/
 .pub/
 /build/
 
+# Platform build output and generated tooling
+**/build/
+**/.gradle/
+**/.cxx/
+**/local.properties
+**/Flutter/ephemeral/
+**/Pods/
+**/.symlinks/
+DerivedData/
+coverage/
+reports/
+test-output/
+
+# Local IDE and workspace files
+.vscode/
+*.code-workspace
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+env/*
+!env/*.example.*
+*.pem
+*.p12
+*.jks
+*.keystore
+**/key.properties
+secrets/
+credentials/
+
 # Symbolication related
 app.*.symbols
 
 # Obfuscation related
 app.*.map.json
+
+# Local crash reports and tooling artifacts
+hs_err_pid*.log
+replay_pid*.log
+*.hprof
+.codex_ui_scan.txt
 
 # Android Studio will place build artifacts here
 /android/app/debug
