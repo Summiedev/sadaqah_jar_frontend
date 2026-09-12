@@ -76,6 +76,11 @@ replay_pid*.log
 *.hprof
 .codex_ui_scan.txt
 
+# Release packages are generated artifacts; publish them through CI/release storage
+*.apk
+*.aab
+*.ipa
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
