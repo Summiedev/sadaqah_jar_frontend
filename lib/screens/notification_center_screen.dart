@@ -68,7 +68,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = error.toString();
+        _error = backendErrorMessage(
+          error,
+          fallback: 'Could not load notifications. Please try again.',
+        );
         _hasMore = false;
         _initialLoading = false;
         _loadingMore = false;
@@ -463,7 +466,7 @@ class _DismissibleNotificationCard extends StatelessWidget {
                   alignment: Alignment.centerRight,
                   padding: EdgeInsets.only(right: scale * 22),
                   decoration: BoxDecoration(
-                    color: kBronze,
+                    color: context.colors.primary,
                     borderRadius: BorderRadius.circular(scale * 16),
                   ),
                   child: Transform.scale(
@@ -502,8 +505,8 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final presentation = _presentationFor(notification);
     final tokens = context.colors;
+    final presentation = _presentationFor(notification, tokens);
     final cardColor =
         notification.isRead ? tokens.surfaceElevated : tokens.primaryContainer;
     final textColor =
@@ -652,24 +655,30 @@ class _NotificationCard extends StatelessWidget {
     );
   }
 
-  ({IconData icon, Color color}) _presentationFor(NotificationItem item) {
+  ({IconData icon, Color color}) _presentationFor(
+    NotificationItem item,
+    MizanColors colors,
+  ) {
     final text = '${item.title} ${item.body}'.toLowerCase();
     if (text.contains('prayer') || text.contains('salah')) {
-      return (icon: Icons.mosque_outlined, color: kSage);
+      return (icon: Icons.mosque_outlined, color: colors.success);
     }
     if (text.contains('family') || text.contains('invite')) {
-      return (icon: Icons.groups_outlined, color: kBronze);
+      return (icon: Icons.groups_outlined, color: colors.primary);
     }
     if (text.contains('goal')) {
-      return (icon: Icons.flag_outlined, color: kBronzeDark);
+      return (icon: Icons.flag_outlined, color: colors.accent);
     }
     if (text.contains('reflection')) {
-      return (icon: Icons.menu_book_outlined, color: kSlate);
+      return (icon: Icons.menu_book_outlined, color: colors.info);
     }
     if (text.contains('achievement') || text.contains('streak')) {
-      return (icon: Icons.auto_awesome_outlined, color: kBronzeDark);
+      return (icon: Icons.auto_awesome_outlined, color: colors.accent);
     }
-    return (icon: Icons.notifications_none_outlined, color: kMuted);
+    return (
+      icon: Icons.notifications_none_outlined,
+      color: colors.iconSecondary,
+    );
   }
 
   String _typeLabel(NotificationItem item) {

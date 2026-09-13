@@ -1,7 +1,10 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
+import '../../widgets/mizan_async_state.dart';
+import '../../widgets/mizan_surface.dart';
 import '../../services/backend_api.dart';
 
 class AdminAnalyticsScreen extends StatefulWidget {
@@ -37,10 +40,10 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analytics'),
-        backgroundColor: kClayLight,
         actions: [
           IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
         ],
@@ -49,17 +52,24 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
+            return const MizanLoadingState(label: 'Loading analytics...');
           }
           if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
+            return MizanErrorState(
+              message: 'We could not load analytics right now.',
+              onRetry: _refresh,
+            );
           }
           final data = snapshot.data;
           if (data == null) {
-            return const Center(child: Text('No analytics available.'));
+            return const MizanEmptyState(
+              icon: Icons.insights_outlined,
+              title: 'No analytics yet',
+              message: 'There is no analytics data to show yet.',
+            );
           }
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: MizanSpacing.screen,
             children: [
               Row(
                 children: [
@@ -78,12 +88,16 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Text(
+              const SizedBox(height: MizanSpacing.lg),
+              Text(
                 'Top acts',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: MizanSpacing.md),
               SizedBox(
                 height: 220,
                 child: BarChart(
@@ -107,7 +121,7 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                             toY: data.topActs[index].count.toDouble(),
                             width: 18,
                             borderRadius: BorderRadius.circular(4),
-                            color: kBronze,
+                            color: colors.primary,
                           ),
                         ],
                       ),
@@ -115,21 +129,37 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              const Text(
+              const SizedBox(height: MizanSpacing.lg),
+              Text(
                 'Donation intents',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: MizanSpacing.sm),
               if (data.donationIntents.isEmpty)
-                const Text('No donation intent data.')
+                Text(
+                  'No donation intent data.',
+                  style: TextStyle(color: colors.textSecondary),
+                )
               else
                 ...data.donationIntents.map(
                   (item) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.favorite_border),
+                    leading: Icon(
+                      Icons.favorite_border,
+                      color: colors.iconSecondary,
+                    ),
                     title: Text('Charity #${item.charityId}'),
-                    trailing: Text(item.count.toString()),
+                    trailing: Text(
+                      item.count.toString(),
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
             ],
@@ -148,20 +178,21 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: kSurface,
-        borderRadius: BorderRadius.circular(16),
-      ),
+    final colors = context.colors;
+    return MizanSurface(
+      padding: MizanSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: kMuted)),
-          const SizedBox(height: 8),
+          Text(title, style: TextStyle(color: colors.textSecondary)),
+          const SizedBox(height: MizanSpacing.sm),
           Text(
             value,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ],
       ),

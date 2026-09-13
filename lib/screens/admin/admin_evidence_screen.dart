@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
+import '../../widgets/mizan_async_state.dart';
 import '../../services/backend_api.dart';
 
 class AdminEvidenceScreen extends StatefulWidget {
@@ -114,7 +115,7 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                         style: TextStyle(fontWeight: FontWeight.w600),
                       ),
                       subtitle: const Text('Mark as verified evidence'),
-                      activeThumbColor: kBronze,
+                      activeThumbColor: context.colors.primary,
                     ),
                   ],
                 ),
@@ -195,7 +196,7 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: kBronze,
+                    backgroundColor: context.colors.primary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -260,43 +261,46 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Evidence',
           style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700),
         ),
-        backgroundColor: kClayLight,
-        foregroundColor: kInk,
+        backgroundColor: colors.surface,
+        foregroundColor: colors.textPrimary,
         surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
             onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded, color: kInk),
+            icon: Icon(Icons.refresh_rounded, color: colors.iconPrimary),
             tooltip: 'Refresh',
           ),
         ],
       ),
-      backgroundColor: kClayLight,
+      backgroundColor: colors.background,
       body: FutureBuilder<AdminEvidencePage>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(
-              child: CircularProgressIndicator(color: kBronze),
+            return Center(
+              child: CircularProgressIndicator(color: colors.primary),
             );
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                snapshot.error.toString(),
-                style: const TextStyle(color: kMuted),
-              ),
+            return MizanErrorState(
+              message: 'We could not load evidence.',
+              onRetry: _refresh,
             );
           }
           final rows = snapshot.data?.data ?? const <AdminEvidenceRecord>[];
           if (rows.isEmpty) {
-            return const Center(child: Text('No evidence yet.'));
+            return const MizanEmptyState(
+              icon: Icons.verified_outlined,
+              title: 'No evidence yet',
+              message: 'Verified evidence added by admins will appear here.',
+            );
           }
           return ListView.separated(
             padding: const EdgeInsets.all(16),
@@ -307,12 +311,12 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
               return Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: kPaper,
+                  color: colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: kLine),
+                  border: Border.all(color: colors.borderSubtle),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
+                      color: colors.scrim.withValues(alpha: 0.08),
                       blurRadius: 8,
                       offset: const Offset(0, 2),
                     ),
@@ -329,7 +333,10 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                             vertical: 3,
                           ),
                           decoration: BoxDecoration(
-                            color: evidence.isVerified ? kSoftSage : kDraftBg,
+                            color:
+                                evidence.isVerified
+                                    ? colors.successContainer
+                                    : colors.errorContainer,
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(
@@ -337,26 +344,28 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                             style: TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
-                              color: evidence.isVerified ? kSage : kDanger,
+                              color: evidence.isVerified
+                                  ? colors.success
+                                  : colors.error,
                             ),
                           ),
                         ),
                         const Spacer(),
                         IconButton(
                           onPressed: () => _openForm(evidence: evidence),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.edit_outlined,
                             size: 18,
-                            color: kBronze,
+                            color: colors.primary,
                           ),
                           tooltip: 'Edit',
                         ),
                         IconButton(
                           onPressed: () => _confirmDelete(evidence),
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.delete_outline,
                             size: 18,
-                            color: kDanger,
+                            color: colors.error,
                           ),
                           tooltip: 'Delete',
                         ),
@@ -365,30 +374,36 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                     const SizedBox(height: 10),
                     Text(
                       'Act #${evidence.actId}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: kInk,
+                        color: colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Source: ${evidence.sourceType}',
-                      style: const TextStyle(fontSize: 12, color: kMuted),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       'Reference: ${evidence.reference}',
-                      style: const TextStyle(fontSize: 12, color: kMuted),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colors.textSecondary,
+                      ),
                     ),
                     if (evidence.arabicText != null &&
                         evidence.arabicText!.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         evidence.arabicText!,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: kInk,
+                          color: colors.textPrimary,
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -398,7 +413,10 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                       const SizedBox(height: 2),
                       Text(
                         evidence.englishText!,
-                        style: const TextStyle(fontSize: 12, color: kMuted),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: colors.textSecondary,
+                        ),
                       ),
                     ],
                     if (evidence.grade != null &&
@@ -406,10 +424,10 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Grade: ${evidence.grade}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: kBronze,
+                          color: colors.primary,
                         ),
                       ),
                     ],
@@ -422,8 +440,8 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _openForm(),
-        backgroundColor: kBronze,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        backgroundColor: colors.primary,
+        foregroundColor: colors.onPrimary,
         child: const Icon(Icons.add),
       ),
     );
@@ -449,27 +467,28 @@ class _FormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return TextField(
       controller: controller,
       maxLines: maxLines,
       keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label + (required ? ' *' : ''),
-        labelStyle: const TextStyle(color: kMuted),
-        prefixIcon: Icon(icon, size: 20, color: kBronze),
+        labelStyle: TextStyle(color: colors.textSecondary),
+        prefixIcon: Icon(icon, size: 20, color: colors.primary),
         filled: true,
-        fillColor: kClayPale,
+        fillColor: colors.inputBackground,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: kClay),
+          borderSide: BorderSide(color: colors.inputBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: kClay),
+          borderSide: BorderSide(color: colors.inputBorder),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: kBronze),
+          borderSide: BorderSide(color: colors.inputFocusedBorder),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,

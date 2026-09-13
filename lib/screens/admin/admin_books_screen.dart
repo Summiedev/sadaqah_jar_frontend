@@ -1,7 +1,7 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../features/journey/book_reader_screen.dart';
 import '../../services/backend_api.dart';
 
@@ -81,7 +81,7 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Upload failed: $e'),
-            backgroundColor: kDanger,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -114,7 +114,9 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(backgroundColor: kDanger),
+                style: FilledButton.styleFrom(
+                  backgroundColor: context.colors.error,
+                ),
                 child: const Text('Delete'),
               ),
             ],
@@ -132,14 +134,15 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text(
           'Books',
           style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700),
         ),
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
@@ -153,8 +156,8 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: kBronze),
+            return Center(
+              child: CircularProgressIndicator(color: colors.primary),
             );
           }
           if (snapshot.hasError) {
@@ -212,8 +215,8 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: kBronze,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        backgroundColor: colors.primary,
+        foregroundColor: colors.onPrimary,
         onPressed: () => _openForm(),
         icon: const Icon(Icons.add_rounded),
         label: const Text('Upload Book'),
@@ -340,9 +343,9 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
     final category = _category.text.trim();
     if (title.isEmpty || author.isEmpty || category.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Title, author, and category are required.'),
-          backgroundColor: kDanger,
+          backgroundColor: context.colors.error,
         ),
       );
       return;
@@ -356,20 +359,20 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
         (widget.book?.pageCount ?? 0) > 0;
     if (widget.book == null && !selectedReadableFile) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
             'Select a PDF, EPUB, or ordered page images before creating a book.',
           ),
-          backgroundColor: kDanger,
+          backgroundColor: context.colors.error,
         ),
       );
       return;
     }
     if (_published && !selectedReadableFile && !existingReadableFile) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Upload readable content before publishing this book.'),
-          backgroundColor: kDanger,
+          backgroundColor: context.colors.error,
         ),
       );
       return;
@@ -454,7 +457,7 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not save book: $e'),
-            backgroundColor: kDanger,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -465,6 +468,7 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     final selectedLabel =
         _format == 'images'
@@ -493,7 +497,7 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
                     width: 42,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: kLine,
+              color: colors.border,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -501,9 +505,9 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
                 const SizedBox(height: 18),
                 Text(
                   widget.book == null ? 'Upload Book' : 'Edit Book',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Georgia',
-                    color: kInk,
+                    color: colors.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
@@ -586,12 +590,12 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
                 ),
                 if (_saving) ...[
                   const SizedBox(height: 8),
-                  const LinearProgressIndicator(color: kBronze),
+                  LinearProgressIndicator(color: colors.primary),
                   const SizedBox(height: 8),
                   Text(
                     _status,
-                    style: const TextStyle(
-                      color: kMuted,
+                    style: TextStyle(
+                      color: colors.textSecondary,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -604,7 +608,7 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
                     widget.book == null ? 'Create and upload' : 'Save changes',
                   ),
                   style: FilledButton.styleFrom(
-                    backgroundColor: kBronze,
+                    backgroundColor: colors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
@@ -638,13 +642,14 @@ class _BookCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final format = (book.fileFormat ?? 'no file').toUpperCase();
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: kLine),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -661,9 +666,9 @@ class _BookCard extends StatelessWidget {
                       book.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Georgia',
-                        color: kInk,
+                        color: colors.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
@@ -672,8 +677,8 @@ class _BookCard extends StatelessWidget {
                       book.author,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: kBronze,
+                      style: TextStyle(
+                        color: colors.primary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -684,11 +689,11 @@ class _BookCard extends StatelessWidget {
                       children: [
                         _Chip(
                           book.published ? 'Published' : 'Draft',
-                          book.published ? kSage : kDanger,
+                          book.published ? colors.success : colors.error,
                         ),
-                        _Chip(format, kBronze),
+                        _Chip(format, colors.primary),
                         if (book.pageCount > 0)
-                          _Chip('${book.pageCount} pages', kSage),
+                            _Chip('${book.pageCount} pages', colors.success),
                       ],
                     ),
                   ],
@@ -698,7 +703,7 @@ class _BookCard extends StatelessWidget {
           ),
           if (busy) ...[
             const SizedBox(height: 12),
-            const LinearProgressIndicator(color: kBronze),
+            LinearProgressIndicator(color: colors.primary),
           ],
           const Spacer(),
           Wrap(
@@ -721,7 +726,7 @@ class _BookCard extends StatelessWidget {
                 tooltip: 'Replace file',
                 padding: EdgeInsets.zero,
                 iconSize: 22,
-                icon: const Icon(Icons.upload_file_rounded, color: kSage),
+                icon: Icon(Icons.upload_file_rounded, color: colors.success),
                 onSelected:
                     (value) =>
                         value == 'pdf'
@@ -742,7 +747,7 @@ class _BookCard extends StatelessWidget {
               IconButton(
                 visualDensity: VisualDensity.compact,
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, color: kDanger),
+                icon: Icon(Icons.delete_outline, color: colors.error),
                 tooltip: 'Delete',
               ),
             ],
@@ -760,21 +765,22 @@ class _Cover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
       child: Container(
         width: 54,
         height: 72,
-        color: kSoftBronze,
+        color: colors.primaryContainer,
         child:
             url == null || url!.isEmpty
-                ? const Icon(Icons.menu_book_rounded, color: kBronze)
+                ? Icon(Icons.menu_book_rounded, color: colors.primary)
                 : Image.network(
                   url!,
                   fit: BoxFit.cover,
                   errorBuilder:
                       (_, __, ___) =>
-                          const Icon(Icons.menu_book_rounded, color: kBronze),
+                          Icon(Icons.menu_book_rounded, color: colors.primary),
                 ),
       ),
     );
@@ -824,6 +830,7 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
@@ -832,7 +839,7 @@ class _Field extends StatelessWidget {
         keyboardType: keyboardType,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: kBronze),
+          prefixIcon: Icon(icon, color: colors.primary),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
@@ -853,19 +860,20 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: kBronze, size: 48),
+            Icon(icon, color: colors.primary, size: 48),
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Georgia',
-                color: kInk,
+                color: colors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -874,7 +882,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               body,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: kMuted, height: 1.45),
+              style: TextStyle(color: colors.textSecondary, height: 1.45),
             ),
           ],
         ),

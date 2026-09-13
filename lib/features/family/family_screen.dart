@@ -461,6 +461,24 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                   elevation: 0,
                   title: const Text('Family'),
                   actions: [
+                    PopupMenuButton<String>(
+                      tooltip: 'Create or join a family',
+                      icon: Icon(Icons.add_rounded, color: tokens.iconPrimary),
+                      onSelected: (value) {
+                        if (value == 'create') _createFamily();
+                        if (value == 'join') _joinFamily();
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'create',
+                          child: Text('Create family'),
+                        ),
+                        PopupMenuItem(
+                          value: 'join',
+                          child: Text('Join with code'),
+                        ),
+                      ],
+                    ),
                     Container(
                       margin: const EdgeInsets.only(right: 12),
                       child: IconButton(
@@ -551,10 +569,18 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       );
     }
     if (_families.isEmpty) {
-      return _EmptyFamily(
+      return Padding(
         key: const ValueKey('empty'),
-        onJoin: _joinFamily,
-        onCreate: _createFamily,
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+        child: Column(
+          children: [
+            if (_pendingCount > 0) ...[
+              _PendingInvitesBanner(count: _pendingCount),
+              const SizedBox(height: 12),
+            ],
+            _EmptyFamily(onJoin: _joinFamily, onCreate: _createFamily),
+          ],
+        ),
       );
     }
     return Padding(
@@ -562,14 +588,58 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
       child: Column(
         children:
-            _families
-                .map(
-                  (jar) => Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _JarCard(jar: jar),
-                  ),
-                )
-                .toList(),
+            [
+              if (_pendingCount > 0) ...[
+                _PendingInvitesBanner(count: _pendingCount),
+                const SizedBox(height: 12),
+              ],
+              ..._families.map(
+                (jar) => Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _JarCard(jar: jar),
+                ),
+              ),
+            ],
+      ),
+    );
+  }
+}
+
+class _PendingInvitesBanner extends StatelessWidget {
+  const _PendingInvitesBanner({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return InkWell(
+      onTap: () => context.push('/family/invitations'),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(14, 13, 10, 13),
+        decoration: BoxDecoration(
+          color: colors.primaryContainer,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.primary.withValues(alpha: 0.28)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.mail_outline_rounded, color: colors.primary, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '$count pending invitation${count == 1 ? '' : 's'}',
+                style: TextStyle(
+                  color: colors.onPrimaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_rounded, color: colors.onPrimaryContainer),
+          ],
+        ),
       ),
     );
   }

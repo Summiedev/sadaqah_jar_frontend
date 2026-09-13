@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/refresh_helper.dart';
 import '../../services/backend_api.dart';
+import '../../widgets/mizan_async_state.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 import '../../core/theme/theme_extensions.dart';
@@ -133,7 +134,7 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
                     : const <String, int>{};
             return _PRequest(
               p['author_name']?.toString() ?? 'Family member',
-              fBronze,
+              context.colors.primary,
               p['text']?.toString() ?? '',
               'just now',
               id: p['id']?.toString(),
@@ -170,7 +171,7 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     final familyId = int.tryParse(widget.id);
     if (familyId == null) {
       setState(() {
-        _requests.insert(0, _PRequest('You', fBronze, text, 'now'));
+        _requests.insert(0, _PRequest('You', context.colors.primary, text, 'now'));
         _c.clear();
       });
       return;
@@ -186,7 +187,7 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
           0,
           _PRequest(
             'You',
-            fBronze,
+            context.colors.primary,
             text,
             'just now',
             id: result['id']?.toString(),
@@ -197,7 +198,7 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Colors.brown),
+        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
       );
     }
   }
@@ -244,7 +245,7 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Colors.brown),
+        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
       );
     } finally {
       _responding.remove(prayerId);
@@ -276,54 +277,22 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
 
   Widget _buildBody() {
     if (_loading && _requests.isEmpty) {
-      return const Center(
-        child: SizedBox(
-          height: 80,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: fClayLight,
-              borderRadius: BorderRadius.all(Radius.circular(20)),
-            ),
-          ),
-        ),
-      );
+      return const MizanLoadingState(label: 'Loading prayer requests...');
     }
     if (_error != null && _requests.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            children: [
-              const Icon(Icons.wifi_off_rounded, size: 48, color: fBronze),
-              const SizedBox(height: 18),
-              const Text(
-                'Could not load prayer requests',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                  color: fWalnut,
-                  fontFamily: 'Georgia',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  height: 1.5,
-                  color: fStone,
-                ),
-              ),
-              const SizedBox(height: 18),
-              FilledButton(onPressed: _loadPrayers, child: const Text('Retry')),
-            ],
-          ),
-        ),
+      return MizanErrorState(
+        title: 'Could not load prayer requests',
+        message: _error!,
+        onRetry: _loadPrayers,
       );
     }
     if (_requests.isEmpty) {
-      return const _EmptyPrayers();
+      return const MizanEmptyState(
+        title: 'No prayer requests',
+        message:
+            'Support one another through du\'a. Share a request and let your family hold you close.',
+        icon: Icons.favorite_border_outlined,
+      );
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
@@ -375,8 +344,9 @@ class _RequestCardState extends State<_RequestCard> {
   @override
   Widget build(BuildContext context) {
     final r = widget.r;
+    final colors = context.colors;
     return SoftCard(
-      color: fClayPale,
+      color: colors.surfaceElevated,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,33 +361,37 @@ class _RequestCardState extends State<_RequestCard> {
                   children: [
                     Text(
                       r.author,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: fWalnut,
+                        color: colors.textPrimary,
                       ),
                     ),
                     Text(
                       r.time,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10.5,
-                        color: fStoneLight,
+                        color: colors.textMuted,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.favorite_border_outlined,
                 size: 16,
-                color: fBronze,
+                color: colors.primary,
               ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             r.text,
-            style: const TextStyle(fontSize: 14, height: 1.5, color: fWalnut),
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: colors.textPrimary,
+            ),
           ),
           const SizedBox(height: 14),
           Wrap(
@@ -457,9 +431,9 @@ class _RequestCardState extends State<_RequestCard> {
               r.commentCount == 0
                   ? 'Be the first to write a personal dua'
                   : 'View ${r.commentCount} written dua${r.commentCount == 1 ? '' : 's'}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: fBronze,
+                color: colors.primary,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -605,6 +579,7 @@ class _PrayerRepliesSheetState extends State<_PrayerRepliesSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return SafeArea(
       child: Padding(
         padding: EdgeInsets.fromLTRB(
@@ -617,31 +592,36 @@ class _PrayerRepliesSheetState extends State<_PrayerRepliesSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Written duas',
               style: TextStyle(
                 fontFamily: 'Georgia',
                 fontSize: 21,
                 fontWeight: FontWeight.w700,
-                color: fWalnut,
+                color: colors.textPrimary,
               ),
             ),
             const SizedBox(height: 5),
-            const Text(
+            Text(
               'Add a personal prayer beyond the quick responses.',
-              style: TextStyle(fontSize: 12.5, color: fStone),
+              style: TextStyle(fontSize: 12.5, color: colors.textSecondary),
             ),
             const SizedBox(height: 14),
             if (_loading)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(20),
-                child: Center(child: CircularProgressIndicator(color: fBronze)),
+                child: Center(
+                  child: CircularProgressIndicator(color: colors.primary),
+                ),
               )
             else if (_error != null)
               Row(
                 children: [
                   Expanded(
-                    child: Text(_error!, style: const TextStyle(color: fStone)),
+                    child: Text(
+                      _error!,
+                      style: TextStyle(color: colors.textSecondary),
+                    ),
                   ),
                   TextButton(onPressed: _load, child: const Text('Retry')),
                 ],
@@ -667,19 +647,19 @@ class _PrayerRepliesSheetState extends State<_PrayerRepliesSheet> {
                                 Text(
                                   reply['author_name']?.toString() ??
                                       'Family member',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
-                                    color: fBronze,
+                                    color: colors.primary,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   reply['text']?.toString() ?? '',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
                                     height: 1.4,
-                                    color: fWalnut,
+                                    color: colors.textPrimary,
                                   ),
                                 ),
                               ],
@@ -687,10 +667,10 @@ class _PrayerRepliesSheetState extends State<_PrayerRepliesSheet> {
                           ),
                           IconButton(
                             tooltip: 'Delete written dua',
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.delete_outline,
                               size: 18,
-                              color: fStone,
+                              color: colors.iconSecondary,
                             ),
                             onPressed: () => _deleteReply(reply),
                           ),
@@ -705,7 +685,7 @@ class _PrayerRepliesSheetState extends State<_PrayerRepliesSheet> {
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   'No written duas yet.',
-                  style: TextStyle(color: fStone),
+                  style: TextStyle(color: colors.textSecondary),
                 ),
               ),
             const SizedBox(height: 12),
@@ -779,13 +759,17 @@ class _ResponseChipState extends State<_ResponseChip>
   @override
   Widget build(BuildContext context) {
     final active = widget.active || _tapped;
+    final colors = context.colors;
     return Semantics(
       button: true,
       label: '${widget.label}, ${widget.count} responses',
       child: ScaleTransition(
         scale: _a,
         child: Material(
-          color: active ? fBronze.withValues(alpha: 0.12) : fWhite,
+          color:
+              active
+                  ? colors.primary.withValues(alpha: 0.12)
+                  : colors.surfaceElevated,
           borderRadius: BorderRadius.circular(999),
           child: InkWell(
             borderRadius: BorderRadius.circular(999),
@@ -800,7 +784,9 @@ class _ResponseChipState extends State<_ResponseChip>
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: active ? fBronze : fClay),
+                border: Border.all(
+                  color: active ? colors.primary : colors.borderSubtle,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -810,11 +796,12 @@ class _ResponseChipState extends State<_ResponseChip>
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
-                      color: active ? fBronze : fStone,
+                      color: active ? colors.primary : colors.textSecondary,
                     ),
                   ),
                   if (active) const SizedBox(width: 6),
-                  if (active) const Icon(Icons.check, size: 12, color: fBronze),
+                  if (active)
+                    Icon(Icons.check, size: 12, color: colors.primary),
                 ],
               ),
             ),
@@ -833,11 +820,12 @@ class _PComposeBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-      decoration: const BoxDecoration(
-        color: fSurface,
-        border: Border(top: BorderSide(color: fClay)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.borderSubtle)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -845,23 +833,23 @@ class _PComposeBar extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: fWhite,
+                color: colors.inputBackground,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: fClay),
+                border: Border.all(color: colors.inputBorder),
               ),
               child: TextField(
                 controller: controller,
                 maxLines: 3,
                 minLines: 1,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   height: 1.45,
-                  color: fWalnut,
+                  color: colors.textPrimary,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Request a private du\'a…',
                   hintStyle: TextStyle(
-                    color: fStonePale,
+                    color: colors.textMuted,
                     fontStyle: FontStyle.italic,
                   ),
                   border: InputBorder.none,
@@ -875,65 +863,21 @@ class _PComposeBar extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Material(
-            color: fBronze,
+            color: colors.primary,
             borderRadius: BorderRadius.circular(16),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: onSend,
-              child: const SizedBox(
+              child: SizedBox(
                 width: 46,
                 height: 46,
-                child: Icon(Icons.send_outlined, size: 18, color: fWhite),
+                child: Icon(
+                  Icons.send_outlined,
+                  size: 18,
+                  color: colors.onPrimary,
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyPrayers extends StatelessWidget {
-  const _EmptyPrayers();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: fClayPale,
-              shape: BoxShape.circle,
-              border: Border.all(color: fClay),
-            ),
-            child: const Center(
-              child: Icon(
-                Icons.favorite_border_outlined,
-                size: 38,
-                color: fBronze,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'No prayer requests',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: fWalnut,
-              fontFamily: 'Georgia',
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Support one another through du\'a. Share a request and let your family hold you close.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone),
           ),
         ],
       ),

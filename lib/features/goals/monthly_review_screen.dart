@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../../core/animations.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
+import '../../widgets/mizan_async_state.dart';
 import 'goal_providers.dart';
 
 class MonthlyReviewScreen extends ConsumerStatefulWidget {
@@ -20,6 +22,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
   late final AnimationController _entrance;
   bool _loading = true;
   bool _submitting = false;
+  String? _error;
   Map<String, dynamic>? _goalsData;
   int _streak = 0;
   String? _selectedAction;
@@ -81,6 +84,10 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
         setState(() {
           _loading = false;
           _goalsData = {};
+          _error = backendErrorMessage(
+            e,
+            fallback: 'Could not load your monthly review. Please try again.',
+          );
         });
     }
   }
@@ -159,7 +166,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not save review: $e'),
-            backgroundColor: Colors.brown,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -168,8 +175,9 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: FadeTransition(
           opacity: CurvedAnimation(parent: _entrance, curve: Curves.easeOut),
@@ -180,10 +188,10 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                 padding: const EdgeInsets.fromLTRB(24, 18, 20, 0),
                 child: Row(
                   children: [
-                    const Text(
+                    Text(
                       'MIZAN',
                       style: TextStyle(
-                        color: kBronze,
+                        color: colors.primary,
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
                         letterSpacing: 3.5,
@@ -192,10 +200,10 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                     const Spacer(),
                     TextButton(
                       onPressed: () => context.pop(),
-                      child: const Text(
+                      child: Text(
                         'Close',
                         style: TextStyle(
-                          color: kMuted,
+                          color: colors.textSecondary,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -207,8 +215,12 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
               Expanded(
                 child:
                     _loading
-                        ? const Center(
-                          child: CircularProgressIndicator(color: kBronze),
+                        ? MizanLoadingState(label: 'Loading your review...')
+                        : _error != null
+                        ? MizanErrorState(
+                          title: 'Could not load review',
+                          message: _error!,
+                          onRetry: _loadData,
                         )
                         : SingleChildScrollView(
                           physics: const BouncingScrollPhysics(),
@@ -219,19 +231,19 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                               // Title
                               Text(
                                 'Your $_monthLabel review',
-                                style: const TextStyle(
+                                  style: TextStyle(
                                   fontFamily: 'Georgia',
                                   fontSize: 28,
                                   height: 1.1,
                                   fontWeight: FontWeight.w700,
-                                  color: kInk,
+                                    color: colors.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 8),
                               Text(
                                 'Take a moment to reflect on your journey this month.',
-                                style: const TextStyle(
-                                  color: kMuted,
+                                style: TextStyle(
+                                  color: colors.textSecondary,
                                   fontSize: 14,
                                   height: 1.5,
                                 ),
@@ -245,7 +257,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                       icon: Icons.flag_outlined,
                                       label: 'Active goals',
                                       value: '$_activeGoals',
-                                      color: kBronze,
+                                      color: colors.primary,
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -254,7 +266,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                       icon: Icons.check_circle_outline,
                                       label: 'Completed',
                                       value: '$_completedGoals',
-                                      color: kSage,
+                                      color: colors.success,
                                     ),
                                   ),
                                 ],
@@ -267,7 +279,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                       icon: Icons.favorite_outline,
                                       label: 'Total acts',
                                       value: '$_totalActs',
-                                      color: kBronze,
+                                      color: colors.primary,
                                     ),
                                   ),
                                   const SizedBox(width: 10),
@@ -277,7 +289,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                           Icons.local_fire_department_outlined,
                                       label: 'Day streak',
                                       value: '$_streak',
-                                      color: kDanger,
+                                      color: colors.error,
                                     ),
                                   ),
                                 ],
@@ -290,10 +302,10 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                   child: Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
-                                      color: kSage.withValues(alpha: 0.1),
+                                      color: colors.successContainer,
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: kSage.withValues(alpha: 0.3),
+                                        color: colors.success.withValues(alpha: 0.3),
                                       ),
                                     ),
                                     child: Row(
@@ -302,16 +314,16 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                           width: 44,
                                           height: 44,
                                           decoration: BoxDecoration(
-                                            color: kSage.withValues(
+                                            color: colors.success.withValues(
                                               alpha: 0.15,
                                             ),
                                             borderRadius: BorderRadius.circular(
                                               14,
                                             ),
                                           ),
-                                          child: const Icon(
+                                          child: Icon(
                                             Icons.celebration_outlined,
-                                            color: kSage,
+                                            color: colors.success,
                                             size: 22,
                                           ),
                                         ),
@@ -321,10 +333,10 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
+                                              Text(
                                                 'Goals completed!',
                                                 style: TextStyle(
-                                                  color: kInk,
+                                                  color: colors.textPrimary,
                                                   fontWeight: FontWeight.w800,
                                                   fontSize: 15,
                                                 ),
@@ -334,8 +346,8 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                                 _completedGoals == 1
                                                     ? 'You completed 1 goal this month. Masha\'Allah!'
                                                     : 'You completed $_completedGoals goals this month. Masha\'Allah!',
-                                                style: const TextStyle(
-                                                  color: kMuted,
+                                                style: TextStyle(
+                                                  color: colors.textSecondary,
                                                   fontSize: 12.5,
                                                 ),
                                               ),
@@ -349,10 +361,10 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                 const SizedBox(height: 24),
                               ],
                               // What's next
-                              const Text(
+                              Text(
                                 'What would you like to do next?',
                                 style: TextStyle(
-                                  color: kInk,
+                                  color: colors.textPrimary,
                                   fontWeight: FontWeight.w800,
                                   fontSize: 16,
                                 ),
@@ -365,8 +377,13 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 8),
                                   child: Material(
-                                    color: isSelected ? kClayLight : kPaper,
-                                    borderRadius: BorderRadius.circular(16),
+                                    color:
+                                        isSelected
+                                            ? colors.primaryContainer
+                                            : colors.surfaceElevated,
+                                    borderRadius: BorderRadius.circular(
+                                      MizanRadii.control,
+                                    ),
                                     child: InkWell(
                                       onTap:
                                           () => setState(
@@ -374,15 +391,20 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                                 _selectedAction =
                                                     action['value'] as String,
                                           ),
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(
+                                        MizanRadii.control,
+                                      ),
                                       child: Container(
                                         padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(
-                                            16,
+                                            MizanRadii.control,
                                           ),
                                           border: Border.all(
-                                            color: isSelected ? kBronze : kClay,
+                                            color:
+                                                isSelected
+                                                    ? colors.primary
+                                                    : colors.borderSubtle,
                                             width: isSelected ? 1.5 : 1,
                                           ),
                                         ),
@@ -390,7 +412,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                           children: [
                                             Icon(
                                               action['icon'] as IconData,
-                                              color: kBronze,
+                                              color: colors.primary,
                                               size: 22,
                                             ),
                                             const SizedBox(width: 12),
@@ -398,7 +420,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                               child: Text(
                                                 action['label'] as String,
                                                 style: TextStyle(
-                                                  color: kInk,
+                                                  color: colors.textPrimary,
                                                   fontSize: 14,
                                                   fontWeight: FontWeight.w700,
                                                 ),
@@ -410,8 +432,8 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                                   : Icons.radio_button_off,
                                               color:
                                                   isSelected
-                                                      ? kBronze
-                                                      : kStonePale,
+                                                      ? colors.primary
+                                                      : colors.textMuted,
                                               size: 20,
                                             ),
                                           ],
@@ -431,10 +453,14 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                                   hintText:
                                       'Add a note about your month (optional)',
                                   filled: true,
-                                  fillColor: kPaper,
+                                  fillColor: colors.inputBackground,
                                   border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                    borderSide: const BorderSide(color: kClay),
+                                    borderRadius: BorderRadius.circular(
+                                      MizanRadii.control,
+                                    ),
+                                    borderSide: BorderSide(
+                                      color: colors.inputBorder,
+                                    ),
                                   ),
                                   contentPadding: const EdgeInsets.all(14),
                                 ),
@@ -454,8 +480,8 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                             ? _submitReview
                             : null,
                     style: FilledButton.styleFrom(
-                      backgroundColor: kBronze,
-                      disabledBackgroundColor: kClay,
+                      backgroundColor: colors.primary,
+                      disabledBackgroundColor: colors.surfaceContainerHigh,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child:
@@ -465,7 +491,7 @@ class _MonthlyReviewScreenState extends ConsumerState<MonthlyReviewScreen>
                               height: 20,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Theme.of(context).colorScheme.onPrimary,
+                                color: colors.onPrimary,
                               ),
                             )
                             : const Text(
@@ -502,11 +528,11 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: MizanSpacing.compactCard,
       decoration: BoxDecoration(
-        color: kWhite,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kClay),
+        color: context.colors.surfaceElevated,
+        borderRadius: BorderRadius.circular(MizanRadii.card),
+        border: Border.all(color: context.colors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,8 +543,8 @@ class _StatCard extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: const TextStyle(
-                  color: kMuted,
+                style: TextStyle(
+                  color: context.colors.textSecondary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -529,7 +555,7 @@ class _StatCard extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              color: kInk,
+              color: context.colors.textPrimary,
               fontSize: 24,
               fontWeight: FontWeight.w700,
               fontFamily: 'Georgia',

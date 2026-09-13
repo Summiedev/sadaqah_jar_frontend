@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/backend_api.dart';
@@ -15,6 +16,8 @@ import 'travel_adhkar_screen.dart';
 import 'others_adhkar_screen.dart';
 import 'book_reader_screen.dart';
 import 'quran/quran_screen.dart';
+import 'reflection_action_suggestion.dart';
+import '../../widgets/mizan_async_state.dart';
 
 class JourneyScreen extends StatefulWidget {
   const JourneyScreen({
@@ -76,7 +79,7 @@ class _JourneyScreenState extends State<JourneyScreen>
                 floating: false,
                 toolbarHeight: 58,
                 elevation: dark ? 0 : 6,
-                shadowColor: Colors.black.withValues(alpha: dark ? 0 : 0.14),
+        shadowColor: colors.scrim.withValues(alpha: dark ? 0 : 0.14),
                 scrolledUnderElevation: dark ? 0 : 6,
                 backgroundColor: colors.surface,
                 foregroundColor: colors.textPrimary,
@@ -130,7 +133,7 @@ class _JourneyScreenState extends State<JourneyScreen>
                               ? null
                               : [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.12),
+                                  color: colors.scrim.withValues(alpha: 0.12),
                                   blurRadius: 14,
                                   offset: const Offset(0, 6),
                                 ),
@@ -188,7 +191,7 @@ class _JourneySegments extends StatelessWidget {
       height: 42,
       decoration: BoxDecoration(
         color: colors.surfaceContainer,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MizanRadii.card),
         border: Border.all(color: colors.border),
       ),
       child: TabBar(
@@ -200,11 +203,10 @@ class _JourneySegments extends StatelessWidget {
         indicatorSize: TabBarIndicatorSize.tab,
         indicator: BoxDecoration(
           color: colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(MizanRadii.control),
           boxShadow: [
             BoxShadow(
-              color:
-                  dark ? Colors.black12 : Colors.black.withValues(alpha: 0.07),
+              color: colors.scrim.withValues(alpha: dark ? 0.08 : 0.07),
               blurRadius: 5,
               offset: Offset(0, 2),
             ),
@@ -261,7 +263,10 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = backendErrorMessage(
+          e,
+          fallback: 'We could not reach your journal. Please try again.',
+        );
         _loading = false;
       });
     }
@@ -277,86 +282,33 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
       ];
       _error = null;
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(showReflectionActionSuggestion(context, reflection));
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     if (_loading) {
-      return Center(
-        child: CircularProgressIndicator(strokeWidth: 2, color: colors.primary),
-      );
+      return const MizanLoadingState(label: 'Loading your reflections...');
     }
     if (_error != null && _items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.menu_book_outlined, size: 38, color: colors.primary),
-              const SizedBox(height: 16),
-              Text(
-                'Your notes are taking a moment',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  fontFamily: 'Georgia',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'We could not reach your journal. Your saved writing is still safe.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary, height: 1.5),
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Try again'),
-              ),
-            ],
-          ),
-        ),
+      return MizanErrorState(
+        title: 'Your notes are taking a moment',
+        message: _error!,
+        onRetry: _load,
+        icon: Icons.menu_book_outlined,
       );
     }
     if (_items.isEmpty) {
       return Stack(
         children: [
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(28, 70, 28, 120),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.auto_stories_outlined,
-                    size: 44,
-                    color: colors.primary,
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'A quiet place for your notes',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.textPrimary,
-                      fontFamily: 'Georgia',
-                      fontSize: 21,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Write what you noticed, learned, or want to carry with you.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: colors.textSecondary, height: 1.5),
-                  ),
-                ],
-              ),
-            ),
+          const MizanEmptyState(
+            icon: Icons.auto_stories_outlined,
+            title: 'A quiet place for your notes',
+            message:
+                'Write what you noticed, learned, or want to carry with you.',
           ),
           Positioned(
             right: 20,
@@ -508,9 +460,9 @@ class _ReflectionTile extends StatelessWidget {
     final colors = context.colors;
     return Material(
       color: colors.surfaceElevated,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(MizanRadii.card),
       child: InkWell(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(MizanRadii.card),
         onTap:
             () => Navigator.of(context).push(
               MaterialPageRoute(
@@ -902,7 +854,7 @@ class _DhikrTile extends StatelessWidget {
     final colors = context.colors;
     return Material(
       color: colors.surfaceElevated,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(MizanRadii.card),
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -985,22 +937,29 @@ class _Counter extends StatelessWidget {
   final int value;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(99),
-    child: AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: value > 0 ? kSoftSage : kSoftBronze,
-        borderRadius: BorderRadius.circular(99),
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color:
+              value > 0 ? colors.successContainer : colors.primaryContainer,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          '$value',
+          style: TextStyle(
+            color: colors.primary,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
       ),
-      child: Text(
-        '$value',
-        style: const TextStyle(color: kBronze, fontWeight: FontWeight.w700),
-      ),
-    ),
-  );
+    );
+  }
 }
 
 class _ReadingTab extends StatefulWidget {
@@ -1037,84 +996,22 @@ class _ReadingTabState extends State<_ReadingTab> {
       future: _booksFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: CircularProgressIndicator(color: colors.primary),
-          );
+          return const MizanLoadingState(label: 'Loading your library...');
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.wifi_off_rounded, size: 36, color: colors.primary),
-                const SizedBox(height: 16),
-                Text(
-                  'Could not load library',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'Georgia',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your books could not be loaded. Please try again.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: () => setState(_reloadBooks),
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Try again'),
-                ),
-              ],
-            ),
+          return MizanErrorState(
+            title: 'Could not load library',
+            message:
+                'Your books could not be loaded. Please check your connection and try again.',
+            onRetry: () => setState(_reloadBooks),
           );
         }
         final books = snapshot.data ?? [];
         if (books.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: colors.primaryContainer,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: colors.border),
-                  ),
-                  child: Icon(
-                    Icons.menu_book_outlined,
-                    size: 32,
-                    color: colors.primary,
-                  ),
-                ),
-                const SizedBox(height: 18),
-                Text(
-                  'No books available yet',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'Georgia',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'New books will appear here as they are added.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 13,
-                    height: 1.5,
-                  ),
-                ),
-              ],
-            ),
+          return const MizanEmptyState(
+            icon: Icons.menu_book_outlined,
+            title: 'No books available yet',
+            message: 'New books will appear here as they are added.',
           );
         }
         return ListView.separated(
@@ -1154,12 +1051,12 @@ class _ReadingTile extends StatelessWidget {
     final colors = context.colors;
     return Material(
       color: colors.surfaceElevated,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(MizanRadii.card),
       child: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(MizanRadii.card),
         onTap: () => _openReader(context, book),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: MizanSpacing.card,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1265,59 +1162,23 @@ class _SavedTabState extends State<_SavedTab> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colors.primary,
-              ),
-            ),
-          );
+          return const MizanLoadingState(label: 'Loading saved items...');
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              children: [
-                Icon(Icons.wifi_off_rounded, size: 36, color: colors.primary),
-                const SizedBox(height: 16),
-                Text(
-                  'Could not load saved items',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'Georgia',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your saved items could not be loaded. Please try again.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: _retry,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Try again'),
-                ),
-              ],
-            ),
+          return MizanErrorState(
+            title: 'Could not load saved items',
+            message:
+                'Your saved items could not be loaded. Please try again.',
+            onRetry: _retry,
           );
         }
         final favorites = snapshot.data ?? const [];
         if (favorites.isEmpty) {
-          return Padding(
-            padding: EdgeInsets.fromLTRB(20, 40, 20, 32),
-            child: Center(
-              child: Text(
-                'No saved items yet. Explore adhkar and reflections to build your collection.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary, fontSize: 14),
-              ),
-            ),
+          return const MizanEmptyState(
+            icon: Icons.bookmark_border_rounded,
+            title: 'No saved items yet',
+            message:
+                'Explore adhkar and reflections to build your collection.',
           );
         }
         return ListView.separated(
@@ -1376,60 +1237,22 @@ class _HistorialTabState extends State<_HistorialTab> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(
-            child: SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: colors.primary,
-              ),
-            ),
-          );
+          return const MizanLoadingState(label: 'Loading your history...');
         }
         if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              children: [
-                Icon(Icons.wifi_off_rounded, size: 36, color: colors.primary),
-                const SizedBox(height: 16),
-                Text(
-                  'Could not load history',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'Georgia',
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Your history could not be loaded. Please try again.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.textSecondary, fontSize: 13),
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  onPressed: _retry,
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Try again'),
-                ),
-              ],
-            ),
+          return MizanErrorState(
+            title: 'Could not load history',
+            message: 'Your history could not be loaded. Please try again.',
+            onRetry: _retry,
           );
         }
         final page = snapshot.data;
         final items = page?.items ?? const [];
         if (items.isEmpty) {
-          return Padding(
-            padding: EdgeInsets.fromLTRB(24, 40, 24, 32),
-            child: Center(
-              child: Text(
-                'No history yet. Your journey begins with the first step.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: colors.textSecondary, fontSize: 14),
-              ),
-            ),
+          return const MizanEmptyState(
+            icon: Icons.history_rounded,
+            title: 'No history yet',
+            message: 'Your journey begins with the first step.',
           );
         }
         return ListView.separated(
@@ -1526,8 +1349,8 @@ class _ReaderPage extends StatelessWidget {
         children: [
           Text(
             data.kicker.toUpperCase(),
-            style: const TextStyle(
-              color: kBronze,
+            style: TextStyle(
+              color: colors.primary,
               letterSpacing: 1.8,
               fontWeight: FontWeight.w700,
               fontSize: 11,

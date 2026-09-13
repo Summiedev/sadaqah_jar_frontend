@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
 
@@ -91,9 +91,9 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: context.colors.surface,
         surfaceTintColor: Colors.transparent,
         title: Text(
           widget.book.title,
@@ -121,8 +121,8 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(color: kBronze),
+            return Center(
+              child: CircularProgressIndicator(color: context.colors.primary),
             );
           }
           if (snapshot.hasError) {
@@ -235,7 +235,9 @@ class _EpubBookState extends State<_EpubBook> {
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: kBronze));
+          return Center(
+            child: CircularProgressIndicator(color: context.colors.primary),
+          );
         }
         if (snapshot.hasError) {
           return const _ReaderState(
@@ -274,7 +276,10 @@ class _ImageBook extends StatelessWidget {
       children: [
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          padding: const EdgeInsets.symmetric(
+            horizontal: MizanSpacing.lg,
+            vertical: MizanSpacing.sm,
+          ),
           decoration: BoxDecoration(
             color: context.colors.surface,
             border: Border(bottom: BorderSide(color: context.colors.border)),
@@ -311,9 +316,9 @@ class _ImageBook extends StatelessWidget {
                         (context, child, event) =>
                             event == null
                                 ? child
-                                : const Center(
+                                : Center(
                                   child: CircularProgressIndicator(
-                                    color: kBronze,
+                                    color: context.colors.primary,
                                   ),
                                 ),
                   ),
@@ -349,7 +354,12 @@ class _ChapterBookState extends State<_ChapterBook> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(28, 18, 28, 28),
+            padding: const EdgeInsets.fromLTRB(
+              MizanSpacing.xxl,
+              MizanSpacing.lg,
+              MizanSpacing.xxl,
+              MizanSpacing.xxl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -391,7 +401,12 @@ class _ChapterBookState extends State<_ChapterBook> {
         SafeArea(
           top: false,
           child: Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            padding: const EdgeInsets.fromLTRB(
+              MizanSpacing.xl,
+              MizanSpacing.md,
+              MizanSpacing.xl,
+              MizanSpacing.lg,
+            ),
             decoration: BoxDecoration(
               color: context.colors.surface,
               border: Border(top: BorderSide(color: context.colors.border)),
@@ -435,7 +450,10 @@ class _ChapterBookState extends State<_ChapterBook> {
                             },
                     icon: const Icon(Icons.arrow_forward_rounded, size: 18),
                     label: const Text('Next'),
-                    style: FilledButton.styleFrom(backgroundColor: kBronze),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: context.colors.primary,
+                      foregroundColor: context.colors.onPrimary,
+                    ),
                   ),
                 ),
               ],
@@ -462,11 +480,11 @@ class _ReaderState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(28),
+        padding: const EdgeInsets.all(MizanSpacing.xxxl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: kBronze, size: 48),
+            Icon(icon, color: context.colors.primary, size: 48),
             const SizedBox(height: 14),
             Text(
               title,

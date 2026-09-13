@@ -255,6 +255,8 @@ class QuranRepository {
       'mizan.quran.offline.completed_chapters.v3';
   static const _completedPagesKey = 'mizan.quran.offline.completed_pages.v3';
   static const _downloadJobKey = 'mizan.quran.offline.job.v3';
+  static const _readingDaysKey = 'mizan.quran.reading.days.v1';
+  static const _readingReflectionsKey = 'mizan.quran.reading.reflections.v1';
   static const _translationIdKey = 'mizan.quran.translation.hilali_khan.id';
   // Bump this whenever the bundled/backend contract changes. Older local
   // content must never be presented as the current Mushaf dataset.
@@ -394,15 +396,34 @@ class QuranRepository {
         ) ??
         0;
     if (verseCount != 6236) return false;
-    final pageDir = Directory(p.join((await filesDir).path, 'pages'));
     for (var page = 1; page <= 604; page++) {
-      final exists = ['png', 'jpg', 'jpeg', 'svg'].any(
-        (extension) =>
-            File(p.join(pageDir.path, '$page.$extension')).existsSync(),
-      );
-      if (!exists) return false;
+      if (!await _isPageDownloaded(page)) return false;
     }
     return true;
+  }
+
+  /// Returns whether a single page can be rendered without a session or
+  /// network. A page is useful when either its downloaded Mushaf artwork or
+  /// its complete local ayah range is present; the reader can render the
+  /// latter using the same Uthmani data if artwork is still downloading.
+  Future<bool> isPageAvailableOffline(int page) async {
+    if (page < 1 || page > 604) return false;
+    if (await _isPageDownloaded(page)) return true;
+    final db = await database;
+    final count = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM verses WHERE page = ?', [page]),
+    );
+    return (count ?? 0) > 0;
+  }
+
+  Future<bool> isSurahAvailableOffline(int surahId) async {
+    if (surahId < 1 || surahId > 114) return false;
+    return _isChapterDownloaded(surahId);
+  }
+
+  Future<int> offlineAyahCount() async {
+    final db = await database;
+    return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM verses')) ?? 0;
   }
 
   Future<void> ensureOfflineDataset() async {
@@ -584,16 +605,12 @@ class QuranRepository {
     try {
       final pageDir = Directory(p.join((await filesDir).path, 'pages'));
       if (await pageDir.exists()) {
-        final actual =
-            pageDir
-                .listSync()
-                .whereType<File>()
-                .map(
-                  (file) => int.tryParse(p.basenameWithoutExtension(file.path)),
-                )
-                .whereType<int>()
-                .where((page) => page >= 1 && page <= 604)
-                .toSet();
+        final actual = <int>{};
+        for (final file in pageDir.listSync().whereType<File>()) {
+          if (file.lengthSync() <= 0) continue;
+          final page = int.tryParse(p.basenameWithoutExtension(file.path));
+          if (page != null && page >= 1 && page <= 604) actual.add(page);
+        }
         pages.retainAll(actual);
         pages.addAll(actual);
       }
@@ -626,7 +643,10 @@ class QuranRepository {
     final dir = Directory(p.join((await filesDir).path, 'pages'));
     if (!await dir.exists()) return false;
     return ['png', 'jpg', 'jpeg', 'svg'].any(
-      (extension) => File(p.join(dir.path, '$page.$extension')).existsSync(),
+      (extension) {
+        final file = File(p.join(dir.path, '$page.$extension'));
+        return file.existsSync() && file.lengthSync() > 0;
+      },
     );
   }
 
@@ -896,7 +916,7 @@ class QuranRepository {
     final directory = (await filesDir).path;
     for (final extension in ['png', 'jpg', 'jpeg', 'svg']) {
       final file = File(p.join(directory, 'pages', '$page.$extension'));
-      if (file.existsSync()) return file;
+      if (file.existsSync() && file.lengthSync() > 0) return file;
     }
     return null;
   }
@@ -1000,30 +1020,37 @@ class QuranRepository {
   }
 
   Future<QuranProgress> loadProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_progressKey);
+    if (raw != null) {
+      try {
+        final json = jsonDecode(raw) as Map<String, dynamic>;
+        // Local state wins for an already-used device. This is what lets a
+        // downloaded Mushaf open immediately after logout or without a
+        // network request. A new device with no local state still restores
+        // the account's server position below.
+        return QuranProgress(
+          surahId: _asInt(json['surahId'], fallback: 1),
+          verseKey: json['verseKey']?.toString() ?? '1:1',
+          page: _asInt(json['page'], fallback: 1),
+        );
+      } catch (_) {
+        // Fall through to a remote restore if the local record is malformed.
+      }
+    }
     final remote = await _loadRemoteProgress();
     if (remote != null) {
       await _saveLocalProgress(remote);
       return remote;
     }
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_progressKey);
-    if (raw == null) {
-      return const QuranProgress(surahId: 1, verseKey: '1:1', page: 1);
-    }
-    try {
-      final json = jsonDecode(raw) as Map<String, dynamic>;
-      return QuranProgress(
-        surahId: _asInt(json['surahId'], fallback: 1),
-        verseKey: json['verseKey']?.toString() ?? '1:1',
-        page: _asInt(json['page'], fallback: 1),
-      );
-    } catch (_) {
-      return const QuranProgress(surahId: 1, verseKey: '1:1', page: 1);
-    }
+    return const QuranProgress(surahId: 1, verseKey: '1:1', page: 1);
   }
 
   Future<void> saveProgress(QuranProgress progress) async {
     await _saveLocalProgress(progress);
+    await recordPageRead(progress.page);
+    final token = await BackendApi.instance.getToken();
+    if (token == null || token.isEmpty) return;
     try {
       await BackendApi.instance.saveQuranProgress(
         surahId: progress.surahId,
@@ -1033,6 +1060,51 @@ class QuranRepository {
     } catch (_) {
       // Offline or auth failures should never block local reading progress.
     }
+  }
+
+  Future<void> recordReflection() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+      _readingReflectionsKey,
+      (prefs.getInt(_readingReflectionsKey) ?? 0) + 1,
+    );
+  }
+
+  Future<void> recordPageRead(int page) async {
+    if (page < 1 || page > 604) return;
+    final prefs = await SharedPreferences.getInstance();
+    final today = _dayKey(DateTime.now());
+    final days = {...?prefs.getStringList(_readingDaysKey)}..add(today);
+    final sorted = days.toList()..sort();
+    // Keep the local rhythm small and useful. It is device-local by design,
+    // just like the offline reading cache, and never blocks reading.
+    await prefs.setStringList(
+      _readingDaysKey,
+      sorted.length > 120 ? sorted.sublist(sorted.length - 120) : sorted,
+    );
+  }
+
+  Future<int> readingDaysLast30() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cutoff = DateTime.now().subtract(const Duration(days: 29));
+    return (prefs.getStringList(_readingDaysKey) ?? const <String>[])
+        .map(_parseDay)
+        .whereType<DateTime>()
+        .where((day) => !day.isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)))
+        .length;
+  }
+
+  Future<int> readingReflectionCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(_readingReflectionsKey) ?? 0;
+  }
+
+  String _dayKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  DateTime? _parseDay(String value) {
+    final parsed = DateTime.tryParse(value);
+    return parsed == null ? null : DateTime(parsed.year, parsed.month, parsed.day);
   }
 
   Future<void> _saveLocalProgress(QuranProgress progress) async {
@@ -1049,6 +1121,8 @@ class QuranRepository {
 
   Future<QuranProgress?> _loadRemoteProgress() async {
     try {
+      final token = await BackendApi.instance.getToken();
+      if (token == null || token.isEmpty) return null;
       final json = await BackendApi.instance.getQuranProgress();
       if (json == null) return null;
       return QuranProgress(

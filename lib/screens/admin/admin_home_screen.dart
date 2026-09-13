@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
+import '../../widgets/mizan_surface.dart';
 
 class AdminHomeScreen extends StatelessWidget {
   const AdminHomeScreen({super.key});
@@ -11,10 +13,9 @@ class AdminHomeScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin Panel'),
-        backgroundColor: kClayLight,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: MizanSpacing.screen,
         children: [
           _AdminTile(
             icon: Icons.menu_book_outlined,
@@ -22,21 +23,21 @@ class AdminHomeScreen extends StatelessWidget {
             subtitle: 'Upload, preview, publish, and manage reading files',
             onTap: () => context.push('/admin/books'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: MizanSpacing.md),
           _AdminTile(
             icon: Icons.volunteer_activism_outlined,
             title: 'Donations',
             subtitle: 'Manage personal cases and verified external campaigns',
             onTap: () => context.push('/admin/charities'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: MizanSpacing.md),
           _AdminTile(
             icon: Icons.menu_book_outlined,
             title: 'Evidence',
             subtitle: 'Review and maintain act evidence entries',
             onTap: () => context.push('/admin/evidence'),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: MizanSpacing.md),
           _AdminTile(
             icon: Icons.insights_outlined,
             title: 'Analytics',
@@ -64,38 +65,36 @@ class _AdminTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: kSurface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Icon(icon, color: kBronze),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(subtitle, style: const TextStyle(color: kMuted)),
-                  ],
+    final colors = context.colors;
+    return MizanSurface(
+      padding: MizanSpacing.card,
+      onTap: onTap,
+      child: Row(
+        children: [
+          Icon(icon, color: colors.primary),
+          const SizedBox(width: MizanSpacing.lg),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right),
-            ],
+                const SizedBox(height: MizanSpacing.xs),
+                Text(
+                  subtitle,
+                  style: TextStyle(color: colors.textSecondary, height: 1.4),
+                ),
+              ],
+            ),
           ),
-        ),
+          Icon(Icons.chevron_right, color: colors.iconSecondary),
+        ],
       ),
     );
   }

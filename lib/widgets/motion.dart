@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/theme/app_theme.dart';
+import '../core/theme/theme_extensions.dart';
 
 /// Small, reusable motion primitives. All movement switches off when the
 /// platform asks for reduced motion.
@@ -74,7 +74,7 @@ class _FocusGlowState extends State<FocusGlow> {
             _node.hasFocus && motionEnabled(context)
                 ? [
                   BoxShadow(
-                    color: kBronze.withValues(alpha: 0.2),
+                    color: context.colors.primary.withValues(alpha: 0.2),
                     blurRadius: 18,
                     spreadRadius: 1,
                   ),

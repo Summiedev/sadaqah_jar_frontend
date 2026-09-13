@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'theme/app_theme.dart';
 import 'theme/theme_extensions.dart';
 
 /// Canonical motion tokens for Mizan.
@@ -296,7 +295,7 @@ class _SuccessCheckState extends State<SuccessCheck>
 
   @override
   Widget build(BuildContext context) {
-    final color = widget.color ?? kSage;
+    final color = widget.color ?? context.colors.success;
     return AnimatedBuilder(
       animation: _scale,
       builder: (context, child) {

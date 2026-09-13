@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -45,35 +44,35 @@ final isScrolledProvider = StateProvider<bool>((ref) => false);
 
 class ModeMeta {
   const ModeMeta({
+    required this.id,
     required this.label,
     required this.tagline,
     required this.icon,
-    required this.accent,
   });
 
+  final int id;
   final String label;
   final String tagline;
   final IconData icon;
-  final Color accent;
 }
 
 const Map<int, ModeMeta> kModeMeta = {
   kModePersonal: ModeMeta(
+    id: kModePersonal,
     label: 'Personal',
     tagline: 'My personal journey.',
     icon: Icons.person_outline_rounded,
-    accent: kBronze,
   ),
   kModeFamily: ModeMeta(
+    id: kModeFamily,
     label: 'Family',
     tagline: 'Grow together with family.',
     icon: Icons.groups_outlined,
-    accent: kOlive,
   ),
   kModeBoth: ModeMeta(
+    id: kModeBoth,
     label: 'Both',
     tagline: 'Solitude and togetherness, in one.',
     icon: Icons.auto_awesome_outlined,
-    accent: kSlate,
   ),
 };

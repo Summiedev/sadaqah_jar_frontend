@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
+import '../../widgets/mizan_async_state.dart';
 import 'book_reader_screen.dart';
 
 class BooksListScreen extends ConsumerStatefulWidget {
@@ -65,29 +66,30 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(color: context.colors.primary),
-            );
+            return const MizanLoadingState(label: 'Loading your library...');
           }
           if (snapshot.hasError) {
-            return Center(
-              child: Text(
-                'Could not load books. Please try again.',
-                style: TextStyle(color: context.colors.textSecondary),
-              ),
+            return MizanErrorState(
+              title: 'Could not load books',
+              message: 'Your library could not be loaded. Please try again.',
+              onRetry: _refresh,
             );
           }
           final books = snapshot.data ?? [];
           if (books.isEmpty) {
-            return Center(
-              child: Text(
-                'No books available yet.',
-                style: TextStyle(color: context.colors.textSecondary),
-              ),
+            return const MizanEmptyState(
+              icon: Icons.menu_book_outlined,
+              title: 'No books available yet',
+              message: 'New books will appear here when they are published.',
             );
           }
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            padding: const EdgeInsets.fromLTRB(
+              MizanSpacing.xl,
+              MizanSpacing.lg,
+              MizanSpacing.xl,
+              MizanSpacing.xxxl,
+            ),
             itemCount: books.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
             itemBuilder: (context, index) {
@@ -103,9 +105,9 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
                       : 'Preparing';
               return Material(
                 color: context.colors.surfaceElevated,
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(MizanRadii.card),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(MizanRadii.card),
                   onTap:
                       () => Navigator.of(context).push(
                         MaterialPageRoute(
@@ -113,14 +115,14 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
                         ),
                       ),
                   child: Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: MizanSpacing.card,
                     child: Row(
                       children: [
                         Container(
                           width: 52,
                           height: 68,
                           decoration: BoxDecoration(
-                            color: kSoftBronze,
+                            color: context.colors.primaryContainer,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: context.colors.border),
                           ),

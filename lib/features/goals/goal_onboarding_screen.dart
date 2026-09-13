@@ -4,8 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
 import '../../core/session_controller.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/animations.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
 import 'goal_providers.dart';
 
@@ -101,7 +102,7 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                     'Could not save your goal. Please try again.',
               ),
             ),
-            backgroundColor: kDanger,
+            backgroundColor: context.colors.error,
           ),
         );
       }
@@ -145,11 +146,15 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     if (_checkingExistingGoal) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return Scaffold(
+        backgroundColor: colors.background,
+        body: Center(child: CircularProgressIndicator(color: colors.primary)),
+      );
     }
     return Scaffold(
-      backgroundColor: kSurface,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -158,10 +163,10 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(24, 18, 20, 0),
               child: Row(
                 children: [
-                  const Text(
+                  Text(
                     'MIZAN',
                     style: TextStyle(
-                      color: kBronze,
+                      color: colors.primary,
                       fontWeight: FontWeight.w800,
                       fontSize: 12,
                       letterSpacing: 3.5,
@@ -170,10 +175,10 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                   const Spacer(),
                   TextButton(
                     onPressed: _skipped ? null : _skip,
-                    child: const Text(
+                    child: Text(
                       'Skip',
                       style: TextStyle(
-                        color: kMuted,
+                        color: colors.textSecondary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -192,19 +197,19 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                     // Title
                     Text(
                       _title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Georgia',
                         fontSize: 30,
                         height: 1.1,
                         fontWeight: FontWeight.w700,
-                        color: kInk,
+                        color: colors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       _subtitle,
-                      style: const TextStyle(
-                        color: kMuted,
+                      style: TextStyle(
+                        color: colors.textSecondary,
                         fontSize: 14,
                         height: 1.5,
                       ),
@@ -219,20 +224,32 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                         child: Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: Material(
-                            color: isSelected ? kClay : kWhite,
-                            borderRadius: BorderRadius.circular(20),
+                            color:
+                                isSelected
+                                    ? colors.primaryContainer
+                                    : colors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(
+                              MizanRadii.card,
+                            ),
                             child: InkWell(
                               onTap:
                                   () => setState(() => _selectedIndex = index),
-                              borderRadius: BorderRadius.circular(20),
+                              borderRadius: BorderRadius.circular(
+                                MizanRadii.card,
+                              ),
                               child: AnimatedContainer(
                                 duration: MizanMotion.fast,
                                 curve: MizanMotion.gentle,
                                 padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(20),
+                                  borderRadius: BorderRadius.circular(
+                                    MizanRadii.card,
+                                  ),
                                   border: Border.all(
-                                    color: isSelected ? kBronze : kLine,
+                                    color:
+                                        isSelected
+                                            ? colors.primary
+                                            : colors.borderSubtle,
                                     width: isSelected ? 1.5 : 1,
                                   ),
                                 ),
@@ -244,15 +261,17 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                       decoration: BoxDecoration(
                                         color:
                                             isSelected
-                                                ? kBronze.withValues(
+                                                ? colors.primary.withValues(
                                                   alpha: 0.18,
                                                 )
-                                                : kSoftBronze,
-                                        borderRadius: BorderRadius.circular(14),
+                                                : colors.primaryContainer,
+                                        borderRadius: BorderRadius.circular(
+                                          MizanRadii.control,
+                                        ),
                                       ),
                                       child: Icon(
                                         _getIcon(suggestion['icon'] as String),
-                                        color: kBronze,
+                                        color: colors.primary,
                                         size: 22,
                                       ),
                                     ),
@@ -264,8 +283,8 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                         children: [
                                           Text(
                                             suggestion['title'] as String,
-                                            style: const TextStyle(
-                                              color: kInk,
+                                            style: TextStyle(
+                                              color: colors.textPrimary,
                                               fontSize: 15,
                                               fontWeight: FontWeight.w800,
                                             ),
@@ -273,8 +292,8 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                           const SizedBox(height: 3),
                                           Text(
                                             suggestion['subtitle'] as String,
-                                            style: const TextStyle(
-                                              color: kMuted,
+                                            style: TextStyle(
+                                              color: colors.textSecondary,
                                               fontSize: 12,
                                             ),
                                           ),
@@ -285,7 +304,10 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                     Text(
                                       '${suggestion['target']}',
                                       style: TextStyle(
-                                        color: isSelected ? kBronze : kMuted,
+                                        color:
+                                            isSelected
+                                                ? colors.primary
+                                                : colors.textSecondary,
                                         fontSize: 16,
                                         fontWeight: FontWeight.w700,
                                       ),
@@ -295,7 +317,10 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                       isSelected
                                           ? Icons.check_circle_rounded
                                           : Icons.circle_outlined,
-                                      color: isSelected ? kBronze : kStonePale,
+                                      color:
+                                          isSelected
+                                              ? colors.primary
+                                              : colors.textMuted,
                                       size: 22,
                                     ),
                                   ],
@@ -311,16 +336,18 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                     FadeScaleTransition(
                       beginScale: 0.98,
                       child: Material(
-                        color: kPaper,
-                        borderRadius: BorderRadius.circular(20),
+                        color: colors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(MizanRadii.card),
                         child: InkWell(
                           onTap: () => _showCustomGoalDialog(),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(MizanRadii.card),
                           child: Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: MizanSpacing.card,
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: kClay),
+                              borderRadius: BorderRadius.circular(
+                                MizanRadii.card,
+                              ),
+                              border: Border.all(color: colors.borderSubtle),
                             ),
                             child: Row(
                               children: [
@@ -328,17 +355,19 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                   width: 44,
                                   height: 44,
                                   decoration: BoxDecoration(
-                                    color: kSoftBronze,
-                                    borderRadius: BorderRadius.circular(14),
+                                    color: colors.primaryContainer,
+                                    borderRadius: BorderRadius.circular(
+                                      MizanRadii.control,
+                                    ),
                                   ),
-                                  child: const Icon(
+                                  child: Icon(
                                     Icons.add_rounded,
-                                    color: kBronze,
+                                    color: colors.primary,
                                     size: 22,
                                   ),
                                 ),
                                 const SizedBox(width: 13),
-                                const Expanded(
+                                Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
@@ -346,7 +375,7 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                       Text(
                                         'Set a custom goal',
                                         style: TextStyle(
-                                          color: kInk,
+                                          color: colors.textPrimary,
                                           fontSize: 15,
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -355,16 +384,16 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                       Text(
                                         'Define your own intention',
                                         style: TextStyle(
-                                          color: kMuted,
+                                          color: colors.textSecondary,
                                           fontSize: 12,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
-                                const Icon(
+                                Icon(
                                   Icons.arrow_forward_rounded,
-                                  color: kBronze,
+                                  color: colors.primary,
                                   size: 20,
                                 ),
                               ],
@@ -390,8 +419,8 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                                     ? _saveGoal
                                     : null,
                             style: FilledButton.styleFrom(
-                              backgroundColor: kBronze,
-                              disabledBackgroundColor: kClay,
+                              backgroundColor: colors.primary,
+                              disabledBackgroundColor: colors.surfaceContainerHigh,
                               padding: const EdgeInsets.symmetric(vertical: 16),
                             ),
                             child:
@@ -440,17 +469,17 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
             builder:
                 (ctx, setDialogState) => DialogFadeScale(
                   child: AlertDialog(
-                    backgroundColor: kSurface,
+                    backgroundColor: ctx.colors.surfaceElevated,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(22),
                     ),
-                    title: const Text(
+                    title: Text(
                       'Custom goal',
                       style: TextStyle(
                         fontFamily: 'Georgia',
                         fontSize: 19,
                         fontWeight: FontWeight.w700,
-                        color: kInk,
+                        color: ctx.colors.textPrimary,
                       ),
                     ),
                     content: Column(
@@ -458,11 +487,11 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                       children: [
                         TextField(
                           controller: titleController,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'What is your intention?',
                             hintText: 'e.g. Pray 5 daily prayers',
                             filled: true,
-                            fillColor: kPaper,
+                            fillColor: ctx.colors.inputBackground,
                             border: OutlineInputBorder(),
                           ),
                         ),
@@ -473,7 +502,7 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                             labelText: 'Target count',
                             hintText: 'e.g. 30',
                             filled: true,
-                            fillColor: kPaper,
+                            fillColor: ctx.colors.inputBackground,
                             border: const OutlineInputBorder(),
                             errorText: targetError,
                           ),
@@ -484,9 +513,9 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text(
+                        child: Text(
                           'Cancel',
-                          style: TextStyle(color: kMuted),
+                          style: TextStyle(color: ctx.colors.textSecondary),
                         ),
                       ),
                       FilledButton(
@@ -505,7 +534,9 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
                           Navigator.pop(ctx, true);
                           _saveCustomGoal(title, target);
                         },
-                        style: FilledButton.styleFrom(backgroundColor: kBronze),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: ctx.colors.primary,
+                        ),
                         child: const Text('Set goal'),
                       ),
                     ],
@@ -534,8 +565,10 @@ class _GoalOnboardingScreenState extends ConsumerState<GoalOnboardingScreen> {
         setState(() => _saving = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not save goal: $e'),
-            backgroundColor: kDanger,
+            content: Text(
+              'Could not save goal: ${backendErrorMessage(e, fallback: 'Please try again.')}',
+            ),
+            backgroundColor: context.colors.error,
           ),
         );
       }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
+import '../../widgets/mizan_async_state.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
@@ -113,7 +114,7 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
           reflections.map(
             (r) => _FReflection(
               'You',
-              fBronze,
+              context.colors.primary,
               r['text']?.toString() ?? '',
               'just now',
               id: r['id']?.toString(),
@@ -150,7 +151,10 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     final familyId = int.tryParse(widget.id);
     if (familyId == null) {
       setState(() {
-        _reflections.insert(0, _FReflection('You', fBronze, text, 'now'));
+        _reflections.insert(
+          0,
+          _FReflection('You', context.colors.primary, text, 'now'),
+        );
         _c.clear();
       });
       return;
@@ -166,7 +170,7 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
           0,
           _FReflection(
             'You',
-            fBronze,
+            context.colors.primary,
             text,
             'just now',
             id: result['id']?.toString(),
@@ -177,7 +181,7 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Colors.brown),
+        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
       );
     }
   }
@@ -190,19 +194,22 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
       builder:
           (context) => AlertDialog(
             backgroundColor: context.colors.surfaceElevated,
-            title: const Text(
+            title: Text(
               'Edit reflection',
-              style: TextStyle(color: fWalnut, fontFamily: 'Georgia'),
+              style: TextStyle(
+                color: context.colors.textPrimary,
+                fontFamily: 'Georgia',
+              ),
             ),
             content: TextField(
               controller: controller,
               maxLines: 5,
               minLines: 1,
               autofocus: true,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 height: 1.45,
-                color: fWalnut,
+                color: context.colors.textPrimary,
               ),
               decoration: const InputDecoration(
                 hintText: 'Update your reflection…',
@@ -247,7 +254,7 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Colors.brown),
+        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
       );
     }
   }
@@ -281,7 +288,7 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Colors.brown),
+        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
       );
     }
   }
@@ -330,53 +337,13 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
 
   Widget _buildBody() {
     if (_loading && _reflections.isEmpty) {
-      return const Center(
-        child: SizedBox(
-          height: 80,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: fClayLight,
-              borderRadius: BorderRadius.all(Radius.circular(20)),
-            ),
-          ),
-        ),
-      );
+      return const MizanLoadingState(label: 'Loading reflections...');
     }
     if (_error != null && _reflections.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            children: [
-              const Icon(Icons.wifi_off_rounded, size: 48, color: fBronze),
-              const SizedBox(height: 18),
-              const Text(
-                'Could not load reflections',
-                style: TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.w700,
-                  color: fWalnut,
-                  fontFamily: 'Georgia',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  height: 1.5,
-                  color: fStone,
-                ),
-              ),
-              const SizedBox(height: 18),
-              FilledButton(
-                onPressed: _loadReflections,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
+      return MizanErrorState(
+        title: 'Could not load reflections',
+        message: _error!,
+        onRetry: _loadReflections,
       );
     }
     if (_reflections.isEmpty) {
@@ -384,7 +351,15 @@ class _FamilyReflectionsScreenState extends State<FamilyReflectionsScreen> {
         onRefresh: () => _loadReflections(showSpinner: false),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          children: const [SizedBox(height: 120), _EmptyReflections()],
+          children: const [
+            SizedBox(height: 64),
+            MizanEmptyState(
+              title: 'No reflections yet',
+              message:
+                  'Share your first reflection with your family. No replies, only quiet encouragement.',
+              icon: Icons.menu_book_outlined,
+            ),
+          ],
         ),
       );
     }
@@ -478,6 +453,7 @@ class _ReflectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return SoftCard(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -493,17 +469,17 @@ class _ReflectionCard extends StatelessWidget {
                   children: [
                     Text(
                       r.author,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13.5,
                         fontWeight: FontWeight.w700,
-                        color: fWalnut,
+                        color: colors.textPrimary,
                       ),
                     ),
                     Text(
                       r.time,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 10.5,
-                        color: fStoneLight,
+                        color: colors.textMuted,
                       ),
                     ),
                   ],
@@ -511,10 +487,10 @@ class _ReflectionCard extends StatelessWidget {
               ),
               if (onEdit != null)
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.edit_outlined,
                     size: 17,
-                    color: fStoneLight,
+                    color: colors.iconSecondary,
                   ),
                   visualDensity: VisualDensity.compact,
                   tooltip: 'Edit reflection',
@@ -526,23 +502,23 @@ class _ReflectionCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             '"${r.text}"',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14.5,
               height: 1.5,
               fontStyle: FontStyle.italic,
-              color: fWalnut,
+              color: colors.textPrimary,
             ),
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: fClayLight),
+          Divider(height: 1, color: colors.divider),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             'Offer gentle encouragement',
             style: TextStyle(
               fontSize: 10,
               letterSpacing: 1.4,
               fontWeight: FontWeight.w700,
-              color: fStonePale,
+              color: colors.textMuted,
             ),
           ),
           const SizedBox(height: 8),
@@ -559,7 +535,7 @@ class _ReflectionCard extends StatelessWidget {
                       color:
                           count > 0
                               ? r.authorAccent.withValues(alpha: 0.12)
-                              : fWhite,
+                              : colors.surfaceContainer,
                       borderRadius: BorderRadius.circular(999),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(999),
@@ -572,7 +548,10 @@ class _ReflectionCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: count > 0 ? r.authorAccent : fClay,
+                              color:
+                                  count > 0
+                                      ? r.authorAccent
+                                      : colors.borderSubtle,
                             ),
                           ),
                           child: Row(
@@ -585,7 +564,10 @@ class _ReflectionCard extends StatelessWidget {
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w700,
-                                    color: count > 0 ? r.authorAccent : fStone,
+                                    color:
+                                        count > 0
+                                            ? r.authorAccent
+                                            : colors.textSecondary,
                                   ),
                                 ),
                               ),
@@ -602,10 +584,10 @@ class _ReflectionCard extends StatelessWidget {
                                   ),
                                   child: Text(
                                     '$count',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 9,
                                       fontWeight: FontWeight.w700,
-                                      color: fWhite,
+                                      color: colors.onPrimary,
                                     ),
                                   ),
                                 ),
@@ -623,17 +605,17 @@ class _ReflectionCard extends StatelessWidget {
             onTap: onComments,
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.chat_bubble_outline_rounded,
                   size: 15,
-                  color: fBronze,
+                  color: colors.primary,
                 ),
                 const SizedBox(width: 6),
                 Text(
                   '${r.commentCount} comments',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
-                    color: fBronze,
+                    color: colors.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -654,11 +636,12 @@ class _FComposeBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
-      decoration: const BoxDecoration(
-        color: fSurface,
-        border: Border(top: BorderSide(color: fClay)),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        border: Border(top: BorderSide(color: colors.borderSubtle)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -666,23 +649,23 @@ class _FComposeBar extends StatelessWidget {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: fWhite,
+                color: colors.inputBackground,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: fClay),
+                border: Border.all(color: colors.inputBorder),
               ),
               child: TextField(
                 controller: controller,
                 maxLines: 3,
                 minLines: 1,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13.5,
                   height: 1.45,
-                  color: fWalnut,
+                  color: colors.textPrimary,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: 'Share a quiet reflection…',
                   hintStyle: TextStyle(
-                    color: fStonePale,
+                    color: colors.textMuted,
                     fontStyle: FontStyle.italic,
                   ),
                   border: InputBorder.none,
@@ -696,61 +679,21 @@ class _FComposeBar extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Material(
-            color: fBronze,
+            color: colors.primary,
             borderRadius: BorderRadius.circular(16),
             child: InkWell(
               borderRadius: BorderRadius.circular(16),
               onTap: onSend,
-              child: const SizedBox(
+              child: SizedBox(
                 width: 46,
                 height: 46,
-                child: Icon(Icons.send_outlined, size: 18, color: fWhite),
+                child: Icon(
+                  Icons.send_outlined,
+                  size: 18,
+                  color: colors.onPrimary,
+                ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyReflections extends StatelessWidget {
-  const _EmptyReflections();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: fClayPale,
-              shape: BoxShape.circle,
-              border: Border.all(color: fClay),
-            ),
-            child: const Center(
-              child: Icon(Icons.menu_book_outlined, size: 38, color: fBronze),
-            ),
-          ),
-          const SizedBox(height: 18),
-          const Text(
-            'No reflections yet',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: fWalnut,
-              fontFamily: 'Georgia',
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Share your first reflection with your family. No replies - only quiet encouragement.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, height: 1.5, color: fStone),
           ),
         ],
       ),

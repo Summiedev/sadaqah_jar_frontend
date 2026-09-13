@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/design_tokens.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'travel_adhkar_data.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_extensions.dart';
 
 class TravelAdhkarList extends ConsumerStatefulWidget {
@@ -21,7 +21,7 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+          padding: const EdgeInsets.fromLTRB(MizanSpacing.xl, MizanSpacing.md, MizanSpacing.xl, MizanSpacing.sm),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
@@ -50,7 +50,7 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
         ),
         Expanded(
           child: ListView.separated(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
+            padding: const EdgeInsets.fromLTRB(MizanSpacing.xl, MizanSpacing.xs, MizanSpacing.xl, MizanSpacing.xxxl),
             physics: const BouncingScrollPhysics(),
             itemCount: TravelAdhkarData.duas.length,
             separatorBuilder: (_, __) => const SizedBox(height: 14),
@@ -66,9 +66,9 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
 
               return Material(
                 color: tokens.surfaceElevated,
-                borderRadius: BorderRadius.circular(22),
+                borderRadius: BorderRadius.circular(MizanRadii.card),
                 child: Padding(
-                  padding: const EdgeInsets.all(20),
+                  padding: MizanSpacing.card,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -76,8 +76,8 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
                           dua.commonName!.isNotEmpty) ...[
                         Text(
                           dua.commonName!,
-                          style: const TextStyle(
-                            color: kBronze,
+                          style: TextStyle(
+                            color: tokens.primary,
                             fontSize: 12,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.4,
@@ -100,8 +100,8 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
                         const SizedBox(height: 10),
                         Text(
                           dua.transliteration,
-                          style: const TextStyle(
-                            color: kBronzeLight,
+                          style: TextStyle(
+                            color: tokens.accent,
                             fontFamily: 'Georgia',
                             fontStyle: FontStyle.italic,
                             fontSize: 15,
@@ -125,17 +125,17 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.info_outline_rounded,
                               size: 15,
-                              color: kBronze,
+                              color: tokens.primary,
                             ),
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
                                 dua.notes!,
-                                style: const TextStyle(
-                                  color: kBronze,
+                                style: TextStyle(
+                                  color: tokens.primary,
                                   fontSize: 12.5,
                                   height: 1.45,
                                 ),
@@ -179,8 +179,8 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
                               child: Text(
                                 dua.repetition,
                                 softWrap: true,
-                                style: const TextStyle(
-                                  color: kBronze,
+                                style: TextStyle(
+                                  color: tokens.primary,
                                   fontSize: 11.5,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -199,9 +199,9 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
                             IconButton(
                               onPressed:
                                   () => setState(() => _counts[dua.id] = 1),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.add_circle_outline_rounded,
-                                color: kBronze,
+                                color: tokens.primary,
                               ),
                               tooltip: 'Start counting',
                             ),
@@ -215,9 +215,9 @@ class _TravelAdhkarListState extends ConsumerState<TravelAdhkarList> {
                                 ),
                               );
                             },
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.volume_up_outlined,
-                              color: kBronze,
+                              color: tokens.primary,
                             ),
                             tooltip: 'Play audio',
                           ),
@@ -249,6 +249,7 @@ class _ToggleChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(99),
@@ -256,7 +257,7 @@ class _ToggleChip extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: active ? kBronze : kIvory,
+          color: active ? colors.primary : colors.surfaceContainer,
           borderRadius: BorderRadius.circular(99),
         ),
         child: Row(
@@ -265,14 +266,14 @@ class _ToggleChip extends StatelessWidget {
             Icon(
               icon,
               size: 16,
-              color: active ? Theme.of(context).colorScheme.onPrimary : kBronze,
+              color: active ? colors.onPrimary : colors.primary,
             ),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
                 color:
-                    active ? Theme.of(context).colorScheme.onPrimary : kBronze,
+                    active ? colors.onPrimary : colors.primary,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -291,6 +292,7 @@ class _Counter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(99),
@@ -298,12 +300,12 @@ class _Counter extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: value > 0 ? kSoftSage : kSoftBronze,
+          color: value > 0 ? colors.successContainer : colors.surfaceContainer,
           borderRadius: BorderRadius.circular(99),
         ),
         child: Text(
           '$value',
-          style: const TextStyle(color: kBronze, fontWeight: FontWeight.w700),
+          style: TextStyle(color: colors.primary, fontWeight: FontWeight.w700),
         ),
       ),
     );

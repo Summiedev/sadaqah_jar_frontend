@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_theme.dart';
+import '../core/theme/design_tokens.dart';
 import '../core/theme/theme_extensions.dart';
 
 class AboutScreen extends StatelessWidget {
@@ -8,24 +8,20 @@ class AboutScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: context.colors.background,
-      appBar: AppBar(
-        backgroundColor: context.colors.background,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('About', style: TextStyle(color: kInk)),
-        iconTheme: const IconThemeData(color: kInk),
-      ),
+      backgroundColor: colors.background,
+      appBar: AppBar(title: const Text('About')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          padding: MizanSpacing.screen,
           children: [
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: context.colors.surfaceElevated,
+                color: colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: kLine),
+                border: Border.all(color: colors.borderSubtle),
               ),
               child: Column(
                 children: [
@@ -33,58 +29,62 @@ class AboutScreen extends StatelessWidget {
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: kSoftBronze,
+                      color: colors.primaryContainer,
                       borderRadius: BorderRadius.circular(24),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.auto_awesome_outlined,
-                      color: kBronze,
+                      color: colors.primary,
                       size: 36,
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Mizan',
                     style: TextStyle(
                       fontFamily: 'Georgia',
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
-                      color: kInk,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'ميزان',
                     style: TextStyle(
                       fontSize: 18,
-                      color: kMuted,
+                      color: colors.textSecondary,
                       letterSpacing: 1,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'v1.0.0',
-                    style: TextStyle(fontSize: 13, color: kMutedLight),
+                    style: TextStyle(fontSize: 13, color: colors.textMuted),
                   ),
                   const SizedBox(height: 20),
-                  const Divider(color: kLine),
+                  Divider(color: colors.divider),
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'A quieter way to give.',
                     style: TextStyle(
                       fontFamily: 'Georgia',
                       fontSize: 18,
                       fontStyle: FontStyle.italic,
-                      color: kBronze,
+                      color: colors.primary,
                       height: 1.4,
                     ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Mizan helps you keep the small acts of goodness that matter - gently, privately, and with intention. '
                     'It is a space for quiet reflection, away from comparison and public feeds.',
-                    style: TextStyle(fontSize: 14, color: kMuted, height: 1.65),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: colors.textSecondary,
+                      height: 1.65,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -94,19 +94,19 @@ class AboutScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: context.colors.surfaceElevated,
+                color: colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: kLine),
+                border: Border.all(color: colors.borderSubtle),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Features',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: kInk,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -141,27 +141,31 @@ class AboutScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: context.colors.surfaceElevated,
+                color: colors.surfaceElevated,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: kLine),
+                border: Border.all(color: colors.borderSubtle),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Privacy',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
-                      color: kInk,
+                      color: colors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Your data belongs to you. Mizan is designed as a private space. '
                     'Your reflections, acts, and personal information are not shared publicly. '
                     'Family features are opt-in and fully controlled by you.',
-                    style: TextStyle(fontSize: 13, color: kMuted, height: 1.6),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: colors.textSecondary,
+                      height: 1.6,
+                    ),
                   ),
                 ],
               ),
@@ -170,22 +174,22 @@ class AboutScreen extends StatelessWidget {
             Center(
               child: Column(
                 children: [
-                  const Text(
+                  Text(
                     'Made with ❤️ for the Ummah',
                     style: TextStyle(
                       fontSize: 13,
-                      color: kMuted,
+                      color: colors.textMuted,
                       fontStyle: FontStyle.italic,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'MIZAN • PRIVATE JOURNAL',
                     style: TextStyle(
                       fontSize: 10,
                       letterSpacing: 1.6,
                       fontWeight: FontWeight.w700,
-                      color: kStonePale,
+                      color: colors.textMuted,
                     ),
                   ),
                 ],
@@ -206,6 +210,7 @@ class _FeatureRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -214,16 +219,20 @@ class _FeatureRow extends StatelessWidget {
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: kSoftBronze,
+              color: colors.primaryContainer,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: kBronze, size: 18),
+            child: Icon(icon, color: colors.primary, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(fontSize: 13.5, color: kInk, height: 1.35),
+              style: TextStyle(
+                fontSize: 13.5,
+                color: colors.textPrimary,
+                height: 1.35,
+              ),
             ),
           ),
         ],

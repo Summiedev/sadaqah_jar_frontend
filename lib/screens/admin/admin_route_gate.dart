@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
+import '../../widgets/mizan_async_state.dart';
 import 'admin_analytics_screen.dart';
 import 'admin_books_screen.dart';
 import 'admin_charities_screen.dart';
@@ -27,7 +28,7 @@ class _AdminRouteGateState extends State<AdminRouteGate> {
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+            body: MizanLoadingState(label: 'Checking access...'),
           );
         }
 
@@ -60,27 +61,33 @@ class AdminForbiddenScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Admin Access'),
-        backgroundColor: kClayLight,
-      ),
+      appBar: AppBar(title: const Text('Admin Access')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.lock_outline, size: 56, color: kBronze),
+              Icon(
+                Icons.lock_outline,
+                size: 56,
+                color: context.colors.primary,
+              ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 '403 - Admin access required',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: context.colors.textPrimary,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'This route is reserved for administrators.',
                 textAlign: TextAlign.center,
+                style: TextStyle(color: context.colors.textSecondary),
               ),
               const SizedBox(height: 20),
               ElevatedButton(

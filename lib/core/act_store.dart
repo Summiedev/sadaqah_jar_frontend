@@ -104,12 +104,8 @@ class ActStore extends ChangeNotifier {
       _jarCapacity = null;
     }
     try {
-      final now = DateTime.now();
-      final month =
-          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
       final goals = await BackendApi.instance.getGoals(
         status: 'active',
-        month: month,
       );
       final goalList = goals['goals'] as List? ?? [];
       if (goalList.isNotEmpty) {
@@ -281,10 +277,14 @@ class ActStore extends ChangeNotifier {
       // Phase 24 (M8): Do NOT fabricate a timestamp as a real backend goal ID.
       // Create the goal through the API and store the real returned ID.
       try {
+        final now = DateTime.now();
+        final month =
+            '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
         final created = await BackendApi.instance.createGoal(
           title: title,
           subtitle: subtitle,
           actsTarget: actsTarget,
+          month: month,
         );
         _goalId = (created['id'] as num?)?.toInt();
         _goalTitle = title;
@@ -312,6 +312,54 @@ class ActStore extends ChangeNotifier {
     _goalTarget = actsTarget;
     notifyListeners();
     await _refreshJarProgress();
+  }
+
+  /// Completes the active server goal without deleting it. The backend keeps
+  /// the completed row in history, so the next goal starts from a clean,
+  /// durable record instead of resetting the user's progress locally.
+  Future<void> completeGoal() async {
+    final id = _goalId;
+    if (id == null) return;
+    await BackendApi.instance.updateGoalStatus(id, 'completed');
+    await _refreshJarProgress();
+  }
+
+  /// Replaces the active goal in one backend transaction. The old goal stays
+  /// in history with status=REPLACED and the returned row becomes active.
+  Future<void> replaceGoal({
+    required String title,
+    String? subtitle,
+    required int actsTarget,
+  }) async {
+    final id = _goalId;
+    if (id == null) {
+      await updateGoal(
+        title: title,
+        subtitle: subtitle,
+        actsTarget: actsTarget,
+      );
+      return;
+    }
+    final replaced = await BackendApi.instance.replaceGoal(
+      goalId: id,
+      title: title,
+      subtitle: subtitle,
+      actsTarget: actsTarget,
+      month: _currentGoalMonth(),
+    );
+    _goalId = (replaced['id'] as num?)?.toInt();
+    _goalTitle = replaced['title']?.toString() ?? title;
+    _goalSubtitle = replaced['subtitle']?.toString() ?? subtitle;
+    _goalTarget = (replaced['acts_target'] as num?)?.toInt() ?? actsTarget;
+    _goalActsDone = (replaced['acts_done'] as num?)?.toInt() ?? 0;
+    _optimisticDelta = 0;
+    notifyListeners();
+    await _refreshJarProgress();
+  }
+
+  String _currentGoalMonth() {
+    final now = DateTime.now();
+    return '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
   }
 
   /// Clears ALL user-scoped state so a different account can never see the

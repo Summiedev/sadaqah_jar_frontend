@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
 import '../../services/backend_api.dart';
@@ -304,7 +303,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                                   ),
                                                 );
                                               },
-                                      activeThumbColor: kBronze,
+                                      activeThumbColor: tokens.primary,
                                     ),
                                   ),
                                 ),
@@ -343,14 +342,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    const Center(
+                    Center(
                       child: Text(
                         'MIZAN • PRIVATE JOURNAL',
                         style: TextStyle(
                           fontSize: 10,
                           letterSpacing: 1.6,
                           fontWeight: FontWeight.w700,
-                          color: kStonePale,
+                          color: tokens.textMuted,
                         ),
                       ),
                     ),

@@ -76,29 +76,39 @@ class _FamilyMembersScreenState extends State<FamilyMembersScreen> {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
             ),
-            title: const Text(
+            title: Text(
               'Remove member',
               style: TextStyle(
                 fontFamily: 'Georgia',
                 fontSize: 19,
                 fontWeight: FontWeight.w700,
-                color: fWalnut,
+                color: ctx.colors.textPrimary,
               ),
             ),
             content: Text(
               'Remove $name from this family jar? Their past contributions will stay in the family history.',
-              style: const TextStyle(color: fStone, fontSize: 13, height: 1.45),
+              style: TextStyle(
+                color: ctx.colors.textSecondary,
+                fontSize: 13,
+                height: 1.45,
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel', style: TextStyle(color: fStone)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: ctx.colors.textSecondary),
+                ),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(ctx, true),
-                child: const Text(
+                child: Text(
                   'Remove',
-                  style: TextStyle(color: fBronze, fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: ctx.colors.error,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],

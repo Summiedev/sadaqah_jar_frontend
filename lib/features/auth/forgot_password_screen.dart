@@ -4,7 +4,7 @@ import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
@@ -89,6 +89,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Scaffold(
@@ -106,7 +107,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     style: TextButton.styleFrom(
                       alignment: Alignment.centerLeft,
                       padding: EdgeInsets.zero,
-                      foregroundColor: kMuted,
+                      foregroundColor: colors.textSecondary,
                     ),
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text(
@@ -120,43 +121,47 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ],
               ),
               const SizedBox(height: 18),
-              const Text(
+              Text(
                 'Forgot password',
                 style: TextStyle(
                   fontSize: 28,
                   height: 1.1,
                   fontWeight: FontWeight.w800,
-                  color: kInk,
+                  color: colors.textPrimary,
                 ),
               ),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'We will send reset instructions if the email belongs to an account.',
-                style: TextStyle(fontSize: 14, color: kMuted, height: 1.45),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: colors.textSecondary,
+                  height: 1.45,
+                ),
               ),
               const SizedBox(height: 22),
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: kClayPale,
+                  color: colors.surfaceContainer,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: kClay),
+                  border: Border.all(color: colors.borderSubtle),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.mark_email_read_outlined,
                       size: 38,
-                      color: kBronze,
+                      color: colors.primary,
                     ),
                     const SizedBox(height: 14),
-                    const Text(
+                    Text(
                       'Enter your email address',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: kInk,
+                        color: colors.textPrimary,
                       ),
                       textAlign: TextAlign.center,
                     ),
@@ -172,13 +177,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: kDangerBg,
+                          color: colors.errorContainer,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: kDangerBorder),
+                          border: Border.all(
+                            color: colors.error.withValues(alpha: 0.45),
+                          ),
                         ),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: kDanger, fontSize: 13),
+                          style: TextStyle(color: colors.error, fontSize: 13),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -187,13 +194,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: kSuccessBg,
+                          color: colors.successContainer,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: kSuccessBorder),
+                          border: Border.all(
+                            color: colors.success.withValues(alpha: 0.45),
+                          ),
                         ),
                         child: Text(
                           _message!,
-                          style: const TextStyle(color: kSage, fontSize: 13),
+                          style: TextStyle(color: colors.success, fontSize: 13),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -202,8 +211,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         ? SizedBox(
                           height: 48,
                           child: DecoratedBox(
-                            decoration: const BoxDecoration(
-                              color: kBronze,
+                            decoration: BoxDecoration(
+                              color: colors.primary,
                               borderRadius: BorderRadius.all(
                                 Radius.circular(16),
                               ),
@@ -224,7 +233,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         : ElevatedButton(
                           onPressed: _cooldownSeconds > 0 ? null : _submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: kBronze,
+                            backgroundColor: colors.primary,
                             foregroundColor:
                                 Theme.of(context).colorScheme.onPrimary,
                             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -249,7 +258,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           _cooldownSeconds > 0
                               ? null
                               : () => context.push('/reset-password'),
-                      style: TextButton.styleFrom(foregroundColor: kMuted),
+                      style: TextButton.styleFrom(
+                        foregroundColor: colors.textSecondary,
+                      ),
                       child: const Text(
                         'I already have a reset token',
                         style: TextStyle(
@@ -284,15 +295,16 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10,
             letterSpacing: 2,
-            color: kMuted,
+            color: colors.textSecondary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -302,24 +314,24 @@ class _Field extends StatelessWidget {
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(fontSize: 12, color: kMutedLight),
+            hintStyle: TextStyle(fontSize: 12, color: colors.textMuted),
             filled: true,
-            fillColor: kClayPale,
+            fillColor: colors.inputBackground,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 14,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: kClay),
+              borderSide: BorderSide(color: colors.inputBorder),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: kClay),
+              borderSide: BorderSide(color: colors.inputBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: kBronzeLight),
+              borderSide: BorderSide(color: colors.inputFocusedBorder),
             ),
           ),
         ),

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/act_store.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
+import '../../services/backend_api.dart';
 
 class EditGoalScreen extends ConsumerStatefulWidget {
   const EditGoalScreen({super.key});
@@ -97,7 +99,103 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
       if (!mounted) return;
       Navigator.of(context).pop();
     } catch (e) {
-      if (mounted) setState(() => _error = 'Could not save changes: $e');
+      if (mounted) {
+        setState(
+          () =>
+              _error =
+                  'Could not save changes: ${backendErrorMessage(e, fallback: 'Please try again.')}',
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _completeGoal() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Complete this goal?'),
+            content: const Text(
+              'Your progress will stay in goal history, and you can choose another goal afterwards.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Keep goal'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Complete'),
+              ),
+            ],
+          ),
+    );
+    if (confirmed != true || !mounted || _saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref.read(actStoreProvider).completeGoal();
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => _error = 'Could not complete this goal. Please try again.',
+        );
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _replaceGoal() async {
+    final parsed = int.tryParse(_target.text.trim());
+    if (_title.text.trim().isEmpty || parsed == null || parsed <= 0) {
+      setState(() => _error = 'Please provide a title and valid target');
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Replace this goal?'),
+            content: const Text(
+              'The current goal will remain in your history and this will become your new active goal.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Replace'),
+              ),
+            ],
+          ),
+    );
+    if (confirmed != true || !mounted || _saving) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(actStoreProvider)
+          .replaceGoal(
+            title: _title.text.trim(),
+            subtitle:
+                _subtitle.text.trim().isEmpty ? null : _subtitle.text.trim(),
+            actsTarget: parsed,
+          );
+      if (mounted) Navigator.of(context).pop(true);
+    } catch (_) {
+      if (mounted)
+        setState(
+          () => _error = 'Could not replace this goal. Please try again.',
+        );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -105,6 +203,7 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return PopScope(
       canPop: !_hasUnsavedChanges && !_saving,
       onPopInvokedWithResult: (didPop, _) {
@@ -121,7 +220,7 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+            padding: MizanSpacing.screen,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -149,7 +248,13 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
-                  Text(_error!, style: const TextStyle(color: kDanger)),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: colors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ],
                 const SizedBox(height: 18),
                 FilledButton(
@@ -163,6 +268,18 @@ class _EditGoalScreenState extends ConsumerState<EditGoalScreen> {
                           )
                           : const Text('Save changes'),
                 ),
+                if (ref.read(actStoreProvider).goalId != null) ...[
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _saving ? null : _completeGoal,
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: const Text('Complete goal'),
+                  ),
+                  TextButton(
+                    onPressed: _saving ? null : _replaceGoal,
+                    child: const Text('Replace current goal'),
+                  ),
+                ],
               ],
             ),
           ),

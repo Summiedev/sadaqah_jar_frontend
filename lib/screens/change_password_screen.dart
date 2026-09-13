@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../core/theme/app_theme.dart';
 import '../core/theme/theme_extensions.dart';
 import '../services/backend_api.dart';
 
@@ -92,13 +91,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: context.colors.background,
+      backgroundColor: colors.background,
       appBar: AppBar(
-        backgroundColor: context.colors.background,
+        backgroundColor: colors.background,
         surfaceTintColor: Colors.transparent,
-        title: const Text('Change password', style: TextStyle(color: kInk)),
-        iconTheme: const IconThemeData(color: kInk),
+        title: Text(
+          'Change password',
+          style: TextStyle(color: colors.textPrimary),
+        ),
+        iconTheme: IconThemeData(color: colors.iconPrimary),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -109,9 +112,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: context.colors.surfaceElevated,
+                  color: colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: kLine),
+                  border: Border.all(color: colors.borderSubtle),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,17 +125,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           width: 44,
                           height: 44,
                           decoration: BoxDecoration(
-                            color: kSoftBronze,
+                            color: colors.primaryContainer,
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.lock_outline,
-                            color: kBronze,
+                            color: colors.primary,
                             size: 22,
                           ),
                         ),
                         const SizedBox(width: 14),
-                        const Expanded(
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -141,7 +144,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700,
-                                  color: kInk,
+                                  color: colors.textPrimary,
                                 ),
                               ),
                               SizedBox(height: 3),
@@ -149,7 +152,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                 'Use a strong password you haven\'t used elsewhere.',
                                 style: TextStyle(
                                   fontSize: 12.5,
-                                  color: kMuted,
+                                  color: colors.textSecondary,
                                   height: 1.35,
                                 ),
                               ),
@@ -187,22 +190,22 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                           ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'At least 8 characters with one letter and one number.',
-                      style: TextStyle(fontSize: 12, color: kBronzeDark),
+                      style: TextStyle(fontSize: 12, color: colors.primary),
                     ),
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 14),
                       Container(
                         padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: kDangerBg,
+                          color: colors.errorContainer,
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: kDangerBorder),
+                          border: Border.all(color: colors.error),
                         ),
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: kDanger, fontSize: 13),
+                          style: TextStyle(color: colors.error, fontSize: 13),
                         ),
                       ),
                     ],
@@ -211,7 +214,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                       width: double.infinity,
                       child: FilledButton(
                         style: FilledButton.styleFrom(
-                          backgroundColor: kBronze,
+                          backgroundColor: colors.primary,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
                           ),
@@ -225,16 +228,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                   height: 20,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
+                                    color: colors.onPrimary,
                                   ),
                                 )
                                 : Text(
                                   'Change password',
                                   style: TextStyle(
                                     fontSize: 15,
-                                    color:
-                                        Theme.of(context).colorScheme.onPrimary,
+                                    color: colors.onPrimary,
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -266,15 +267,16 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10,
             letterSpacing: 2,
-            color: kMuted,
+            color: colors.textSecondary,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -284,24 +286,24 @@ class _Field extends StatelessWidget {
           obscureText: obscureText,
           decoration: InputDecoration(
             hintText: label,
-            hintStyle: const TextStyle(fontSize: 12, color: kMutedLight),
+            hintStyle: TextStyle(fontSize: 12, color: colors.textMuted),
             filled: true,
-            fillColor: kClayPale,
+            fillColor: colors.inputBackground,
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 14,
               vertical: 14,
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: kClay),
+              borderSide: BorderSide(color: colors.inputBorder),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: kClay),
+              borderSide: BorderSide(color: colors.inputBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: kBronzeLight),
+              borderSide: BorderSide(color: colors.inputFocusedBorder),
             ),
             suffixIcon:
                 onToggleVisibility != null
@@ -312,7 +314,7 @@ class _Field extends StatelessWidget {
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                         size: 18,
-                        color: kBronze,
+                        color: colors.primary,
                       ),
                       tooltip: obscureText ? 'Show password' : 'Hide password',
                     )

@@ -4,7 +4,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
-import '../core/theme/app_theme.dart';
+import '../core/theme/design_tokens.dart';
+import '../core/theme/theme_extensions.dart';
 
 import '../services/backend_api.dart';
 
@@ -147,20 +148,27 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compactLayout = widget.compact || constraints.maxWidth < 340;
+        final colors = context.colors;
         return Container(
           width: double.infinity,
           padding: EdgeInsets.all(compactLayout ? s(12) : s(16)),
           decoration: BoxDecoration(
-            color: kSurface,
-            borderRadius: BorderRadius.circular(compactLayout ? s(14) : s(20)),
+            color: colors.surfaceElevated,
+            borderRadius: BorderRadius.circular(
+              compactLayout ? MizanRadii.control : MizanRadii.card,
+            ),
+            border: Border.all(color: colors.borderSubtle),
           ),
           child:
               _loading
-                  ? const Center(
+                  ? Center(
                     child: SizedBox(
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: colors.primary,
+                      ),
                     ),
                   )
                   : Column(
@@ -185,7 +193,7 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                                   style: TextStyle(
                                     fontSize: compactLayout ? s(16) : s(18),
                                     fontWeight: FontWeight.w800,
-                                    color: kInk,
+                                    color: colors.textPrimary,
                                   ),
                                 ),
                                 SizedBox(height: s(4)),
@@ -195,7 +203,7 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                                       : 'Live balance updates are connected',
                                   style: TextStyle(
                                     fontSize: s(12),
-                                    color: kMuted,
+                                    color: colors.textSecondary,
                                   ),
                                 ),
                               ],
@@ -207,14 +215,14 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                               vertical: s(6),
                             ),
                             decoration: BoxDecoration(
-                              color: kClayLight,
+                              color: colors.primaryContainer,
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(
                               _status.name,
                               style: TextStyle(
                                 fontSize: s(11),
-                                color: kBronzeDark,
+                                color: colors.onPrimaryContainer,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -227,9 +235,9 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                         child: LinearProgressIndicator(
                           minHeight: s(compactLayout ? 8 : 12),
                           value: progress.clamp(0.0, 1.0),
-                          backgroundColor: kClayLight,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            kBronzeDark,
+                          backgroundColor: colors.surfaceContainerHigh,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            colors.primary,
                           ),
                         ),
                       ),
@@ -241,13 +249,16 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                         children: [
                           Text(
                             '$current / $capacity stars',
-                            style: TextStyle(fontSize: s(14), color: kMuted),
+                            style: TextStyle(
+                              fontSize: s(14),
+                              color: colors.textSecondary,
+                            ),
                           ),
                           Text(
                             '${(progress * 100).round()}%',
                             style: TextStyle(
                               fontSize: s(14),
-                              color: kMuted,
+                              color: colors.textSecondary,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -258,7 +269,7 @@ class _LiveJarPanelState extends State<LiveJarPanel> {
                         Text(
                           'Jar completed',
                           style: TextStyle(
-                            color: Colors.green.shade700,
+                            color: colors.success,
                             fontSize: s(13),
                           ),
                         ),

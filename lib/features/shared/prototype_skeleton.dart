@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
 
 class PrototypeSkeleton extends StatelessWidget {
   const PrototypeSkeleton({super.key, required this.children});
@@ -49,6 +50,7 @@ class _SkeletonLineState extends State<SkeletonLine>
     final reduceMotion =
         MediaQuery.of(context).disableAnimations ||
         MediaQuery.of(context).accessibleNavigation;
+    final colors = context.colors;
     return AnimatedBuilder(
       animation: _controller,
       builder:
@@ -56,14 +58,18 @@ class _SkeletonLineState extends State<SkeletonLine>
             width: widget.width,
             height: widget.height,
             decoration: BoxDecoration(
-              color: reduceMotion ? kClayLight : null,
+              color: reduceMotion ? colors.accentSoft : null,
               gradient:
                   reduceMotion
                       ? null
                       : LinearGradient(
                         begin: Alignment(-1 + _controller.value * 2, 0),
                         end: Alignment(_controller.value * 2, 0),
-                        colors: const [kClayLight, kPaper, kClayLight],
+                        colors: [
+                          colors.accentSoft,
+                          colors.surfaceElevated,
+                          colors.accentSoft,
+                        ],
                       ),
               borderRadius: BorderRadius.circular(widget.radius),
             ),
@@ -79,12 +85,13 @@ class SkeletonCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kPaper,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: kClay),
+        color: colors.surfaceElevated,
+        borderRadius: BorderRadius.circular(MizanRadii.card),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: child,
     );

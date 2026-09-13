@@ -4,9 +4,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/theme/app_theme.dart';
 import '../../core/animations.dart';
 import '../../core/act_store.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/offline_action_queue.dart';
 import '../../services/queue_sync_service.dart';
 
@@ -177,15 +178,16 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
             maxChildSize: 0.88,
             expand: false,
             builder: (context, scrollController) {
+              final colors = context.colors;
               return Material(
                 color: Colors.transparent,
                 child: Container(
                   key: const ValueKey('add-sheet'),
                   width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: kSurface,
+                  decoration: BoxDecoration(
+                    color: colors.surface,
                     borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(28),
+                      top: Radius.circular(MizanRadii.sheet),
                     ),
                   ),
                   child: Column(
@@ -195,7 +197,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                         width: 42,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: kClay,
+                          color: colors.border,
                           borderRadius: BorderRadius.circular(99),
                         ),
                       ),
@@ -203,10 +205,11 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                         child: SingleChildScrollView(
                           controller: scrollController,
                           padding: EdgeInsets.fromLTRB(
-                            20,
-                            16,
-                            20,
-                            18 + MediaQuery.paddingOf(context).bottom,
+                            MizanSpacing.xl,
+                            MizanSpacing.lg,
+                            MizanSpacing.xl,
+                            MizanSpacing.lg +
+                                MediaQuery.paddingOf(context).bottom,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,7 +226,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                           style: TextStyle(
                                             fontFamily: 'Georgia',
                                             fontSize: 24,
-                                            color: kInk,
+                                            color: colors.textPrimary,
                                             fontWeight: FontWeight.w700,
                                             height: 1.15,
                                           ),
@@ -232,7 +235,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                         Text(
                                           'Every sincere act belongs in your jar.',
                                           style: TextStyle(
-                                            color: kMuted,
+                                            color: colors.textSecondary,
                                             fontSize: 13,
                                             height: 1.4,
                                           ),
@@ -243,9 +246,9 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                   IconButton(
                                     onPressed: () => Navigator.pop(context),
                                     tooltip: 'Close',
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.close_rounded,
-                                      color: kInk,
+                                      color: colors.iconPrimary,
                                     ),
                                   ),
                                 ],
@@ -285,15 +288,19 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                     vertical: 14,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: kSoftBronze,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: kLine),
+                                    color: colors.primaryContainer,
+                                    borderRadius: BorderRadius.circular(
+                                      MizanRadii.control,
+                                    ),
+                                    border: Border.all(
+                                      color: colors.borderSubtle,
+                                    ),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(
+                                      Icon(
                                         Icons.favorite_border_rounded,
-                                        color: kBronze,
+                                        color: colors.primary,
                                         size: 20,
                                       ),
                                       const SizedBox(width: 10),
@@ -301,7 +308,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                         child: Text(
                                           'Give to verified causes',
                                           style: TextStyle(
-                                            color: kInk,
+                                            color: colors.textPrimary,
                                             fontSize: 13.5,
                                             fontWeight: FontWeight.w600,
                                             height: 1.35,
@@ -310,7 +317,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                       ),
                                       Icon(
                                         Icons.arrow_forward_rounded,
-                                        color: kMuted,
+                                        color: colors.iconSecondary,
                                         size: 18,
                                       ),
                                     ],
@@ -342,8 +349,8 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                 const SizedBox(height: 10),
                                 Text(
                                   _error!,
-                                  style: const TextStyle(
-                                    color: kDanger,
+                                  style: TextStyle(
+                                    color: colors.error,
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -364,10 +371,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
                                             height: 18,
                                             child: CircularProgressIndicator(
                                               strokeWidth: 2,
-                                              color:
-                                                  Theme.of(
-                                                    context,
-                                                  ).colorScheme.onPrimary,
+                                              color: colors.onPrimary,
                                             ),
                                           )
                                           : const Icon(
@@ -452,10 +456,11 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Text(
       title,
-      style: const TextStyle(
-        color: kBronze,
+      style: TextStyle(
+        color: colors.primary,
         fontSize: 10.5,
         letterSpacing: 1.3,
         fontWeight: FontWeight.w800,
@@ -469,22 +474,31 @@ class _GentleReminder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: kPaper,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: kLine),
+        border: Border.all(color: colors.borderSubtle),
       ),
-      child: const Row(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.lightbulb_outline_rounded, color: kBronze, size: 20),
-          SizedBox(width: 10),
+          Icon(
+            Icons.lightbulb_outline_rounded,
+            color: colors.primary,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               'Dhikr counts too: tahlil, tahmid, tasbih, a smile, a du\'a, or removing something harmful from the road.',
-              style: TextStyle(color: kInk, fontSize: 12.5, height: 1.45),
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 12.5,
+                height: 1.45,
+              ),
             ),
           ),
         ],
@@ -499,6 +513,7 @@ class _PreviewLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return AnimatedSwitcher(
       key: const ValueKey('preview-line'),
       duration: MizanMotion.fast,
@@ -510,8 +525,8 @@ class _PreviewLine extends StatelessWidget {
         curve: MizanMotion.gentle,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: kClayPale,
-          borderRadius: BorderRadius.circular(14),
+          color: colors.primaryContainer,
+          borderRadius: BorderRadius.circular(MizanRadii.control),
         ),
         child: Row(
           children: [
@@ -519,7 +534,7 @@ class _PreviewLine extends StatelessWidget {
               selected == null
                   ? Icons.info_outline_rounded
                   : Icons.check_circle_outline_rounded,
-              color: kBronze,
+              color: colors.primary,
               size: 20,
             ),
             const SizedBox(width: 10),
@@ -528,8 +543,8 @@ class _PreviewLine extends StatelessWidget {
                 selected == null
                     ? 'Choose one act to place it in your jar.'
                     : '$selected will be added to today\'s jar.',
-                style: const TextStyle(
-                  color: kMuted,
+                style: TextStyle(
+                  color: colors.textSecondary,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                 ),
@@ -557,6 +572,7 @@ class _ActChoice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Semantics(
       button: true,
       label: 'Act choice: $label',
@@ -569,23 +585,26 @@ class _ActChoice extends StatelessWidget {
           curve: MizanMotion.gentle,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
           decoration: BoxDecoration(
-            color: selected ? kClayLight : kPaper,
-            borderRadius: BorderRadius.circular(14),
+            color: selected ? colors.primaryContainer : colors.surfaceElevated,
+            borderRadius: BorderRadius.circular(MizanRadii.control),
             border: Border.all(
-              color: selected ? kBronze : kLine,
+              color: selected ? colors.primary : colors.borderSubtle,
               width: selected ? 1.5 : 1,
             ),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: selected ? kBronze : kMuted),
+              Icon(
+                icon,
+                color: selected ? colors.primary : colors.iconSecondary,
+              ),
               const SizedBox(height: 7),
               Text(
                 label,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: selected ? kInk : kMuted,
+                  color: selected ? colors.textPrimary : colors.textSecondary,
                   fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                   fontSize: 12,
                 ),
@@ -606,6 +625,7 @@ class _SuggestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Semantics(
       button: true,
       label: text,
@@ -616,12 +636,12 @@ class _SuggestionCard extends StatelessWidget {
           duration: MizanMotion.fast,
           curve: MizanMotion.gentle,
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          margin: const EdgeInsets.only(bottom: 8),
+          padding: MizanSpacing.compactCard,
+          margin: const EdgeInsets.only(bottom: MizanSpacing.sm),
           decoration: BoxDecoration(
-            color: kPaper,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: kLine),
+            color: colors.surfaceElevated,
+            borderRadius: BorderRadius.circular(MizanRadii.control),
+            border: Border.all(color: colors.borderSubtle),
           ),
           child: Row(
             children: [
@@ -629,12 +649,12 @@ class _SuggestionCard extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: kSoftBronze,
-                  borderRadius: BorderRadius.circular(8),
+                  color: colors.primaryContainer,
+                  borderRadius: BorderRadius.circular(MizanRadii.control),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.auto_awesome_outlined,
-                  color: kBronze,
+                  color: colors.primary,
                   size: 16,
                 ),
               ),
@@ -642,15 +662,15 @@ class _SuggestionCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   text,
-                  style: const TextStyle(
-                    color: kInk,
+                  style: TextStyle(
+                    color: colors.textPrimary,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w500,
                     height: 1.35,
                   ),
                 ),
               ),
-              Icon(Icons.add_rounded, color: kMuted, size: 18),
+              Icon(Icons.add_rounded, color: colors.iconSecondary, size: 18),
             ],
           ),
         ),
@@ -664,34 +684,37 @@ class _Success extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return DialogFadeScale(
       child: Container(
         key: const ValueKey('success-sheet'),
         width: double.infinity,
         padding: const EdgeInsets.fromLTRB(28, 34, 28, 30),
-        decoration: const BoxDecoration(
-          color: kPaper,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        decoration: BoxDecoration(
+          color: colors.surfaceElevated,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(MizanRadii.sheet),
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const SuccessCheck(size: 56, color: kSage),
+            SuccessCheck(size: 56, color: colors.success),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Added to your jar',
               style: TextStyle(
                 fontFamily: 'Georgia',
                 fontSize: 24,
-                color: kInk,
+                color: colors.textPrimary,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'May this small act return to you as ease and goodness.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: kMuted, height: 1.45),
+              style: TextStyle(color: colors.textSecondary, height: 1.45),
             ),
             const SizedBox(height: 12),
             Row(
@@ -700,13 +723,13 @@ class _Success extends StatelessWidget {
                 Icon(
                   Icons.cloud_upload_rounded,
                   size: 16,
-                  color: kBronze.withValues(alpha: 0.7),
+                  color: colors.primary.withValues(alpha: 0.7),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   'Saved locally - will sync when online',
                   style: TextStyle(
-                    color: kMuted.withValues(alpha: 0.8),
+                    color: colors.textSecondary.withValues(alpha: 0.8),
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),

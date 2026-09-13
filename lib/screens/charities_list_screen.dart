@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/theme/app_theme.dart';
+import '../core/theme/design_tokens.dart';
 import '../core/theme/theme_extensions.dart';
+import '../widgets/mizan_async_state.dart';
+import '../widgets/mizan_surface.dart';
 import '../services/backend_api.dart';
 
 class CharitiesListScreen extends StatefulWidget {
@@ -24,8 +27,9 @@ class _CharitiesListScreenState extends State<CharitiesListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: context.colors.background,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: Text(
           'Verified Donations',
@@ -49,14 +53,15 @@ class _CharitiesListScreenState extends State<CharitiesListScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting)
-            return Center(
-              child: CircularProgressIndicator(color: context.colors.primary),
-            );
+            return const MizanLoadingState(label: 'Loading donations...');
           if (snapshot.hasError)
             return _EmptyState(
               icon: Icons.wifi_off_rounded,
               title: 'Could not load donations',
-              body: snapshot.error.toString(),
+              body: backendErrorMessage(
+                snapshot.error!,
+                fallback: 'We could not load verified donations.',
+              ),
               onRetry: _refresh,
             );
           final donations = snapshot.data?.data ?? const [];
@@ -67,7 +72,7 @@ class _CharitiesListScreenState extends State<CharitiesListScreen> {
               body: 'Check back soon for trusted places to give.',
             );
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            padding: MizanSpacing.screen,
             itemCount: donations.length,
             separatorBuilder: (_, __) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
@@ -135,24 +140,16 @@ class _DonationDetailsScreenState extends State<DonationDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        surfaceTintColor: Colors.transparent,
-        title: const Text(
-          'Donation Details',
-          style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700),
-        ),
-      ),
+      backgroundColor: colors.background,
+      appBar: AppBar(title: const Text('Donation Details')),
       body: FutureBuilder<CharityDetail>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting &&
               widget.fallback == null)
-            return const Center(
-              child: CircularProgressIndicator(color: kBronze),
-            );
+            return const MizanLoadingState(label: 'Loading donation...');
           if (snapshot.hasError && widget.fallback == null)
             return const _EmptyState(
               icon: Icons.error_outline_rounded,
@@ -180,8 +177,8 @@ class _DonationDetailsScreenState extends State<DonationDetailsScreen> {
                 const SizedBox(height: 6),
                 Text(
                   detail.name,
-                  style: const TextStyle(
-                    color: kBronze,
+                  style: TextStyle(
+                    color: colors.primary,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -195,11 +192,14 @@ class _DonationDetailsScreenState extends State<DonationDetailsScreen> {
                     detail.donationType == 'personal'
                         ? 'Personal case'
                         : 'External campaign',
-                    kBronze,
+                    colors.primary,
                   ),
-                  _Chip(detail.statusLabel, detail.statusColor),
+                  _Chip(
+                    detail.statusLabel,
+                    _statusColor(colors, detail.status),
+                  ),
                   if (detail.category?.isNotEmpty == true)
-                    _Chip(detail.category!, kSage),
+                    _Chip(detail.category!, colors.success),
                 ],
               ),
               if (detail.targetAmount != null) ...[
@@ -235,12 +235,15 @@ class _DonationDetailsScreenState extends State<DonationDetailsScreen> {
                 ...detail.evidenceUrls.map(
                   (url) => ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.verified_outlined,
-                      color: kBronze,
+                      color: colors.primary,
                     ),
                     title: const Text('Open supporting file'),
-                    trailing: const Icon(Icons.open_in_new_rounded),
+                    trailing: Icon(
+                      Icons.open_in_new_rounded,
+                      color: colors.iconSecondary,
+                    ),
                     onTap:
                         () => launchUrl(
                           Uri.parse(url),
@@ -256,7 +259,7 @@ class _DonationDetailsScreenState extends State<DonationDetailsScreen> {
                   icon: const Icon(Icons.open_in_new_rounded),
                   label: const Text('Continue to Donation Source'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: kBronze,
+                    backgroundColor: colors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 )
@@ -292,24 +295,10 @@ class _DonationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return MizanSurface(
+      padding: MizanSpacing.card,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.colors.surfaceElevated,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: context.colors.border),
-          boxShadow: [
-            BoxShadow(
-              color: context.colors.scrim.withValues(alpha: 0.08),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
+      child: Row(
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
@@ -386,7 +375,6 @@ class _DonationCard extends StatelessWidget {
               color: context.colors.iconSecondary,
             ),
           ],
-        ),
       ),
     );
   }
@@ -419,9 +407,9 @@ class _ImageCarouselState extends State<_ImageCarousel> {
                     errorBuilder:
                         (_, __, ___) => Container(
                           color: context.colors.primaryContainer,
-                          child: const Icon(
+                          child: Icon(
                             Icons.broken_image_outlined,
-                            color: kBronze,
+                            color: context.colors.primary,
                           ),
                         ),
                   ),
@@ -590,20 +578,21 @@ class _EmptyState extends StatelessWidget {
   final VoidCallback? onRetry;
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 46, color: kBronze),
+            Icon(icon, size: 46, color: colors.primary),
             const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Georgia',
-                color: kInk,
+                color: colors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -612,7 +601,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               body,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: kMuted, height: 1.45),
+              style: TextStyle(color: colors.textSecondary, height: 1.45),
             ),
             if (onRetry != null) ...[
               const SizedBox(height: 14),
@@ -620,7 +609,7 @@ class _EmptyState extends StatelessWidget {
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Try again'),
-                style: FilledButton.styleFrom(backgroundColor: kBronze),
+                style: FilledButton.styleFrom(backgroundColor: colors.primary),
               ),
             ],
           ],
@@ -641,16 +630,17 @@ extension _DonationDetailText on CharityDetail {
   String get displayTitle =>
       (title?.trim().isNotEmpty == true ? title!.trim() : name);
   String get statusLabel => status.replaceAll('_', ' ');
-  Color get statusColor =>
-      status == 'active'
-          ? kSage
-          : status == 'goal_reached'
-          ? kBronze
-          : status == 'completed'
-          ? kBronzeLight
-          : kDanger;
   String get currencySymbol =>
       currency.toUpperCase() == 'NGN' ? '\u20A6' : '$currency ';
+}
+
+Color _statusColor(MizanColors colors, String status) {
+  return switch (status) {
+    'active' => colors.success,
+    'goal_reached' => colors.primary,
+    'completed' => colors.accent,
+    _ => colors.error,
+  };
 }
 
 extension on CharityItem {

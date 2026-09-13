@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../core/theme/app_theme.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
+import '../../core/theme/design_tokens.dart';
+import '../../core/theme/theme_extensions.dart';
+import '../../widgets/mizan_surface.dart';
 
 class ModeSelectionScreen extends ConsumerStatefulWidget {
   const ModeSelectionScreen({super.key});
@@ -30,16 +32,17 @@ class _ModeSelectionScreenState extends ConsumerState<ModeSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final modes = [kModePersonal, kModeFamily, kModeBoth];
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          padding: MizanSpacing.screen,
           child: Column(
             children: [
               _Header(selected: _selected),
-              const SizedBox(height: 22),
+              const SizedBox(height: MizanSpacing.xxl),
               Expanded(
                 child: ListView.separated(
                   physics: const BouncingScrollPhysics(),
@@ -55,7 +58,7 @@ class _ModeSelectionScreenState extends ConsumerState<ModeSelectionScreen> {
                   },
                 ),
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: MizanSpacing.lg),
               _EnterButton(onTap: _continue),
             ],
           ),
@@ -72,11 +75,12 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
+          children: [
             Text(
               'M I Z A N',
               style: TextStyle(
@@ -84,21 +88,21 @@ class _Header extends StatelessWidget {
                 letterSpacing: 4,
                 fontWeight: FontWeight.w700,
                 fontFamily: 'serif',
-                color: kInk,
+                color: colors.textPrimary,
               ),
             ),
           ],
         ),
         const SizedBox(height: 22),
-        const Text(
+        Text(
           'How would you like\nto begin?',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 26,
             fontWeight: FontWeight.w800,
-            color: kInk,
+            color: colors.textPrimary,
             height: 1.25,
-            letterSpacing: -0.4,
+            letterSpacing: 0,
           ),
         ),
         const SizedBox(height: 12),
@@ -108,9 +112,7 @@ class _Header extends StatelessWidget {
           style: TextStyle(
             fontSize: 13,
             height: 1.55,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withValues(alpha: 0.8),
+            color: context.colors.textSecondary,
           ),
         ),
       ],
@@ -131,96 +133,72 @@ class _ModeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = meta.accent;
+    final colors = context.colors;
+    final accent = switch (meta.id) {
+      kModeFamily => colors.secondary,
+      kModeBoth => colors.info,
+      _ => colors.primary,
+    };
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(
-        color:
-            selected
-                ? accent.withValues(alpha: 0.06)
-                : Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: selected ? accent : kClayLight,
-          width: selected ? 1.8 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color:
-                selected
-                    ? accent.withValues(alpha: 0.16)
-                    : kLine.withValues(alpha: 0.07),
-            blurRadius: selected ? 22 : 10,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(24),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Icon(meta.icon, size: 28, color: accent),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        meta.label,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: kInk,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        meta.tagline,
-                        style: const TextStyle(
-                          fontSize: 12.5,
-                          height: 1.45,
-                          color: kMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selected ? accent : Colors.transparent,
-                    border: Border.all(color: accent, width: 1.6),
-                  ),
-                  child:
-                      selected
-                          ? Icon(
-                            Icons.check,
-                            size: 15,
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          )
-                          : null,
-                ),
-              ],
+      child: MizanSurface(
+        padding: const EdgeInsets.all(MizanSpacing.lg),
+        color: selected ? accent.withValues(alpha: 0.08) : null,
+        borderColor: selected ? accent : colors.borderSubtle,
+        onTap: onTap,
+        child: Row(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(MizanRadii.control),
+              ),
+              child: Icon(meta.icon, size: 28, color: accent),
             ),
-          ),
+            const SizedBox(width: MizanSpacing.lg),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    meta.label,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: MizanSpacing.xs),
+                  Text(
+                    meta.tagline,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      height: 1.45,
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: MizanSpacing.sm),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? accent : Colors.transparent,
+                border: Border.all(color: accent, width: 1.6),
+              ),
+              child:
+                  selected
+                      ? Icon(Icons.check, size: 15, color: colors.onPrimary)
+                      : null,
+            ),
+          ],
         ),
       ),
     );
@@ -234,14 +212,15 @@ class _EnterButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: FilledButton(
         onPressed: onTap,
         style: FilledButton.styleFrom(
-          backgroundColor: kInk,
-          foregroundColor: kPaper,
+          backgroundColor: colors.primary,
+          foregroundColor: colors.onPrimary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),

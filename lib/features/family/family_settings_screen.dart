@@ -37,6 +37,7 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
       final settings = await BackendApi.instance.getFamilySettings(familyId);
       final prefs =
           settings['notification_preferences'] as Map<String, dynamic>? ?? {};
+      if (!mounted) return;
       setState(() {
         _jar = detail;
         _notifs = Map<String, bool>.from(
@@ -62,7 +63,7 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Colors.brown),
+        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
       );
     }
   }
@@ -80,7 +81,7 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Colors.brown),
+        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
       );
     }
   }
@@ -96,32 +97,35 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
             ),
             title: Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: fWalnut,
+                color: ctx.colors.textPrimary,
                 fontFamily: 'Georgia',
               ),
             ),
             content: Text(
               body,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12.5,
                 height: 1.5,
-                color: fStone,
+                color: ctx.colors.textSecondary,
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => ctx.pop(false),
-                child: const Text('Cancel', style: TextStyle(color: fStone)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: ctx.colors.textSecondary),
+                ),
               ),
               TextButton(
                 onPressed: () => ctx.pop(true),
                 child: Text(
                   title.split(' ').last,
-                  style: const TextStyle(
-                    color: fBronze,
+                  style: TextStyle(
+                    color: ctx.colors.primary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -188,14 +192,14 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
                 title: 'Preferences',
                 children: [
                   if (_loadingNotifs)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 12),
                       child: SizedBox(
                         height: 20,
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: fBronze,
+                          color: context.colors.primary,
                         ),
                       ),
                     )
@@ -206,22 +210,27 @@ class _FamilySettingsScreenState extends State<FamilySettingsScreen> {
                         value: _notifs[k]!,
                         onChanged: (v) async {
                           final messenger = ScaffoldMessenger.of(context);
+                          final previous = _notifs[k] ?? false;
+                          final nextPreferences = Map<String, bool>.from(
+                            _notifs,
+                          )..[k] = v;
                           setState(() => _notifs[k] = v);
                           try {
                             final familyId = int.tryParse(widget.id);
                             if (familyId == null) return;
                             await BackendApi.instance.updateFamilySettings(
                               familyId,
-                              notificationPreferences: _notifs,
+                              notificationPreferences: nextPreferences,
                             );
                           } catch (e) {
                             if (!mounted) return;
+                            setState(() => _notifs[k] = previous);
                             messenger.showSnackBar(
                               SnackBar(
                                 content: Text(
-                                  'Failed to update preferences: $e',
+                                  'Failed to update preferences: ${backendErrorMessage(e, fallback: 'Please try again.')}',
                                 ),
-                                backgroundColor: Colors.brown,
+                                backgroundColor: context.colors.error,
                               ),
                             );
                           }

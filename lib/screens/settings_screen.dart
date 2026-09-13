@@ -12,6 +12,7 @@ import '../../services/push_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../core/theme/theme_mode_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -20,6 +21,7 @@ import 'change_password_screen.dart';
 import 'help_screen.dart';
 import 'about_screen.dart';
 import 'notification_preferences_screen.dart';
+import '../widgets/mizan_async_state.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key, required this.onLogout});
@@ -182,7 +184,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          padding: MizanSpacing.screen,
           children: [
             Row(
               children: [
@@ -304,7 +306,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                         profile,
                                         value,
                                       ),
-                              activeThumbColor: kBronze,
+                              activeThumbColor: tokens.primary,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -345,7 +347,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                       ? null
                                       : (value) =>
                                           _toggleFridayReminder(profile, value),
-                              activeThumbColor: kBronze,
+                              activeThumbColor: tokens.primary,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -780,11 +782,11 @@ class _SettingsSection extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: tokens.surfaceContainer,
-            borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(MizanRadii.card),
             border: Border.all(color: tokens.borderSubtle),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
+             borderRadius: BorderRadius.circular(MizanRadii.card),
             child: child,
           ),
         ),
@@ -818,7 +820,7 @@ class _SettingsCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(16),
+         borderRadius: BorderRadius.circular(MizanRadii.card),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
@@ -888,6 +890,7 @@ class _GoalsSection extends StatefulWidget {
 class _GoalsSectionState extends State<_GoalsSection> {
   Future<Map<String, dynamic>>? _goalsFuture;
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -901,40 +904,45 @@ class _GoalsSectionState extends State<_GoalsSection> {
     try {
       _goalsFuture = BackendApi.instance.getGoals();
       await _goalsFuture;
-    } catch (_) {
-      // Goals may not exist yet - that's fine
+      _error = null;
+    } catch (error) {
+      _error = backendErrorMessage(
+        error,
+        fallback: 'We could not load your goal history.',
+      );
     }
     if (mounted) setState(() => _loading = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.colors;
     if (_loading) {
       return Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator(color: tokens.primary)),
+        padding: MizanSpacing.card,
+        child: const SizedBox(
+          height: 120,
+          child: MizanLoadingState(label: 'Loading your goals...'),
+        ),
       );
     }
 
     return FutureBuilder<Map<String, dynamic>>(
       future: _goalsFuture,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Padding(
-            padding: const EdgeInsets.all(24),
-            child: Center(
-              child: CircularProgressIndicator(color: tokens.primary),
-            ),
+        if (snapshot.connectionState == ConnectionState.waiting ||
+            _goalsFuture == null) {
+          return const SizedBox(
+            height: 120,
+            child: MizanLoadingState(label: 'Loading your goals...'),
           );
         }
 
-        if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'Could not load goals. Pull to try again.',
-              style: TextStyle(color: tokens.textSecondary, fontSize: 13),
+        if (snapshot.hasError || _error != null) {
+          return SizedBox(
+            height: 220,
+            child: MizanErrorState(
+              message: _error ?? 'We could not load your goal history.',
+              onRetry: _loadGoals,
             ),
           );
         }
@@ -943,15 +951,12 @@ class _GoalsSectionState extends State<_GoalsSection> {
         final goals = data?['goals'] as List<dynamic>? ?? [];
 
         if (goals.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(
-              'No goals yet. Set one from the home screen to get started.',
-              style: TextStyle(
-                color: tokens.textSecondary,
-                fontSize: 13,
-                height: 1.5,
-              ),
+          return const SizedBox(
+            height: 220,
+            child: MizanEmptyState(
+              icon: Icons.flag_outlined,
+              title: 'No goals yet',
+              message: 'Set one from the home screen to begin your intention.',
             ),
           );
         }
@@ -988,14 +993,14 @@ class _GoalTile extends StatelessWidget {
     final progress = ((goal['progress'] as num?)?.toDouble() ?? 0.0) * 100;
 
     final isCompleted = status == 'completed';
-    final isArchived = status == 'archived';
+    final isHistory = status != 'active';
     final tokens = context.colors;
 
     return Material(
       color: tokens.surfaceElevated,
       child: InkWell(
         onTap:
-            isArchived
+            status != 'active'
                 ? null
                 : () async {
                   final result = await Navigator.of(context).push<dynamic>(
@@ -1007,7 +1012,7 @@ class _GoalTile extends StatelessWidget {
                     onEdited();
                   }
                 },
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MizanRadii.card),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
@@ -1019,7 +1024,7 @@ class _GoalTile extends StatelessWidget {
                   color:
                       isCompleted
                           ? tokens.success.withValues(alpha: 0.14)
-                          : isArchived
+                            : isHistory
                           ? tokens.surfaceContainerHigh
                           : tokens.primary.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(12),
@@ -1027,13 +1032,13 @@ class _GoalTile extends StatelessWidget {
                 child: Icon(
                   isCompleted
                       ? Icons.check_circle_outline
-                      : isArchived
+                      : isHistory
                       ? Icons.archive_outlined
                       : Icons.flag_outlined,
                   color:
                       isCompleted
                           ? tokens.success
-                          : isArchived
+                          : isHistory
                           ? tokens.iconDisabled
                           : tokens.primary,
                   size: 20,
@@ -1048,7 +1053,7 @@ class _GoalTile extends StatelessWidget {
                       title,
                       style: TextStyle(
                         color:
-                            isArchived
+                            isHistory
                                 ? tokens.textDisabled
                                 : tokens.textPrimary,
                         fontSize: 15,
@@ -1062,13 +1067,13 @@ class _GoalTile extends StatelessWidget {
                           : '$actsDone / $actsTarget acts',
                       style: TextStyle(
                         color:
-                            isArchived
+                            isHistory
                                 ? tokens.textDisabled
                                 : tokens.textSecondary,
                         fontSize: 12.5,
                       ),
                     ),
-                    if (!isArchived && actsTarget > 0) ...[
+                    if (actsTarget > 0) ...[
                       const SizedBox(height: 6),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
@@ -1085,7 +1090,7 @@ class _GoalTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!isArchived)
+              if (status == 'active')
                 Icon(
                   Icons.chevron_right_rounded,
                   color: tokens.iconSecondary,
@@ -1202,40 +1207,37 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could not save goal: $e')));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not save goal: ${backendErrorMessage(e, fallback: 'Please try again.')}',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
-  Future<void> _delete() async {
+  Future<void> _complete() async {
     if (_saving) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
           (ctx) => AlertDialog(
-            title: const Text(
-              'Delete goal?',
-              style: TextStyle(
-                fontFamily: 'Georgia',
-                fontSize: 19,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+            title: const Text('Complete this goal?'),
             content: const Text(
-              'This will remove the goal. This action cannot be undone.',
-              style: TextStyle(fontSize: 14),
+              'Your progress will stay in goal history, and you can set another goal afterwards.',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
+                onPressed: () => Navigator.of(ctx).pop(false),
                 child: const Text('Cancel'),
               ),
               FilledButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                style: FilledButton.styleFrom(backgroundColor: kDanger),
-                child: const Text('Delete'),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Complete'),
               ),
             ],
           ),
@@ -1249,14 +1251,86 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
       if (goalId == null || goalId <= 0) {
         throw BackendApiException('Goal is no longer available.', 404);
       }
-      await BackendApi.instance.deleteGoal(goalId);
+      await BackendApi.instance.updateGoalStatus(goalId, 'completed');
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could not delete goal: $e')));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not complete goal: ${backendErrorMessage(e, fallback: 'Please try again.')}',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _replace() async {
+    if (_saving) return;
+    final title = _titleController.text.trim();
+    final target = int.tryParse(_targetController.text.trim()) ?? 0;
+    if (title.isEmpty || target <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Enter a title and a target greater than 0.')),
+      );
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (ctx) => AlertDialog(
+            title: const Text('Replace this goal?'),
+            content: const Text(
+              'The current goal will stay in your history and this will become your new active goal.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Keep goal'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Replace'),
+              ),
+            ],
+          ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _saving = true);
+    try {
+      final goalId = (widget.goal['id'] as num?)?.toInt();
+      if (goalId == null || goalId <= 0) {
+        throw BackendApiException('Goal is no longer available.', 404);
+      }
+      final now = DateTime.now();
+      final month =
+          widget.goal['month']?.toString() ??
+          '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+      final replacement = await BackendApi.instance.replaceGoal(
+        goalId: goalId,
+        title: title,
+        actsTarget: target,
+        month: month,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(replacement);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Could not replace goal: ${backendErrorMessage(e, fallback: 'Please try again.')}',
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -1285,7 +1359,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
         ),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            padding: MizanSpacing.screen,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -1307,9 +1381,9 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                   width: double.infinity,
                   child: FilledButton(
                     style: FilledButton.styleFrom(
-                      backgroundColor: kBronze,
+                      backgroundColor: tokens.primary,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(MizanRadii.control),
                       ),
                       padding: const EdgeInsets.symmetric(
                         vertical: 16,
@@ -1324,28 +1398,32 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Theme.of(context).colorScheme.onPrimary,
+                                color: tokens.onPrimary,
                               ),
                             )
                             : Text(
                               'Save changes',
                               style: TextStyle(
                                 fontSize: 16,
-                                color: Theme.of(context).colorScheme.onPrimary,
+                                color: tokens.onPrimary,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
                   ),
                 ),
-                const SizedBox(height: 12),
-                TextButton(
-                  onPressed: _saving ? null : _delete,
-                  style: TextButton.styleFrom(foregroundColor: kDanger),
-                  child: const Text(
-                    'Delete goal',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                if (widget.goal['status']?.toString() == 'active') ...[
+                  const SizedBox(height: MizanSpacing.lg),
+                  OutlinedButton.icon(
+                    onPressed: _saving ? null : _complete,
+                    icon: const Icon(Icons.check_circle_outline_rounded),
+                    label: const Text('Complete current goal'),
                   ),
-                ),
+                  const SizedBox(height: MizanSpacing.sm),
+                  TextButton(
+                    onPressed: _saving ? null : _replace,
+                    child: const Text('Replace current goal'),
+                  ),
+                ],
               ],
             ),
           ),
@@ -1808,7 +1886,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           width: 88,
                           height: 88,
                           decoration: BoxDecoration(
-                            color: kClayLight,
+                            color: tokens.primaryContainer,
                             borderRadius: BorderRadius.circular(24),
                           ),
                           child:
@@ -1879,7 +1957,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Theme.of(context).colorScheme.onPrimary,
+                                color: tokens.onPrimary,
                               ),
                             )
                             : const Text('Send verification code'),
@@ -2043,7 +2121,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     width: double.infinity,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: kBronze,
+                        backgroundColor: tokens.primary,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18),
                         ),
@@ -2061,7 +2139,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
                                   color:
-                                      Theme.of(context).colorScheme.onPrimary,
+                                      tokens.onPrimary,
                                 ),
                               )
                               : Text(
@@ -2070,8 +2148,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                     : 'Save changes',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary,
+                                  color: tokens.onPrimary,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),

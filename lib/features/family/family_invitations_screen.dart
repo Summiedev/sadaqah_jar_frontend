@@ -367,22 +367,22 @@ class _InvitationsScreenState extends State<InvitationsScreen>
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(22),
             ),
-            title: const Text(
+            title: Text(
               'Create a room',
               style: TextStyle(
                 fontFamily: 'Georgia',
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: fWalnut,
+                color: ctx.colors.textPrimary,
               ),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Start the room first. Then you can share its invite code and QR.',
-                  style: TextStyle(color: fStone, fontSize: 13),
+                  style: TextStyle(color: ctx.colors.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 14),
                 TextField(
@@ -393,10 +393,10 @@ class _InvitationsScreenState extends State<InvitationsScreen>
                     labelText: 'Room name',
                     hintText: 'e.g. The Ahmad Family',
                     filled: true,
-                    fillColor: fPaper,
+                    fillColor: ctx.colors.inputBackground,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: fClay),
+                      borderSide: BorderSide(color: ctx.colors.inputBorder),
                     ),
                   ),
                   onSubmitted: (_) {
@@ -409,7 +409,10 @@ class _InvitationsScreenState extends State<InvitationsScreen>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel', style: TextStyle(color: fStone)),
+                child: Text(
+                  'Cancel',
+                  style: TextStyle(color: ctx.colors.textSecondary),
+                ),
               ),
               FilledButton(
                 onPressed: () {
@@ -417,7 +420,9 @@ class _InvitationsScreenState extends State<InvitationsScreen>
                   if (value.isEmpty) return;
                   Navigator.pop(ctx, value);
                 },
-                style: FilledButton.styleFrom(backgroundColor: fBronze),
+                style: FilledButton.styleFrom(
+                  backgroundColor: ctx.colors.primary,
+                ),
                 child: const Text('Create'),
               ),
             ],
@@ -605,6 +610,7 @@ class _InvitePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final roomName = createdRoomName ?? selectedJar?['name']?.toString();
     final code = createdInviteCode ?? selectedJar?['invite_code']?.toString();
     if (code == null || roomName == null) {
@@ -631,35 +637,35 @@ class _InvitePanel extends StatelessWidget {
         SoftCard(
           child: Column(
             children: [
-              const Text(
+              Text(
                 'Scan to join this room',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: fWalnut,
+                  color: colors.textPrimary,
                   fontFamily: 'Georgia',
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'A quiet doorway into the family jar.',
-                style: TextStyle(fontSize: 11.5, color: fStone),
+                style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
               ),
               const SizedBox(height: 16),
               Container(
                 width: 180,
                 height: 180,
                 decoration: BoxDecoration(
-                  color: fWhite,
+                  color: colors.surfaceElevated,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: fClay),
+                  border: Border.all(color: colors.borderSubtle),
                 ),
                 padding: const EdgeInsets.all(14),
                 child: QrImageView(
                   data: link,
                   version: QrVersions.auto,
                   size: 152,
-                  backgroundColor: fWhite,
+                  backgroundColor: colors.surfaceElevated,
                   errorCorrectionLevel: QrErrorCorrectLevel.M,
                 ),
               ),
@@ -670,20 +676,20 @@ class _InvitePanel extends StatelessWidget {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: fClayPale,
+                  color: colors.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: fClay),
+                  border: Border.all(color: colors.borderSubtle),
                 ),
                 child: Row(
                   children: [
                     Expanded(
                       child: Text(
                         code,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1,
-                          color: fWalnut,
+                          color: colors.textPrimary,
                         ),
                       ),
                     ),
@@ -691,10 +697,10 @@ class _InvitePanel extends StatelessWidget {
                       visualDensity: VisualDensity.compact,
                       tooltip: 'Copy invite code',
                       onPressed: () => _copy(context, code),
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.copy_outlined,
                         size: 16,
-                        color: fBronze,
+                        color: colors.primary,
                       ),
                     ),
                   ],
@@ -1003,7 +1009,7 @@ class _RoomOption extends StatelessWidget {
                 ),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: fBronze,
+                  color: colors.primary,
                   size: 20,
                 ),
               ],
@@ -1174,15 +1180,15 @@ class _IncomingPanel extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  MizanAvatar(name: family, accent: fBronze, size: 42),
+                  MizanAvatar(name: family, accent: colors.primary, size: 42),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       'You were invited to join $family',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: fWalnut,
+                        color: colors.textPrimary,
                       ),
                     ),
                   ),

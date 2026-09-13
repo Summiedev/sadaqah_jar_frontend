@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../family/family_theme.dart' show FamilyJarView;
 import '../../core/act_store.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
 import '../../services/backend_api.dart';
@@ -16,6 +17,7 @@ import '../../services/queue_sync_service.dart';
 import '../../widgets/sync_status_banner.dart';
 import '../../widgets/prayer_tracker_card.dart';
 import '../../widgets/notification_action_button.dart';
+import '../journey/quran/quran_data.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key, this.openSadaqah = false});
@@ -105,19 +107,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       const SizedBox(height: 10),
                       const CardEntrance(
                         index: 4,
+                        child: _HomeQuickActions(),
+                      ),
+                      const SizedBox(height: 14),
+                      const CardEntrance(
+                        index: 5,
+                        child: _QuranQuietRhythm(),
+                      ),
+                      const SizedBox(height: 14),
+                      const CardEntrance(
+                        index: 6,
                         child: _SectionHeading('Explore'),
                       ),
                       const SizedBox(height: 12),
                       const CardEntrance(
-                        index: 5,
+                        index: 7,
                         child: _VerifiedDonationsCard(),
                       ),
                       const SizedBox(height: 12),
-                      const CardEntrance(index: 6, child: _TodaysGentleActs()),
+                      const CardEntrance(index: 8, child: _LastReadCard()),
                       const SizedBox(height: 10),
-                      const CardEntrance(index: 7, child: _LastReadCard()),
-                      const SizedBox(height: 10),
-                      const CardEntrance(index: 8, child: _TodaysReflection()),
+                      const CardEntrance(index: 9, child: _TodaysReflection()),
                     ],
                   ),
                 ),
@@ -126,6 +136,153 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HomeQuickActions extends StatelessWidget {
+  const _HomeQuickActions();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final actions = [
+      (
+        'Qur\'an',
+        Icons.menu_book_outlined,
+        () => context.push('/journey?tab=quran'),
+      ),
+      (
+        'Adhkar',
+        Icons.auto_awesome_outlined,
+        () => context.push('/journey/adhkar/morning'),
+      ),
+      (
+        'Give',
+        Icons.volunteer_activism_outlined,
+        () => unawaited(AddActScreen.show(context)),
+      ),
+      (
+        'Reflect',
+        Icons.edit_note_outlined,
+        () => context.push('/journey?tab=reflection'),
+      ),
+    ];
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        children: [
+          for (var index = 0; index < actions.length; index++) ...[
+            if (index > 0) const SizedBox(width: 8),
+            Expanded(
+              child: InkWell(
+                onTap: actions[index].$3,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 70),
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: colors.surfaceContainer,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: colors.borderSubtle),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(actions[index].$2, color: colors.primary, size: 21),
+                      const SizedBox(height: 5),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          actions[index].$1,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _QuranQuietRhythm extends StatefulWidget {
+  const _QuranQuietRhythm();
+
+  @override
+  State<_QuranQuietRhythm> createState() => _QuranQuietRhythmState();
+}
+
+class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
+  late Future<(int, int)> _future = _load();
+
+  Future<(int, int)> _load() async => (
+    await QuranRepository.instance.readingDaysLast30(),
+    await QuranRepository.instance.readingReflectionCount(),
+  );
+
+  void _refresh() {
+    setState(() => _future = _load());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return FutureBuilder<(int, int)>(
+      future: _future,
+      builder: (context, snapshot) {
+        final stats = snapshot.data ?? (0, 0);
+        return InkWell(
+          onTap: () => context.push('/journey?tab=quran'),
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 13, 10, 13),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainer,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colors.borderSubtle),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.menu_book_outlined, color: colors.primary, size: 21),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your quiet Qur\'an rhythm',
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${stats.$1} reading day${stats.$1 == 1 ? '' : 's'} this month | ${stats.$2} reflection${stats.$2 == 1 ? '' : 's'}',
+                        style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: _refresh,
+                  tooltip: 'Refresh Qur\'an rhythm',
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(Icons.refresh_rounded, color: colors.textSecondary, size: 19),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -511,7 +668,7 @@ class _StreakPill extends ConsumerWidget {
         key: ValueKey('streak-$streak'),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
+                color: colors.surfaceElevated,
           borderRadius: BorderRadius.circular(99),
           border: Border.all(color: chipBorder),
         ),
@@ -522,19 +679,19 @@ class _StreakPill extends ConsumerWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: kBronzeLight,
-                borderRadius: BorderRadius.circular(10),
+                color: colors.primaryContainer,
+                borderRadius: BorderRadius.circular(MizanRadii.control),
                 boxShadow: [
                   BoxShadow(
-                    color: kBronze.withValues(alpha: 0.15),
+                    color: colors.primary.withValues(alpha: 0.15),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.local_fire_department_rounded,
-                color: kDanger,
+                color: colors.error,
                 size: 18,
               ),
             ),
@@ -734,8 +891,7 @@ class _JarHero extends ConsumerWidget {
                         label: const Text('Add an act'),
                         style: FilledButton.styleFrom(
                           backgroundColor: ctaColor,
-                          foregroundColor:
-                              Theme.of(context).colorScheme.onPrimary,
+                          foregroundColor: colors.onPrimary,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 14,
                             vertical: 8,
@@ -802,9 +958,9 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
   await showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+    backgroundColor: context.colors.surface,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(MizanRadii.sheet)),
     ),
     builder:
         (sheetContext) => Consumer(
@@ -846,11 +1002,98 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
                   }
                 }
 
+                Future<void> complete() async {
+                  final confirmed = await showDialog<bool>(
+                    context: sheetContext,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Complete this goal?'),
+                      content: const Text(
+                        'Your progress will stay in goal history, and you can choose another goal afterwards.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(false),
+                          child: const Text('Keep goal'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(true),
+                          child: const Text('Complete'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed != true || !sheetContext.mounted || saving) return;
+                  setSheetState(() {
+                    saving = true;
+                    error = null;
+                  });
+                  try {
+                    await sheetRef.read(actStoreProvider).completeGoal();
+                    if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                  } catch (_) {
+                    setSheetState(() => error = 'Could not complete this goal. Please try again.');
+                  } finally {
+                    if (sheetContext.mounted) setSheetState(() => saving = false);
+                  }
+                }
+
+                Future<void> replace() async {
+                  final parsedTarget = int.tryParse(target.text.trim());
+                  if (title.text.trim().isEmpty ||
+                      parsedTarget == null ||
+                      parsedTarget <= 0 ||
+                      saving) {
+                    setSheetState(() => error = 'Add a title and a valid target.');
+                    return;
+                  }
+                  final confirmed = await showDialog<bool>(
+                    context: sheetContext,
+                    builder: (dialogContext) => AlertDialog(
+                      title: const Text('Replace this goal?'),
+                      content: const Text(
+                        'The current goal will remain in your history and this will become your new active goal.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(false),
+                          child: const Text('Cancel'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.of(dialogContext).pop(true),
+                          child: const Text('Replace'),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed != true || !sheetContext.mounted || saving) return;
+                  setSheetState(() {
+                    saving = true;
+                    error = null;
+                  });
+                  try {
+                    await sheetRef.read(actStoreProvider).replaceGoal(
+                      title: title.text.trim(),
+                      subtitle: subtitle.text.trim().isEmpty ? null : subtitle.text.trim(),
+                      actsTarget: parsedTarget,
+                    );
+                    if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                  } catch (_) {
+                    setSheetState(() => error = 'Could not replace this goal. Please try again.');
+                  } finally {
+                    if (sheetContext.mounted) setSheetState(() => saving = false);
+                  }
+                }
+
                 final bottom =
                     MediaQuery.viewInsetsOf(sheetContext).bottom +
                     MediaQuery.paddingOf(sheetContext).bottom;
                 return Padding(
-                  padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + bottom),
+                  padding: EdgeInsets.fromLTRB(
+                    MizanSpacing.xl,
+                    MizanSpacing.xl,
+                    MizanSpacing.xl,
+                    MizanSpacing.xl + bottom,
+                  ),
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -895,8 +1138,8 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
                           const SizedBox(height: 10),
                           Text(
                             error!,
-                            style: const TextStyle(
-                              color: kDanger,
+                            style: TextStyle(
+                              color: sheetContext.colors.error,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -911,14 +1154,23 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
                                     height: 18,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color:
-                                          Theme.of(
-                                            sheetContext,
-                                          ).colorScheme.onPrimary,
+                                      color: sheetContext.colors.onPrimary,
                                     ),
                                   )
                                   : const Text('Save changes'),
                         ),
+                        if (store.goalId != null) ...[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: saving ? null : complete,
+                            icon: const Icon(Icons.check_circle_outline_rounded),
+                            label: const Text('Complete goal'),
+                          ),
+                          TextButton(
+                            onPressed: saving ? null : replace,
+                            child: const Text('Replace current goal'),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -950,17 +1202,17 @@ class _VerifiedDonationsCard extends StatelessWidget {
       beginScale: 0.97,
       child: Material(
         color: cardBg,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(MizanRadii.card),
         elevation: 0,
         shadowColor: Colors.transparent,
         child: InkWell(
           onTap: () => context.push('/charities'),
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(MizanRadii.card),
           child: Container(
-            padding: const EdgeInsets.all(18),
+            padding: MizanSpacing.card,
             decoration: BoxDecoration(
               color: cardBg,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(MizanRadii.card),
               border: Border.all(color: cardBorder),
               boxShadow: [
                 BoxShadow(
@@ -1156,6 +1408,9 @@ int _daySlot(DateTime now) {
   return 2;
 }
 
+// Reused by focused reading surfaces; the home screen now keeps one primary
+// daily suggestion in the rhythm card.
+// ignore: unused_element
 class _TodaysGentleActs extends StatelessWidget {
   const _TodaysGentleActs();
 
@@ -1612,7 +1867,7 @@ class _RhythmOfTheDayCardState extends State<_RhythmOfTheDayCard>
 
     return InkWell(
       onTap: _openAction,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(MizanRadii.card),
       child: _Surface(
         child: Row(
           children: [
@@ -2066,7 +2321,7 @@ Future<void> _showVerseReflection(
   final saved = await showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
+    backgroundColor: context.colors.surface,
     builder:
         (sheetContext) => _VerseReflectionSheet(
           verse: verse,
@@ -2085,13 +2340,13 @@ Future<void> _showVerseReflection(
           children: [
             Icon(
               Icons.check_circle_rounded,
-              color: Theme.of(context).colorScheme.onPrimary,
+              color: context.colors.onPrimary,
               size: 18,
             ),
             const SizedBox(width: 10),
             Text(
               'Your reflection was saved to your journey.',
-              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+              style: TextStyle(color: context.colors.onPrimary),
             ),
           ],
         ),
@@ -2175,10 +2430,10 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
     final promptBg = colors.primaryContainer;
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        20,
-        20,
-        20,
-        20 + MediaQuery.of(context).viewInsets.bottom,
+        MizanSpacing.xl,
+        MizanSpacing.xl,
+        MizanSpacing.xl,
+        MizanSpacing.xl + MediaQuery.of(context).viewInsets.bottom,
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -2259,7 +2514,7 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
                         height: 18,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Theme.of(context).colorScheme.onPrimary,
+                          color: colors.onPrimary,
                         ),
                       )
                       : const Text('Save to my journey'),
@@ -2306,26 +2561,17 @@ class _Surface extends StatelessWidget {
   final Widget child;
   @override
   Widget build(BuildContext context) {
-    final brightness = Theme.of(context).brightness;
     final tokens = context.colors;
-    final bg =
-        brightness == Brightness.dark ? tokens.surfaceElevated : tokens.surface;
-    final border =
-        brightness == Brightness.dark ? tokens.borderSubtle : tokens.border;
-    final shadowColor =
-        brightness == Brightness.light
-            ? Colors.black.withValues(alpha: 0.04)
-            : Colors.black.withValues(alpha: 0.16);
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: MizanSpacing.card,
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border),
+        color: tokens.surfaceElevated,
+        borderRadius: BorderRadius.circular(MizanRadii.card),
+        border: Border.all(color: tokens.borderSubtle),
         boxShadow: [
           BoxShadow(
-            color: shadowColor,
-            blurRadius: brightness == Brightness.light ? 12 : 8,
+            color: tokens.scrim.withValues(alpha: 0.06),
+            blurRadius: 12,
             offset: const Offset(0, 4),
           ),
         ],

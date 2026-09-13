@@ -31,6 +31,7 @@ class _MemberSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return ListView(
       controller: scroll,
       padding: const EdgeInsets.fromLTRB(24, 14, 24, 28),
@@ -40,7 +41,7 @@ class _MemberSheet extends StatelessWidget {
             width: 40,
             height: 4,
             decoration: BoxDecoration(
-              color: fClay,
+              color: colors.border,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -56,19 +57,19 @@ class _MemberSheet extends StatelessWidget {
                 children: [
                   Text(
                     member.name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: fWalnut,
+                      color: colors.textPrimary,
                       fontFamily: 'Georgia',
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     member.role,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: fBronzeDark,
+                      color: colors.primary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -79,10 +80,16 @@ class _MemberSheet extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: member.contributedToday ? fOliveSoft : fClayPale,
+                      color:
+                          member.contributedToday
+                              ? colors.successContainer
+                              : colors.surfaceContainer,
                       borderRadius: BorderRadius.circular(999),
                       border: Border.all(
-                        color: member.contributedToday ? fOlive : fClay,
+                        color:
+                            member.contributedToday
+                                ? colors.success
+                                : colors.borderSubtle,
                       ),
                     ),
                     child: Text(
@@ -92,7 +99,10 @@ class _MemberSheet extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
-                        color: member.contributedToday ? fOlive : fStone,
+                        color:
+                            member.contributedToday
+                                ? colors.success
+                                : colors.textSecondary,
                       ),
                     ),
                   ),
@@ -105,15 +115,15 @@ class _MemberSheet extends StatelessWidget {
         SoftCard(
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.calendar_month_outlined,
                 size: 16,
-                color: fBronze,
+                color: colors.primary,
               ),
               const SizedBox(width: 8),
               Text(
                 member.joined,
-                style: const TextStyle(fontSize: 12, color: fStone),
+                style: TextStyle(fontSize: 12, color: colors.textSecondary),
               ),
             ],
           ),
@@ -122,14 +132,14 @@ class _MemberSheet extends StatelessWidget {
         const SectionLabel('Consistency Milestones'),
         const SizedBox(height: 10),
         if (member.milestones.isEmpty)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(bottom: 8),
             child: Text(
               'No milestones yet - every gentle step counts.',
               style: TextStyle(
                 fontSize: 12.5,
                 height: 1.5,
-                color: fStoneLight,
+                color: colors.textMuted,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -144,20 +154,20 @@ class _MemberSheet extends StatelessWidget {
                     width: 30,
                     height: 30,
                     decoration: BoxDecoration(
-                      color: fBronze.withValues(alpha: 0.1),
+                      color: colors.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.emoji_events_outlined,
                       size: 16,
-                      color: fBronze,
+                      color: colors.primary,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       m,
-                      style: const TextStyle(fontSize: 13, color: fWalnut),
+                      style: TextStyle(fontSize: 13, color: colors.textPrimary),
                     ),
                   ),
                 ],
@@ -176,20 +186,20 @@ class _MemberSheet extends StatelessWidget {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: fOliveSoft,
+                    color: colors.successContainer,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.auto_awesome_outlined,
                     size: 16,
-                    color: fOlive,
+                    color: colors.success,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     a,
-                    style: const TextStyle(fontSize: 13, color: fWalnut),
+                    style: TextStyle(fontSize: 13, color: colors.textPrimary),
                   ),
                 ),
               ],
@@ -204,15 +214,15 @@ class _MemberSheet extends StatelessWidget {
             (r) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: SoftCard(
-                color: fClayPale,
+                color: colors.surfaceContainer,
                 padding: const EdgeInsets.all(14),
                 child: Text(
                   '“$r”',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13.5,
                     height: 1.5,
                     fontStyle: FontStyle.italic,
-                    color: fWalnut,
+                    color: colors.textPrimary,
                   ),
                 ),
               ),

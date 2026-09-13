@@ -1900,7 +1900,7 @@ class BackendApi {
       }),
     );
     final decoded = _handleJson(response);
-    return expectMap(decoded, context: 'notification preferences');
+    return expectMap(decoded, context: 'goal creation');
   }
 
   Future<Map<String, dynamic>> getGoals({String? status, String? month}) async {
@@ -1909,13 +1909,13 @@ class BackendApi {
     if (month != null) query['month'] = month;
     final response = await _get('/goals', auth: true, query: query);
     final decoded = _handleJson(response);
-    return expectMap(decoded, context: 'notification preferences');
+    return expectMap(decoded, context: 'goals');
   }
 
   Future<Map<String, dynamic>> getGoal(int goalId) async {
     final response = await _get('/goals/$goalId', auth: true);
     final decoded = _handleJson(response);
-    return expectMap(decoded, context: 'notification preferences');
+    return expectMap(decoded, context: 'goal');
   }
 
   Future<Map<String, dynamic>> updateGoal({
@@ -1934,7 +1934,7 @@ class BackendApi {
       }),
     );
     final decoded = _handleJson(response);
-    return expectMap(decoded, context: 'notification preferences');
+    return expectMap(decoded, context: 'goal update');
   }
 
   /// Archives the current active goal and creates its successor in one
@@ -1971,7 +1971,7 @@ class BackendApi {
       body: jsonEncode({'acts_done': actsDone}),
     );
     final decoded = _handleJson(response);
-    return expectMap(decoded, context: 'notification preferences');
+    return expectMap(decoded, context: 'goal progress');
   }
 
   Future<Map<String, dynamic>> updateGoalStatus(
@@ -1984,7 +1984,7 @@ class BackendApi {
       body: jsonEncode({'status': status}),
     );
     final decoded = _handleJson(response);
-    return expectMap(decoded, context: 'notification preferences');
+    return expectMap(decoded, context: 'goal status');
   }
 
   Future<void> deleteGoal(int goalId) async {
@@ -2382,6 +2382,45 @@ class BackendApi {
     final response = await _get('/family/$familyId', auth: true);
     final decoded = _handleJson(response);
     return expectMap(decoded, context: 'notification preferences');
+  }
+
+  Future<Map<String, dynamic>?> getFamilyIntention(int familyId) async {
+    final response = await _get('/family/$familyId/intention', auth: true);
+    final decoded = _handleJson(response);
+    if (decoded == null) return null;
+    return expectMap(decoded, context: 'family intention');
+  }
+
+  Future<Map<String, dynamic>> saveFamilyIntention(
+    int familyId, {
+    required String title,
+    String? prompt,
+  }) async {
+    final response = await _put(
+      '/family/$familyId/intention',
+      auth: true,
+      body: jsonEncode({
+        'title': title,
+        if (prompt != null && prompt.trim().isNotEmpty) 'prompt': prompt.trim(),
+      }),
+    );
+    return expectMap(_handleJson(response), context: 'family intention');
+  }
+
+  Future<Map<String, dynamic>> saveFamilyIntentionContribution(
+    int familyId, {
+    required bool completed,
+    String? privateNote,
+  }) async {
+    final response = await _patch(
+      '/family/$familyId/intention/contribution',
+      auth: true,
+      body: jsonEncode({
+        'completed': completed,
+        if (privateNote != null) 'private_note': privateNote,
+      }),
+    );
+    return expectMap(_handleJson(response), context: 'family contribution');
   }
 
   Future<void> deleteFamilyReflection(int familyId, int reflectionId) async {

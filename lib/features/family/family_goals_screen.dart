@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../services/backend_api.dart';
 import '../../core/theme/theme_extensions.dart';
+import '../../widgets/mizan_async_state.dart';
 import 'family_models.dart';
 import 'family_theme.dart';
 
@@ -202,26 +203,28 @@ class _SharedGoalsScreenState extends State<SharedGoalsScreen> {
               ),
             ),
             if (_loading)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: SizedBox(
-                    height: 160,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: context.colors.surfaceContainerHigh,
-                        borderRadius: BorderRadius.all(Radius.circular(20)),
-                      ),
-                    ),
-                  ),
-                ),
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: MizanLoadingState(label: 'Loading family goals...'),
               )
             else if (_error != null)
               SliverFillRemaining(
-                child: _ErrorState(message: _error!, onRetry: _loadGoals),
+                child: MizanErrorState(
+                  title: 'Could not load goals',
+                  message: _error!,
+                  onRetry: _loadGoals,
+                ),
               )
             else if (goals.isEmpty)
-              SliverFillRemaining(child: _EmptyGoals())
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: MizanEmptyState(
+                  title: 'No goals yet',
+                  message:
+                      'Create a gentle intention your family can grow toward, together.',
+                  icon: Icons.flag_outlined,
+                ),
+              )
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
@@ -330,102 +333,6 @@ class _GoalCard extends StatelessWidget {
             '${goal.actsDone} of ${goal.actsTarget} gentle acts offered',
             style: TextStyle(fontSize: 11.5, color: colors.textSecondary),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyGoals extends StatelessWidget {
-  const _EmptyGoals();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 88,
-            height: 88,
-            decoration: BoxDecoration(
-              color: colors.primaryContainer,
-              shape: BoxShape.circle,
-              border: Border.all(color: colors.borderSubtle),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.flag_outlined,
-                size: 38,
-                color: colors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            'No goals yet',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              fontFamily: 'Georgia',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Create a gentle intention your family can grow toward - together, one act at a time.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.5,
-              color: colors.textSecondary,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.all(28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.wifi_off_rounded, size: 48, color: colors.primary),
-          const SizedBox(height: 18),
-          Text(
-            'Could not load goals',
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              fontFamily: 'Georgia',
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.5,
-              color: colors.textSecondary,
-            ),
-          ),
-          const SizedBox(height: 18),
-          FilledButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );

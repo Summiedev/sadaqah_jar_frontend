@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
+import '../../widgets/mizan_surface.dart';
 
 // ─────────────────────────────────────────────────────────────
 // MIZAN · FAMILY - DESIGN TOKENS
@@ -32,8 +34,8 @@ const Color fWhite = kWhite;
 const Color fShadow = Colors.black12;
 const Color fShadowWarm = Color(0x1A8B6842);
 
-const EdgeInsets fScreenPad = EdgeInsets.fromLTRB(20, 10, 20, 20);
-const double fRadius = 24;
+const EdgeInsets fScreenPad = MizanSpacing.screen;
+const double fRadius = MizanRadii.card;
 
 const TextStyle fSerif = TextStyle(fontFamily: 'Georgia', color: fWalnut);
 
@@ -45,10 +47,10 @@ class SoftCard extends StatelessWidget {
   const SoftCard({
     required this.child,
     super.key,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = MizanSpacing.card,
     this.color,
     this.borderColor,
-    this.radius = fRadius,
+    this.radius = MizanRadii.card,
     this.onTap,
   });
 
@@ -61,38 +63,13 @@ class SoftCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tokens = context.colors;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final card = Container(
+    return MizanSurface(
       padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? tokens.surfaceElevated,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: borderColor ?? tokens.borderSubtle),
-        boxShadow:
-            isDark
-                ? const []
-                : [
-                  BoxShadow(
-                    color: fBronze.withValues(alpha: 0.09),
-                    blurRadius: 12,
-                    offset: const Offset(0, 5),
-                  ),
-                ],
-      ),
+      color: color,
+      borderColor: borderColor,
+      radius: radius,
+      onTap: onTap,
       child: child,
-    );
-    if (onTap == null) return card;
-    return Semantics(
-      button: true,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(radius),
-          onTap: onTap,
-          child: card,
-        ),
-      ),
     );
   }
 }
@@ -104,7 +81,7 @@ class SoftCard extends StatelessWidget {
 class MizanAvatar extends StatelessWidget {
   const MizanAvatar({
     required this.name,
-    this.accent = fBronze,
+    this.accent,
     this.size = 52,
     this.contributed = false,
     this.showRing = true,
@@ -112,7 +89,7 @@ class MizanAvatar extends StatelessWidget {
   });
 
   final String name;
-  final Color accent;
+  final Color? accent;
   final double size;
   final bool contributed;
   final bool showRing;
@@ -127,13 +104,14 @@ class MizanAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tokens = context.colors;
-    final ring = contributed && showRing ? fOlive : fClay;
+    final avatarAccent = accent ?? tokens.primary;
+    final ring = contributed && showRing ? tokens.success : tokens.border;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: accent.withValues(alpha: 0.14),
+        color: avatarAccent.withValues(alpha: 0.14),
         border: Border.all(
           color: contributed && showRing ? ring : tokens.borderSubtle,
           width: contributed && showRing ? 2 : 1.2,
@@ -146,7 +124,7 @@ class MizanAvatar extends StatelessWidget {
             fontFamily: 'Georgia',
             fontSize: size * 0.34,
             fontWeight: FontWeight.w700,
-            color: accent,
+          color: avatarAccent,
           ),
         ),
       ),
@@ -162,17 +140,18 @@ class ProgressTrack extends StatelessWidget {
   const ProgressTrack({
     required this.value,
     this.height = 8,
-    this.color = fBronze,
+    this.color,
     super.key,
   });
 
   final double value;
   final double height;
-  final Color color;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final v = value.clamp(0.0, 1.0);
+    final fillColor = color ?? context.colors.primary;
     return Container(
       height: height,
       decoration: BoxDecoration(
@@ -184,7 +163,7 @@ class ProgressTrack extends StatelessWidget {
         widthFactor: v,
         child: Container(
           decoration: BoxDecoration(
-            color: color,
+            color: fillColor,
             borderRadius: BorderRadius.circular(99),
           ),
         ),

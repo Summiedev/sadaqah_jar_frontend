@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'design_tokens.dart';
+
 // ─────────────────────────────────────────────────────────────
 // MIZAN · CANONICAL DESIGN TOKENS
 // Single source of truth for the entire app.
@@ -417,7 +419,7 @@ ThemeData _buildMizanTheme(MizanColors colors, Brightness brightness) {
       shadowColor: isDark ? Colors.transparent : const Color(0x1F8A633A),
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(MizanRadii.card),
         side: BorderSide(color: colors.borderSubtle),
       ),
     ),
@@ -436,7 +438,9 @@ ThemeData _buildMizanTheme(MizanColors colors, Brightness brightness) {
         fontSize: 14,
         height: 1.45,
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MizanRadii.sheet),
+      ),
     ),
     bottomSheetTheme: BottomSheetThemeData(
       backgroundColor: colors.surfaceElevated,
@@ -444,7 +448,9 @@ ThemeData _buildMizanTheme(MizanColors colors, Brightness brightness) {
       surfaceTintColor: Colors.transparent,
       dragHandleColor: colors.border,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MizanRadii.sheet),
+        ),
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
@@ -495,7 +501,9 @@ ThemeData _buildMizanTheme(MizanColors colors, Brightness brightness) {
         disabledForegroundColor: colors.textDisabled,
         minimumSize: const Size(48, 48),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MizanRadii.control),
+        ),
         textStyle: const TextStyle(
           fontWeight: FontWeight.w800,
           fontSize: 14,
@@ -513,7 +521,7 @@ ThemeData _buildMizanTheme(MizanColors colors, Brightness brightness) {
         shadowColor: isDark ? Colors.transparent : const Color(0x1F8A633A),
         minimumSize: const Size(48, 48),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(MizanRadii.control),
           side: BorderSide(color: colors.borderSubtle),
         ),
         textStyle: const TextStyle(
@@ -530,7 +538,9 @@ ThemeData _buildMizanTheme(MizanColors colors, Brightness brightness) {
         side: BorderSide(color: colors.border),
         minimumSize: const Size(48, 48),
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(MizanRadii.control),
+        ),
         textStyle: const TextStyle(
           fontWeight: FontWeight.w800,
           fontSize: 14,
@@ -587,27 +597,27 @@ ThemeData _buildMizanTheme(MizanColors colors, Brightness brightness) {
       suffixIconColor: colors.iconSecondary,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MizanRadii.control),
         borderSide: BorderSide(color: colors.inputBorder),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MizanRadii.control),
         borderSide: BorderSide(color: colors.inputBorder),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MizanRadii.control),
         borderSide: BorderSide(color: colors.inputFocusedBorder, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MizanRadii.control),
         borderSide: BorderSide(color: colors.error, width: 1.2),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MizanRadii.control),
         borderSide: BorderSide(color: colors.error, width: 1.5),
       ),
       disabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(MizanRadii.control),
         borderSide: BorderSide(color: colors.borderSubtle),
       ),
     ),

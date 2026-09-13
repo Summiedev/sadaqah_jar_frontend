@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
 
 class AdminCharitiesScreen extends StatefulWidget {
@@ -82,7 +83,7 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Upload failed: $e'),
-            backgroundColor: kDanger,
+            backgroundColor: context.colors.error,
           ),
         );
     } finally {
@@ -120,7 +121,9 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(backgroundColor: kDanger),
+                style: FilledButton.styleFrom(
+                  backgroundColor: context.colors.error,
+                ),
                 child: const Text('Remove'),
               ),
             ],
@@ -147,7 +150,7 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not remove files: $e'),
-            backgroundColor: kDanger,
+            backgroundColor: context.colors.error,
           ),
         );
     } finally {
@@ -179,7 +182,9 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
               ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
-                style: FilledButton.styleFrom(backgroundColor: kDanger),
+                style: FilledButton.styleFrom(
+                  backgroundColor: context.colors.error,
+                ),
                 child: const Text('Close'),
               ),
             ],
@@ -197,14 +202,15 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: colors.background,
       appBar: AppBar(
         title: const Text(
           'Donations',
           style: TextStyle(fontFamily: 'Georgia', fontWeight: FontWeight.w700),
         ),
-        backgroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: colors.surface,
         surfaceTintColor: Colors.transparent,
         actions: [
           IconButton(
@@ -218,14 +224,14 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting)
-            return const Center(
-              child: CircularProgressIndicator(color: kBronze),
+            return Center(
+              child: CircularProgressIndicator(color: colors.primary),
             );
           if (snapshot.hasError)
             return _EmptyState(
               icon: Icons.error_outline_rounded,
               title: 'Could not load donations',
-              body: snapshot.error.toString(),
+              body: 'Check your connection and try again.',
             );
           final donations = snapshot.data?.data ?? [];
           if (donations.isEmpty)
@@ -268,8 +274,8 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openForm(),
-        backgroundColor: kBronze,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        backgroundColor: colors.primary,
+        foregroundColor: colors.onPrimary,
         icon: const Icon(Icons.add_rounded),
         label: const Text('New Donation'),
       ),
@@ -356,11 +362,11 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
     final url = _url.text.trim();
     if (name.isEmpty || title.isEmpty || (_type == 'external' && url.isEmpty)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
             'Name, title, and external URL where needed are required.',
           ),
-          backgroundColor: kDanger,
+          backgroundColor: context.colors.error,
         ),
       );
       return;
@@ -426,7 +432,7 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Could not save donation: $e'),
-            backgroundColor: kDanger,
+            backgroundColor: context.colors.error,
           ),
         );
     } finally {
@@ -436,6 +442,7 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final bottom = MediaQuery.viewInsetsOf(context).bottom;
     return DraggableScrollableSheet(
       initialChildSize: 0.94,
@@ -458,7 +465,7 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
                     width: 42,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: kLine,
+                      color: colors.border,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -466,9 +473,9 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
                 const SizedBox(height: 18),
                 Text(
                   widget.donation == null ? 'New Donation' : 'Edit Donation',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: 'Georgia',
-                    color: kInk,
+                    color: colors.textPrimary,
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
@@ -583,9 +590,9 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
                 ),
                 DropdownButtonFormField<String>(
                   initialValue: _status,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Status',
-                    prefixIcon: Icon(Icons.tune_rounded, color: kBronze),
+                    prefixIcon: Icon(Icons.tune_rounded, color: colors.primary),
                   ),
                   items: const [
                     DropdownMenuItem(value: 'active', child: Text('Active')),
@@ -624,14 +631,14 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
                   subtitle: const Text('Give it visual priority'),
                 ),
                 const SizedBox(height: 12),
-                if (_saving) const LinearProgressIndicator(color: kBronze),
+                if (_saving) LinearProgressIndicator(color: colors.primary),
                 const SizedBox(height: 12),
                 FilledButton.icon(
                   onPressed: _saving ? null : _save,
                   icon: const Icon(Icons.check_rounded),
                   label: const Text('Save donation'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: kBronze,
+                    backgroundColor: colors.primary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
@@ -665,12 +672,13 @@ class _DonationAdminCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: colors.surfaceElevated,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: kLine),
+        border: Border.all(color: colors.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -682,20 +690,20 @@ class _DonationAdminCard extends StatelessWidget {
                 child: Container(
                   width: 58,
                   height: 58,
-                  color: kSoftBronze,
+                  color: colors.primaryContainer,
                   child:
                       donation.imageUrls.isEmpty
-                          ? const Icon(
+                          ? Icon(
                             Icons.volunteer_activism_outlined,
-                            color: kBronze,
+                            color: colors.primary,
                           )
                           : Image.network(
                             donation.imageUrls.first,
                             fit: BoxFit.cover,
                             errorBuilder:
-                                (_, __, ___) => const Icon(
+                                (_, __, ___) => Icon(
                                   Icons.volunteer_activism_outlined,
-                                  color: kBronze,
+                                  color: colors.primary,
                                 ),
                           ),
                 ),
@@ -709,9 +717,9 @@ class _DonationAdminCard extends StatelessWidget {
                       donation.displayTitle,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: 'Georgia',
-                        color: kInk,
+                        color: colors.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                       ),
@@ -720,8 +728,8 @@ class _DonationAdminCard extends StatelessWidget {
                       donation.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: kBronze,
+                      style: TextStyle(
+                        color: colors.primary,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -730,11 +738,14 @@ class _DonationAdminCard extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 6,
                       children: [
-                        _Chip(donation.donationType, kBronze),
-                        _Chip(donation.statusLabel, donation.statusColor),
+                        _Chip(donation.donationType, colors.primary),
+                        _Chip(
+                          donation.statusLabel,
+                          _statusColor(colors, donation.status),
+                        ),
                         _Chip(
                           donation.isPublished ? 'Published' : 'Draft',
-                          donation.isPublished ? kSage : kDanger,
+                          donation.isPublished ? colors.success : colors.error,
                         ),
                       ],
                     ),
@@ -749,7 +760,7 @@ class _DonationAdminCard extends StatelessWidget {
           ],
           if (busy) ...[
             const SizedBox(height: 12),
-            const LinearProgressIndicator(color: kBronze),
+            LinearProgressIndicator(color: colors.primary),
           ],
           const Spacer(),
           Wrap(
@@ -765,33 +776,33 @@ class _DonationAdminCard extends StatelessWidget {
               IconButton(
                 visualDensity: VisualDensity.compact,
                 onPressed: onImages,
-                icon: const Icon(Icons.photo_library_outlined, color: kSage),
+                icon: Icon(Icons.photo_library_outlined, color: colors.success),
                 tooltip: 'Add images',
               ),
               if (donation.imageUrls.isNotEmpty)
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   onPressed: onClearImages,
-                  icon: const Icon(Icons.hide_image_outlined, color: kDanger),
+                  icon: Icon(Icons.hide_image_outlined, color: colors.error),
                   tooltip: 'Remove images',
                 ),
               IconButton(
                 visualDensity: VisualDensity.compact,
                 onPressed: onEvidence,
-                icon: const Icon(Icons.verified_outlined, color: kBronze),
+                icon: Icon(Icons.verified_outlined, color: colors.primary),
                 tooltip: 'Add evidence',
               ),
               if (donation.evidenceUrls.isNotEmpty)
                 IconButton(
                   visualDensity: VisualDensity.compact,
                   onPressed: onClearEvidence,
-                  icon: const Icon(Icons.remove_done_outlined, color: kDanger),
+                  icon: Icon(Icons.remove_done_outlined, color: colors.error),
                   tooltip: 'Remove evidence',
                 ),
               IconButton(
                 visualDensity: VisualDensity.compact,
                 onPressed: onDelete,
-                icon: const Icon(Icons.delete_outline, color: kDanger),
+                icon: Icon(Icons.delete_outline, color: colors.error),
                 tooltip: 'Close',
               ),
             ],
@@ -806,14 +817,15 @@ extension on AdminCharityRecord {
   String get displayTitle =>
       (title?.trim().isNotEmpty == true ? title!.trim() : name);
   String get statusLabel => status.replaceAll('_', ' ');
-  Color get statusColor =>
-      status == 'active'
-          ? kSage
-          : status == 'goal_reached'
-          ? kBronze
-          : status == 'completed'
-          ? kBronzeLight
-          : kDanger;
+}
+
+Color _statusColor(MizanColors colors, String status) {
+  return switch (status) {
+    'active' => colors.success,
+    'goal_reached' => colors.primary,
+    'completed' => colors.accent,
+    _ => colors.error,
+  };
 }
 
 class _Progress extends StatelessWidget {
@@ -823,6 +835,7 @@ class _Progress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final target = donation.targetAmount ?? 0;
     final raised = donation.amountRaised ?? 0;
     final pct = target <= 0 ? 0.0 : (raised / target).clamp(0.0, 1.0);
@@ -834,15 +847,15 @@ class _Progress extends StatelessWidget {
           child: LinearProgressIndicator(
             value: pct,
             minHeight: 8,
-            color: kBronze,
-            backgroundColor: kSoftBronze,
+            color: colors.primary,
+            backgroundColor: colors.primaryContainer,
           ),
         ),
         const SizedBox(height: 6),
         Text(
           '${donation.currencySymbol}${raised.toStringAsFixed(0)} / ${donation.currencySymbol}${target.toStringAsFixed(0)}',
-          style: const TextStyle(
-            color: kMuted,
+          style: TextStyle(
+            color: colors.textSecondary,
             fontWeight: FontWeight.w700,
             fontSize: 12,
           ),
@@ -851,8 +864,8 @@ class _Progress extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             '${donation.currencySymbol}${(target - raised).toStringAsFixed(0)} remaining',
-            style: const TextStyle(
-              color: kBronze,
+            style: TextStyle(
+              color: colors.primary,
               fontWeight: FontWeight.w700,
               fontSize: 12,
             ),
@@ -911,6 +924,7 @@ class _Field extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextField(
@@ -919,7 +933,7 @@ class _Field extends StatelessWidget {
         keyboardType: keyboardType,
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: kBronze),
+          prefixIcon: Icon(icon, color: colors.primary),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
@@ -940,19 +954,20 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: kBronze, size: 48),
+            Icon(icon, color: colors.primary, size: 48),
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: 'Georgia',
-                color: kInk,
+                color: colors.textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -961,7 +976,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               body,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: kMuted, height: 1.45),
+              style: TextStyle(color: colors.textSecondary, height: 1.45),
             ),
           ],
         ),

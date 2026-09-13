@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'journey_search_data.dart';
@@ -88,9 +88,9 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
     final hasQuery = _controller.text.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      backgroundColor: context.colors.background,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        backgroundColor: context.colors.background,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
@@ -111,7 +111,12 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
       body:
           hasResults
               ? ListView.separated(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                padding: const EdgeInsets.fromLTRB(
+                  MizanSpacing.xl,
+                  MizanSpacing.sm,
+                  MizanSpacing.xl,
+                  MizanSpacing.xxxl,
+                ),
                 physics: const BouncingScrollPhysics(),
                 itemCount: _results.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 10),
@@ -128,10 +133,12 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
                 },
               )
               : hasQuery && _isSearching
-              ? const Center(
+              ? Center(
                 child: Padding(
-                  padding: EdgeInsets.only(top: 40),
-                  child: CircularProgressIndicator(color: kBronze),
+                  padding: EdgeInsets.only(top: MizanSpacing.xxxl),
+                  child: CircularProgressIndicator(
+                    color: context.colors.primary,
+                  ),
                 ),
               )
               : _buildEmptyState(),
@@ -142,10 +149,19 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
     if (_controller.text.isNotEmpty) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(40, 40, 40, 20),
+          padding: const EdgeInsets.fromLTRB(
+            MizanSpacing.xxxl,
+            MizanSpacing.xxxl,
+            MizanSpacing.xxxl,
+            MizanSpacing.xl,
+          ),
           child: Column(
             children: [
-              Icon(Icons.search_off_rounded, size: 64, color: kClay),
+              Icon(
+                Icons.search_off_rounded,
+                size: 64,
+                color: context.colors.primary,
+              ),
               const SizedBox(height: 20),
               Text(
                 'No results found',
@@ -176,13 +192,18 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
       children: [
         if (_recent.isNotEmpty) ...[
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+            padding: const EdgeInsets.fromLTRB(
+              MizanSpacing.xl,
+              MizanSpacing.xl,
+              MizanSpacing.xl,
+              MizanSpacing.sm,
+            ),
             child: Row(
               children: [
                 Text(
                   'Recent',
                   style: TextStyle(
-                    color: kBronze,
+                    color: context.colors.primary,
                     fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
@@ -197,7 +218,7 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
                   child: Text(
                     'Clear',
                     style: TextStyle(
-                      color: kBronze,
+                      color: context.colors.primary,
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                     ),
@@ -208,7 +229,12 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
           ),
           Expanded(
             child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
+              padding: const EdgeInsets.fromLTRB(
+                MizanSpacing.xl,
+                MizanSpacing.xs,
+                MizanSpacing.xl,
+                MizanSpacing.lg,
+              ),
               physics: const BouncingScrollPhysics(),
               itemCount: _recent.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
@@ -216,15 +242,15 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
                 final query = _recent[index];
                 return Material(
                   color: context.colors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(MizanRadii.card),
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 4,
                     ),
-                    leading: const Icon(
+                    leading: Icon(
                       Icons.history_rounded,
-                      color: kBronze,
+                      color: context.colors.primary,
                       size: 20,
                     ),
                     title: Text(
@@ -248,10 +274,19 @@ class _JourneySearchScreenState extends State<JourneySearchScreen> {
           Expanded(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(40, 40, 40, 20),
+                padding: const EdgeInsets.fromLTRB(
+                  MizanSpacing.xxxl,
+                  MizanSpacing.xxxl,
+                  MizanSpacing.xxxl,
+                  MizanSpacing.xl,
+                ),
                 child: Column(
                   children: [
-                    Icon(Icons.search_rounded, size: 64, color: kClay),
+                    Icon(
+                      Icons.search_rounded,
+                      size: 64,
+                      color: context.colors.primary,
+                    ),
                     const SizedBox(height: 20),
                     Text(
                       'Search Journey',
@@ -345,21 +380,22 @@ class _SearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasText = controller.text.isNotEmpty;
+    final tokens = context.colors;
     return Container(
       height: 44,
       decoration: BoxDecoration(
-        color: hasText ? kPaper : kSoftBronze,
-        borderRadius: BorderRadius.circular(22),
+        color: hasText ? tokens.inputBackground : tokens.primaryContainer,
+        borderRadius: BorderRadius.circular(MizanRadii.control),
         border: Border.all(
-          color: hasText ? kBronze : Colors.transparent,
+          color: hasText ? tokens.inputFocusedBorder : Colors.transparent,
           width: 1.5,
         ),
       ),
       child: Row(
         children: [
-          const Padding(
-            padding: EdgeInsets.only(left: 14),
-            child: Icon(Icons.search_rounded, color: kBronze, size: 20),
+          Padding(
+            padding: const EdgeInsets.only(left: MizanSpacing.md),
+            child: Icon(Icons.search_rounded, color: tokens.primary, size: 20),
           ),
           Expanded(
             child: TextField(
@@ -369,20 +405,23 @@ class _SearchField extends StatelessWidget {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 hintText: 'Search adhkar, reflections...',
-                hintStyle: const TextStyle(color: kMutedLight, fontSize: 14),
+                hintStyle: TextStyle(
+                  color: tokens.textMuted,
+                  fontSize: 14,
+                ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 12,
                 ),
               ),
-              style: const TextStyle(color: kInk, fontSize: 15),
+              style: TextStyle(color: tokens.textPrimary, fontSize: 15),
             ),
           ),
           if (hasText)
             IconButton(
               onPressed: onClear,
-              icon: const Icon(Icons.close_rounded, color: kBronze, size: 18),
+              icon: Icon(Icons.close_rounded, color: tokens.primary, size: 18),
               tooltip: 'Clear',
               splashRadius: 18,
             ),
@@ -409,9 +448,9 @@ class _SearchResultTile extends StatelessWidget {
 
     return Material(
       color: context.colors.surfaceElevated,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(MizanRadii.card),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(MizanRadii.card),
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -426,13 +465,13 @@ class _SearchResultTile extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: kSoftBronze,
+                      color: context.colors.primaryContainer,
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(
                       result.category,
-                      style: const TextStyle(
-                        color: kBronze,
+                      style: TextStyle(
+                        color: context.colors.onPrimaryContainer,
                         fontSize: 11,
                         fontWeight: FontWeight.w800,
                       ),
@@ -447,13 +486,13 @@ class _SearchResultTile extends StatelessWidget {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: kSoftSage,
+                        color: context.colors.successContainer,
                         borderRadius: BorderRadius.circular(99),
                       ),
                       child: Text(
                         result.commonName!,
-                        style: const TextStyle(
-                          color: kSage,
+                        style: TextStyle(
+                          color: context.colors.success,
                           fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
@@ -569,13 +608,13 @@ class _SuggestionChip extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
-        color: kSoftBronze,
+        color: context.colors.primaryContainer,
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          color: kBronze,
+        style: TextStyle(
+          color: context.colors.onPrimaryContainer,
           fontSize: 13,
           fontWeight: FontWeight.w700,
         ),

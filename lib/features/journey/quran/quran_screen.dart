@@ -8,7 +8,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../services/backend_api.dart';
 import '../../../services/quran_download_service.dart';
+import '../../../widgets/mizan_async_state.dart';
 import 'quran_data.dart';
+import '../reflection_action_suggestion.dart';
 
 class QuranTab extends StatefulWidget {
   const QuranTab({super.key, this.initialSurahId});
@@ -138,7 +140,7 @@ class _QuranTabState extends State<QuranTab>
     final progress = await Navigator.of(context).push<QuranProgress>(
       PageRouteBuilder<QuranProgress>(
         opaque: false,
-        barrierColor: Colors.black.withValues(alpha: 0.18),
+        barrierColor: context.colors.scrim.withValues(alpha: 0.18),
         transitionDuration: const Duration(milliseconds: 360),
         reverseTransitionDuration: const Duration(milliseconds: 260),
         pageBuilder:
@@ -161,6 +163,9 @@ class _QuranTabState extends State<QuranTab>
     return FutureBuilder<List<QuranSurah>>(
       future: _surahsFuture,
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const MizanLoadingState(label: 'Loading your Quran...');
+        }
         if (snapshot.hasError || _loadError != null) {
           return _QuranUnavailableState(
             message: _loadError ?? 'Quran data could not be loaded yet.',
@@ -222,21 +227,21 @@ class _QuranTabState extends State<QuranTab>
                         (surah) => _openSurah(surah.id, page: surah.firstPage),
                   ),
                   _AsyncRangeList(
-                    future: _repo.juzItems(),
+                    load: _repo.juzItems,
                     icon: Icons.view_agenda_outlined,
                     onOpen:
                         (item) =>
                             _openSurah(item.startSurahId, page: item.startPage),
                   ),
                   _AsyncRangeList(
-                    future: _repo.hizbItems(),
+                    load: _repo.hizbItems,
                     icon: Icons.density_medium_rounded,
                     onOpen:
                         (item) =>
                             _openSurah(item.startSurahId, page: item.startPage),
                   ),
                   _AsyncRangeList(
-                    future: _repo.pageItems(),
+                    load: _repo.pageItems,
                     icon: Icons.chrome_reader_mode_outlined,
                     onOpen:
                         (item) =>
@@ -581,20 +586,47 @@ class _SurahList extends StatelessWidget {
   }
 }
 
-class _AsyncRangeList extends StatelessWidget {
+class _AsyncRangeList extends StatefulWidget {
   const _AsyncRangeList({
-    required this.future,
+    required this.load,
     required this.icon,
     required this.onOpen,
   });
-  final Future<List<QuranRangeItem>> future;
+  final Future<List<QuranRangeItem>> Function() load;
   final IconData icon;
   final ValueChanged<QuranRangeItem> onOpen;
 
   @override
+  State<_AsyncRangeList> createState() => _AsyncRangeListState();
+}
+
+class _AsyncRangeListState extends State<_AsyncRangeList> {
+  late Future<List<QuranRangeItem>> _future = widget.load();
+
+  @override
+  void didUpdateWidget(covariant _AsyncRangeList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.load != widget.load) _future = widget.load();
+  }
+
+  void _retry() => setState(() {
+    _future = widget.load();
+  });
+
+  @override
   Widget build(BuildContext context) => FutureBuilder<List<QuranRangeItem>>(
-    future: future,
+    future: _future,
     builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const MizanLoadingState(label: 'Loading Quran sections...');
+      }
+      if (snapshot.hasError) {
+        return MizanErrorState(
+          title: 'Could not load this section',
+          message: 'Your Quran is safe. Check your connection and try again.',
+          onRetry: _retry,
+        );
+      }
       final items = snapshot.data ?? const <QuranRangeItem>[];
       if (items.isEmpty) return const _UnavailableList();
       return ListView.separated(
@@ -605,12 +637,12 @@ class _AsyncRangeList extends StatelessWidget {
           final item = items[index];
           return _BrowseTile(
             number: item.number,
-            icon: icon,
+            icon: widget.icon,
             title: item.title,
             arabic: '${item.number}',
             subtitle: item.subtitle,
             meta: item.rangeLabel,
-            onTap: () => onOpen(item),
+            onTap: () => widget.onOpen(item),
           );
         },
       );
@@ -622,19 +654,11 @@ class _UnavailableList extends StatelessWidget {
   const _UnavailableList();
 
   @override
-  Widget build(BuildContext context) {
-    final tokens = context.colors;
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Text(
-          'Quran content is not available yet. Start the offline download first.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: tokens.textSecondary, height: 1.5),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const MizanEmptyState(
+    icon: Icons.menu_book_outlined,
+    title: 'No Quran sections yet',
+    message: 'Start the download to make Quran reading available offline.',
+  );
 }
 
 class _BrowseTile extends StatelessWidget {
@@ -843,10 +867,29 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
                                         !_translationRevealed,
                               ),
                           onPageChanged:
-                              (page) => setState(() {
-                                _page = page;
-                                _translationRevealed = false;
-                              }),
+                              (page) {
+                                setState(() {
+                                  _page = page;
+                                  _translationRevealed = false;
+                                });
+                                final pageVerses = verses.where(
+                                  (verse) => verse.page == page,
+                                );
+                                final first = pageVerses.isEmpty
+                                    ? (verses.isEmpty ? null : verses.first)
+                                    : pageVerses.first;
+                                if (first != null) {
+                                  unawaited(
+                                    _repo.saveProgress(
+                                      QuranProgress(
+                                        surahId: first.surahId,
+                                        verseKey: first.key,
+                                        page: page,
+                                      ),
+                                    ),
+                                  );
+                                }
+                              },
                         )
                         : _VerseReadingMode(
                           verses: verses,
@@ -987,8 +1030,8 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
     }
   }
 
-  void _reflect(QuranVerse verse) {
-    showModalBottomSheet<void>(
+  Future<void> _reflect(QuranVerse verse) async {
+    final reflection = await showModalBottomSheet<JourneyReflection>(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.colors.surfaceElevated,
@@ -997,6 +1040,9 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
       ),
       builder: (_) => _ReflectionSheet(verse: verse),
     );
+    if (reflection != null && mounted) {
+      await showReflectionActionSuggestion(context, reflection);
+    }
   }
 }
 
@@ -1838,7 +1884,7 @@ class _ReflectionSheetState extends State<_ReflectionSheet> {
       _error = null;
     });
     try {
-      await BackendApi.instance.createReflection(
+      final reflection = await BackendApi.instance.createReflection(
         title: widget.verse.key,
         body: body,
         mood: 'Quran',
@@ -1846,7 +1892,8 @@ class _ReflectionSheetState extends State<_ReflectionSheet> {
         requestId:
             'quran_${widget.verse.key}_${DateTime.now().microsecondsSinceEpoch}',
       );
-      if (mounted) Navigator.of(context).pop();
+      await QuranRepository.instance.recordReflection();
+      if (mounted) Navigator.of(context).pop(reflection);
     } catch (_) {
       if (!mounted) return;
       setState(() {

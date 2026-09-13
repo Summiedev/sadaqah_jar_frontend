@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/prayer_countdown_service.dart';
 import '../core/theme/app_theme.dart';
+import '../core/theme/design_tokens.dart';
 import '../core/theme/theme_extensions.dart';
 
 class PrayerTrackerCard extends StatefulWidget {
@@ -294,6 +295,7 @@ class _PrayerPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     // Semi-transparent when prayer time hasn't arrived yet.
     final opacity = available ? 1.0 : 0.45;
 
@@ -311,23 +313,25 @@ class _PrayerPill extends StatelessWidget {
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-              color: done ? kBronze : kClayPale,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: done ? kBronzeDark : kLine),
+               color: done ? colors.primary : colors.surface,
+               borderRadius: BorderRadius.circular(MizanRadii.control),
+               border: Border.all(
+                 color: done ? colors.primary : colors.borderSubtle,
+               ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   done ? Icons.check_circle : Icons.radio_button_unchecked,
-                  color: done ? kWhite : kBronze,
+                   color: done ? colors.onPrimary : colors.primary,
                   size: 18,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   name,
                   style: TextStyle(
-                    color: done ? kWhite : kInk,
+                     color: done ? colors.onPrimary : colors.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),

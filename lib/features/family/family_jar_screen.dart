@@ -176,7 +176,7 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
                     width: 42,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: fClay,
+                      color: sheetContext.colors.border,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -233,7 +233,7 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Could not add act. Please try again.'),
-        backgroundColor: kDanger,
+        backgroundColor: context.colors.error,
         action: SnackBarAction(label: 'Retry', onPressed: _onAddAct),
       ),
     );
@@ -324,9 +324,9 @@ class _FamilyJarScreenState extends State<FamilyJarScreen>
         body: Column(
           children: [
             if (_refreshing)
-              const LinearProgressIndicator(
+              LinearProgressIndicator(
                 minHeight: 2,
-                color: fBronze,
+                color: context.colors.primary,
                 backgroundColor: Colors.transparent,
               ),
             Expanded(
@@ -491,6 +491,8 @@ class _JarHome extends StatelessWidget {
     children: [
       _GoalHero(goals: goals, optimisticActsDone: optimisticActsDone),
       const SizedBox(height: 12),
+      _SharedIntentionSection(familyId: int.tryParse(family['id'].toString()) ?? 0),
+      const SizedBox(height: 28),
       const _PendingSyncIndicator(),
       const SizedBox(height: 6),
       MizanButton(label: 'Add to our jar', onTap: onAddAct),
@@ -515,6 +517,318 @@ class _JarHome extends StatelessWidget {
       const SizedBox(height: 12),
       _PrayerPreview(familyId: family['id'].toString()),
     ],
+    );
+  }
+}
+
+class _SharedIntentionSection extends StatefulWidget {
+  const _SharedIntentionSection({required this.familyId});
+
+  final int familyId;
+
+  @override
+  State<_SharedIntentionSection> createState() => _SharedIntentionSectionState();
+}
+
+class _SharedIntentionSectionState extends State<_SharedIntentionSection> {
+  Map<String, dynamic>? _intention;
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final intention = await BackendApi.instance.getFamilyIntention(widget.familyId);
+      if (!mounted) return;
+      setState(() {
+        _intention = intention;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _setIntention() async {
+    final title = TextEditingController(text: _intention?['title']?.toString());
+    final prompt = TextEditingController(text: _intention?['prompt']?.toString());
+    final result = await showDialog<(String, String?)>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: dialogContext.colors.surfaceElevated,
+        title: Text(
+          'This week\'s intention',
+          style: TextStyle(color: dialogContext.colors.textPrimary),
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: title,
+                autofocus: true,
+                maxLength: 255,
+                decoration: const InputDecoration(labelText: 'Shared intention'),
+              ),
+              TextField(
+                controller: prompt,
+                maxLines: 3,
+                maxLength: 2000,
+                decoration: const InputDecoration(
+                  labelText: 'A gentle prompt (optional)',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final value = title.text.trim();
+              if (value.isEmpty) return;
+              Navigator.of(dialogContext).pop((value, prompt.text.trim()));
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    title.dispose();
+    prompt.dispose();
+    if (result == null || !mounted) return;
+    setState(() => _saving = true);
+    try {
+      final saved = await BackendApi.instance.saveFamilyIntention(
+        widget.familyId,
+        title: result.$1,
+        prompt: result.$2,
+      );
+      if (!mounted) return;
+      setState(() {
+        _intention = saved;
+        _saving = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            backendErrorMessage(
+              error,
+              fallback: 'Only a family admin can set the shared intention.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _contribute() async {
+    final note = TextEditingController(
+      text: _intention?['my_private_note']?.toString() ?? '',
+    );
+    var completed = _intention?['my_contribution_completed'] == true;
+    final result = await showModalBottomSheet<(bool, String?)>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.surfaceElevated,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            18,
+            20,
+            20 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'My private contribution',
+                style: TextStyle(
+                  color: sheetContext.colors.textPrimary,
+                  fontFamily: 'Georgia',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Your note stays private. Only your completion joins the family count.',
+                style: TextStyle(color: sheetContext.colors.textSecondary),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: note,
+                maxLines: 4,
+                maxLength: 4000,
+                decoration: const InputDecoration(
+                  hintText: 'What will you carry into the week?',
+                ),
+              ),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: completed,
+                onChanged: (value) => setSheetState(() => completed = value ?? false),
+                title: const Text('I have made my contribution'),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.of(sheetContext).pop((completed, note.text.trim())),
+                  child: const Text('Save privately'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    note.dispose();
+    if (result == null || !mounted) return;
+    setState(() => _saving = true);
+    try {
+      final saved = await BackendApi.instance.saveFamilyIntentionContribution(
+        widget.familyId,
+        completed: result.$1,
+        privateNote: result.$2,
+      );
+      if (!mounted) return;
+      setState(() {
+        _intention = saved;
+        _saving = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            backendErrorMessage(
+              error,
+              fallback: 'Could not save your private contribution.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    if (_loading) {
+      return const SizedBox(height: 64, child: Center(child: CircularProgressIndicator()));
+    }
+    final intention = _intention;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 16, 12, 14),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainer,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: colors.borderSubtle),
+      ),
+      child: intention == null
+          ? Row(
+              children: [
+                Icon(Icons.wb_sunny_outlined, color: colors.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Choose one shared intention for this week.',
+                    style: TextStyle(color: colors.textPrimary, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _saving ? null : _setIntention,
+                  tooltip: 'Set shared intention',
+                  icon: Icon(Icons.edit_outlined, color: colors.primary),
+                ),
+              ],
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.wb_sunny_outlined, size: 18, color: colors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'OUR SHARED INTENTION',
+                        style: TextStyle(
+                          color: colors.primary,
+                          fontSize: 10,
+                          letterSpacing: 1.0,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: _saving ? null : _setIntention,
+                      tooltip: 'Edit shared intention',
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(Icons.edit_outlined, size: 18, color: colors.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  intention['title']?.toString() ?? '',
+                  style: TextStyle(
+                    color: colors.textPrimary,
+                    fontFamily: 'Georgia',
+                    fontSize: 19,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if ((intention['prompt']?.toString() ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 5),
+                  Text(
+                    intention['prompt'].toString(),
+                    style: TextStyle(color: colors.textSecondary, height: 1.4),
+                  ),
+                ],
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${intention['contributor_count'] ?? 0} quiet contributions',
+                        style: TextStyle(color: colors.textMuted, fontSize: 12),
+                      ),
+                    ),
+                    TextButton.icon(
+                      onPressed: _saving ? null : _contribute,
+                      icon: Icon(
+                        intention['my_contribution_completed'] == true
+                            ? Icons.check_circle_outline_rounded
+                            : Icons.favorite_border_rounded,
+                        size: 17,
+                      ),
+                      label: Text(
+                        intention['my_contribution_completed'] == true
+                            ? 'Contributed'
+                            : 'Add mine',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }
@@ -716,7 +1030,7 @@ class _TodayCard extends StatelessWidget {
                           left: i * 28.toDouble(),
                           child: MizanAvatar(
                             name: names[i]['username']?.toString() ?? '?',
-                            accent: fBronze,
+                            accent: context.colors.primary,
                             size: 42,
                             contributed: true,
                           ),

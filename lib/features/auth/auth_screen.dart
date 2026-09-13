@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../core/session_controller.dart';
-import '../../core/theme/app_theme.dart';
+import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
 import '../../services/backend_api.dart';
 import 'verification_screen.dart';
@@ -46,6 +46,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final tokens = context.colors;
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
@@ -70,7 +71,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     style: TextButton.styleFrom(
                       alignment: Alignment.centerLeft,
                       padding: EdgeInsets.zero,
-                      foregroundColor: kMuted,
+                      foregroundColor: tokens.textSecondary,
                     ),
                     icon: const Icon(Icons.arrow_back, size: 16),
                     label: const Text(
@@ -114,7 +115,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   border: Border.all(color: colors.outlineVariant),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(
+                      color: tokens.scrim.withValues(
                         alpha:
                             Theme.of(context).brightness == Brightness.dark
                                 ? 0.18
@@ -189,13 +190,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: kDangerBg,
+                    color: tokens.errorContainer,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: kDangerBorder),
+                    border: Border.all(color: tokens.error.withValues(alpha: 0.45)),
                   ),
                   child: Text(
                     _googleError!,
-                    style: const TextStyle(color: kDanger, fontSize: 13),
+                    style: TextStyle(color: tokens.error, fontSize: 13),
                   ),
                 ),
               _GoogleButton(onTap: _continueWithGoogle, isLoading: _loading),
@@ -203,7 +204,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               const Text(
                 'Your account keeps your progress available across your devices.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11, color: kMuted, height: 1.4),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: tokens.textSecondary,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -407,6 +412,7 @@ class _RegisterFormState extends State<_RegisterForm> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       key: const ValueKey('register'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -453,13 +459,13 @@ class _RegisterFormState extends State<_RegisterForm> {
               key: ValueKey(_errorMessage),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: kDangerBg,
+                color: colors.errorContainer,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kDangerBorder),
+                border: Border.all(color: colors.error.withValues(alpha: 0.45)),
               ),
               child: Text(
                 _errorMessage!,
-                style: const TextStyle(color: kDanger, fontSize: 13),
+                style: TextStyle(color: colors.error, fontSize: 13),
               ),
             ),
           ),
@@ -477,8 +483,8 @@ class _RegisterFormState extends State<_RegisterForm> {
             child:
                 _loading
                     ? DecoratedBox(
-                      decoration: const BoxDecoration(
-                        color: kBronze,
+                      decoration: BoxDecoration(
+                        color: colors.primary,
                         borderRadius: BorderRadius.all(Radius.circular(16)),
                       ),
                       child: Center(
@@ -495,7 +501,7 @@ class _RegisterFormState extends State<_RegisterForm> {
                     : ElevatedButton(
                       onPressed: _submit,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: kBronze,
+                        backgroundColor: colors.primary,
                         foregroundColor:
                             Theme.of(context).colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -586,6 +592,7 @@ class _SigninFormState extends State<_SigninForm> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     return Column(
       key: const ValueKey('signin'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -617,7 +624,7 @@ class _SigninFormState extends State<_SigninForm> {
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: Size.zero,
-              foregroundColor: kMuted,
+              foregroundColor: colors.textSecondary,
             ),
             child: const Text(
               'Forgot password?',
@@ -636,13 +643,13 @@ class _SigninFormState extends State<_SigninForm> {
               key: ValueKey(_errorMessage),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: kDangerBg,
+                color: colors.errorContainer,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: kDangerBorder),
+                border: Border.all(color: colors.error.withValues(alpha: 0.45)),
               ),
               child: Text(
                 _errorMessage!,
-                style: const TextStyle(color: kDanger, fontSize: 13),
+                style: TextStyle(color: colors.error, fontSize: 13),
               ),
             ),
           ),
@@ -660,8 +667,8 @@ class _SigninFormState extends State<_SigninForm> {
             child:
                 _loading
                     ? DecoratedBox(
-                      decoration: const BoxDecoration(
-                        color: kBronze,
+                      decoration: BoxDecoration(
+                        color: colors.primary,
                         borderRadius: BorderRadius.all(Radius.circular(16)),
                       ),
                       child: Center(
@@ -678,7 +685,7 @@ class _SigninFormState extends State<_SigninForm> {
                     : ElevatedButton(
                       onPressed: _submit,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: kBronze,
+                        backgroundColor: colors.primary,
                         foregroundColor:
                             Theme.of(context).colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
@@ -810,12 +817,12 @@ class _GoogleButton extends StatelessWidget {
           const _GoogleFavicon(),
           const SizedBox(width: 10),
           isLoading
-              ? const SizedBox(
+              ? SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: kBronze,
+                  color: colors.primary,
                 ),
               )
               : const Text('Continue with Google'),
@@ -838,7 +845,7 @@ class _GoogleFavicon extends StatelessWidget {
       cacheHeight: 40,
       errorBuilder:
           (_, __, ___) =>
-              const Icon(Icons.g_mobiledata, size: 20, color: kBronze),
+              Icon(Icons.g_mobiledata, size: 20, color: context.colors.primary),
     );
   }
 }
