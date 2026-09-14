@@ -257,7 +257,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 10),
+                  Divider(height: 1, color: tokens.divider),
                   FutureBuilder<UserProfile>(
                     future: _profileFuture,
                     builder: (context, snapshot) {
@@ -267,90 +267,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           profile?.generalNotifications ?? false;
                       return Column(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tokens.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: tokens.borderSubtle),
-                            ),
-                            child: SwitchListTile.adaptive(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                'General notifications',
-                                style: TextStyle(
-                                  color: tokens.textPrimary,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
+                          _SettingsSwitchRow(
+                            title: 'General notifications',
+                            subtitle:
                                 snapshot.connectionState ==
                                         ConnectionState.waiting
                                     ? 'Loading your preference...'
                                     : 'Receive push notifications for updates and reminders.',
-                                style: TextStyle(
-                                  color: tokens.textSecondary,
-                                  fontSize: 12.5,
-                                  height: 1.4,
-                                ),
-                              ),
-                              value: generalEnabled,
-                              onChanged:
-                                  _savingReminder || profile == null
-                                      ? null
-                                      : (value) => _toggleGeneralNotifications(
-                                        profile,
-                                        value,
-                                      ),
-                              activeThumbColor: tokens.primary,
-                            ),
+                            value: generalEnabled,
+                            enabled: !_savingReminder && profile != null,
+                            onChanged:
+                                profile == null
+                                    ? null
+                                    : (value) =>
+                                        _toggleGeneralNotifications(
+                                          profile,
+                                          value,
+                                        ),
                           ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: tokens.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: tokens.borderSubtle),
-                            ),
-                            child: SwitchListTile.adaptive(
-                              contentPadding: EdgeInsets.zero,
-                              title: Text(
-                                'Friday reminder',
-                                style: TextStyle(
-                                  color: tokens.textPrimary,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
+                          Divider(height: 1, color: tokens.divider),
+                          _SettingsSwitchRow(
+                            title: 'Friday reminder',
+                            subtitle:
                                 snapshot.connectionState ==
                                         ConnectionState.waiting
                                     ? 'Loading your preference...'
                                     : 'Get a gentle Friday reminder when it is enabled.',
-                                style: TextStyle(
-                                  color: tokens.textSecondary,
-                                  fontSize: 12.5,
-                                  height: 1.4,
-                                ),
-                              ),
-                              value: fridayEnabled,
-                              onChanged:
-                                  _savingReminder || profile == null
-                                      ? null
-                                      : (value) =>
-                                          _toggleFridayReminder(profile, value),
-                              activeThumbColor: tokens.primary,
-                            ),
+                            value: fridayEnabled,
+                            enabled: !_savingReminder && profile != null,
+                            onChanged:
+                                profile == null
+                                    ? null
+                                    : (value) => _toggleFridayReminder(
+                                      profile,
+                                      value,
+                                    ),
                           ),
-                          const SizedBox(height: 10),
+                          Divider(height: 1, color: tokens.divider),
                           _SettingsCard(
                             icon: Icons.place_outlined,
                             title: 'Prayer times & location',
@@ -782,15 +735,59 @@ class _SettingsSection extends StatelessWidget {
         Container(
           decoration: BoxDecoration(
             color: tokens.surfaceContainer,
-              borderRadius: BorderRadius.circular(MizanRadii.card),
+            borderRadius: BorderRadius.circular(MizanRadii.card),
             border: Border.all(color: tokens.borderSubtle),
           ),
           child: ClipRRect(
-             borderRadius: BorderRadius.circular(MizanRadii.card),
+            borderRadius: BorderRadius.circular(MizanRadii.card),
             child: child,
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SettingsSwitchRow extends StatelessWidget {
+  const _SettingsSwitchRow({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final bool enabled;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    return SwitchListTile.adaptive(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: enabled ? tokens.textPrimary : tokens.textDisabled,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: TextStyle(
+          color: enabled ? tokens.textSecondary : tokens.textMuted,
+          fontSize: 12.5,
+          height: 1.4,
+        ),
+      ),
+      value: value,
+      onChanged: enabled ? onChanged : null,
+      activeThumbColor: tokens.primary,
+      activeTrackColor: tokens.primary.withValues(alpha: 0.35),
     );
   }
 }
@@ -964,7 +961,7 @@ class _GoalsSectionState extends State<_GoalsSection> {
         return Column(
           children: [
             for (int i = 0; i < goals.length; i++) ...[
-              if (i > 0) const SizedBox(height: 10),
+              if (i > 0) Divider(height: 1, color: context.colors.divider),
               _GoalTile(
                 goal: Map<String, dynamic>.from(goals[i] as Map),
                 onEdited: _loadGoals,
@@ -997,7 +994,7 @@ class _GoalTile extends StatelessWidget {
     final tokens = context.colors;
 
     return Material(
-      color: tokens.surfaceElevated,
+      color: Colors.transparent,
       child: InkWell(
         onTap:
             status != 'active'
@@ -1012,7 +1009,6 @@ class _GoalTile extends StatelessWidget {
                     onEdited();
                   }
                 },
-        borderRadius: BorderRadius.circular(MizanRadii.card),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(

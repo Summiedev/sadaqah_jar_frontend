@@ -425,7 +425,9 @@ class _DownloadProgressCard extends StatelessWidget {
                     ),
                   ] else
                     Text(
-                      offlineReady ? 'Text and pages saved' : 'Text + Mushaf',
+                      offlineReady
+                          ? 'Text and Mushaf pages saved'
+                          : 'Text and Mushaf pages',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -797,6 +799,7 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
   bool _translationRevealed = false;
   List<QuranVerse> _currentVerses = const [];
   bool _continuousPlayback = false;
+  Timer? _settingsSaveTimer;
   late final Future<(QuranSurah?, List<QuranVerse>)> _readerFuture;
 
   @override
@@ -811,6 +814,7 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
 
   @override
   void dispose() {
+    _settingsSaveTimer?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -922,30 +926,56 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
     await _repo.versesForSurah(widget.surahId),
   );
 
-  Future<void> _toggleMode() async {
+  void _toggleMode() {
     final nextMode = switch (_settings.readingMode) {
       QuranReadingMode.mushaf => QuranReadingMode.continuous,
       QuranReadingMode.continuous => QuranReadingMode.ayah,
       QuranReadingMode.ayah => QuranReadingMode.mushaf,
     };
-    final next = _settings.copyWith(readingMode: nextMode);
-    setState(() => _settings = next);
-    await _repo.saveSettings(next);
+    if (_canSetReadingMode(nextMode)) {
+      _applySettings(_settings.copyWith(readingMode: nextMode));
+    }
   }
 
   Future<void> _openSettings() async {
-    final next = await showModalBottomSheet<QuranSettings>(
+    await showModalBottomSheet<QuranSettings>(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.colors.surfaceElevated,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (_) => _QuranSettingsSheet(settings: _settings),
+      builder: (_) => _QuranSettingsSheet(
+        settings: _settings,
+        onSettingsChanged: _applySettings,
+        onModeChanged: _canSetReadingMode,
+      ),
     );
-    if (next == null) return;
+  }
+
+  void _applySettings(QuranSettings next) {
+    if (!mounted) return;
     setState(() => _settings = next);
-    await _repo.saveSettings(next);
+    // The slider updates the reader immediately, while writes are coalesced so
+    // dragging it does not create a storage write for every pixel moved.
+    _settingsSaveTimer?.cancel();
+    _settingsSaveTimer = Timer(const Duration(milliseconds: 140), () {
+      unawaited(_repo.saveSettings(next).catchError((_) {}));
+    });
+  }
+
+  bool _canSetReadingMode(QuranReadingMode mode) {
+    if (mode == QuranReadingMode.ayah && _currentVerses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Verse-by-verse is not ready yet. Please let this Quran section finish loading or downloading.',
+          ),
+        ),
+      );
+      return false;
+    }
+    return true;
   }
 
   Future<void> _playVerse(QuranVerse verse) async {
@@ -1226,39 +1256,54 @@ class _VerseCardState extends State<_VerseCard> {
             ],
           ),
           const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Directionality(
+          if (widget.verse.words.isEmpty)
+            Directionality(
               textDirection: TextDirection.rtl,
-              child: Wrap(
-                alignment: WrapAlignment.start,
-                runAlignment: WrapAlignment.end,
+              child: Text(
+                widget.verse.arabic,
+                textAlign: TextAlign.right,
+                style: TextStyle(
+                  color: tokens.textPrimary,
+                  fontFamily: 'Noto Naskh Arabic',
+                  fontSize: widget.settings.arabicSize,
+                  height: 1.8,
+                ),
+              ),
+            )
+          else
+            Align(
+              alignment: Alignment.centerRight,
+              child: Directionality(
                 textDirection: TextDirection.rtl,
-                spacing: 7,
-                runSpacing: 10,
-                children:
-                    widget.verse.words
-                        .map(
-                          (word) => InkWell(
-                            borderRadius: BorderRadius.circular(8),
-                            onTap: () => widget.onWord(word),
-                            child: Text(
-                              word.text,
-                              textDirection: TextDirection.rtl,
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                color: tokens.textPrimary,
-                                fontSize: widget.settings.arabicSize,
-                                height: 1.7,
-                                fontWeight: FontWeight.w600,
+                child: Wrap(
+                  alignment: WrapAlignment.start,
+                  runAlignment: WrapAlignment.end,
+                  textDirection: TextDirection.rtl,
+                  spacing: 7,
+                  runSpacing: 10,
+                  children:
+                      widget.verse.words
+                          .map(
+                            (word) => InkWell(
+                              borderRadius: BorderRadius.circular(8),
+                              onTap: () => widget.onWord(word),
+                              child: Text(
+                                word.text,
+                                textDirection: TextDirection.rtl,
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  color: tokens.textPrimary,
+                                  fontSize: widget.settings.arabicSize,
+                                  height: 1.7,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
-                        )
-                        .toList(),
+                          )
+                          .toList(),
+                ),
               ),
             ),
-          ),
           if (widget.settings.showPronunciation) ...[
             const SizedBox(height: 14),
             Text(
@@ -1436,10 +1481,15 @@ class _MushafPageModeState extends State<_MushafPageMode> {
                   );
                 }
                 if (verses.isNotEmpty) {
-                  return _UthmaniTextPage(
-                    page: widget.page,
-                    verses: verses,
-                    arabicSize: widget.settings.arabicSize,
+                  return InteractiveViewer(
+                    minScale: 1,
+                    maxScale: 3,
+                    boundaryMargin: const EdgeInsets.all(24),
+                    child: _UthmaniTextPage(
+                      page: widget.page,
+                      verses: verses,
+                      arabicSize: widget.settings.arabicSize,
+                    ),
                   );
                 }
                 return AspectRatio(
@@ -1466,19 +1516,6 @@ class _MushafPageModeState extends State<_MushafPageMode> {
                 );
               },
             ),
-            if (file == null && verses.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  'Mushaf page artwork is still downloading. The Uthmani text above is from Mizan\'s verified Quran dataset.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: tokens.textMuted,
-                    fontSize: 11,
-                    height: 1.35,
-                  ),
-                ),
-              ),
             const SizedBox(height: 12),
             Center(
               child: TextButton.icon(
@@ -1698,8 +1735,14 @@ class _MiniPlayer extends StatelessWidget {
 }
 
 class _QuranSettingsSheet extends StatefulWidget {
-  const _QuranSettingsSheet({required this.settings});
+  const _QuranSettingsSheet({
+    required this.settings,
+    required this.onSettingsChanged,
+    required this.onModeChanged,
+  });
   final QuranSettings settings;
+  final ValueChanged<QuranSettings> onSettingsChanged;
+  final bool Function(QuranReadingMode mode) onModeChanged;
 
   @override
   State<_QuranSettingsSheet> createState() => _QuranSettingsSheetState();
@@ -1730,30 +1773,24 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
             _SettingSwitch(
               'Pronunciation',
               _settings.showPronunciation,
-              (value) => setState(
-                () => _settings = _settings.copyWith(showPronunciation: value),
+              (value) => _update(
+                _settings.copyWith(showPronunciation: value),
               ),
             ),
             _SettingSwitch(
               'Translation',
               _settings.showTranslation,
-              (value) => setState(
-                () => _settings = _settings.copyWith(showTranslation: value),
-              ),
+              (value) => _update(_settings.copyWith(showTranslation: value)),
             ),
             _SettingSwitch(
               'Word meanings',
               _settings.showWordMeanings,
-              (value) => setState(
-                () => _settings = _settings.copyWith(showWordMeanings: value),
-              ),
+              (value) => _update(_settings.copyWith(showWordMeanings: value)),
             ),
             _SettingSwitch(
               'Explanation',
               _settings.showTafsir,
-              (value) => setState(
-                () => _settings = _settings.copyWith(showTafsir: value),
-              ),
+              (value) => _update(_settings.copyWith(showTafsir: value)),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
@@ -1769,9 +1806,7 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
                       )
                       .toList(),
               onChanged:
-                  (value) => setState(
-                    () => _settings = _settings.copyWith(reciter: value),
-                  ),
+                  (value) => _update(_settings.copyWith(reciter: value)),
             ),
             const SizedBox(height: 14),
             Text(
@@ -1788,9 +1823,7 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
               divisions: 8,
               activeColor: tokens.primary,
               onChanged:
-                  (value) => setState(
-                    () => _settings = _settings.copyWith(arabicSize: value),
-                  ),
+                  (value) => _update(_settings.copyWith(arabicSize: value)),
             ),
             SegmentedButton<QuranReadingMode>(
               segments: const [
@@ -1812,25 +1845,30 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
               ],
               selected: {_settings.readingMode},
               onSelectionChanged:
-                  (value) => setState(
-                    () =>
-                        _settings = _settings.copyWith(
-                          readingMode: value.first,
-                        ),
-                  ),
+                  (value) {
+                    final mode = value.first;
+                    if (widget.onModeChanged(mode)) {
+                      _update(_settings.copyWith(readingMode: mode));
+                    }
+                  },
             ),
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 onPressed: () => Navigator.pop(context, _settings),
-                child: const Text('Done'),
+                child: const Text('Close'),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  void _update(QuranSettings next) {
+    setState(() => _settings = next);
+    widget.onSettingsChanged(next);
   }
 }
 

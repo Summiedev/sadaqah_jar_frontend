@@ -171,7 +171,10 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     final familyId = int.tryParse(widget.id);
     if (familyId == null) {
       setState(() {
-        _requests.insert(0, _PRequest('You', context.colors.primary, text, 'now'));
+        _requests.insert(
+          0,
+          _PRequest('You', context.colors.primary, text, 'now'),
+        );
         _c.clear();
       });
       return;
@@ -198,7 +201,10 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: context.colors.error,
+        ),
       );
     }
   }
@@ -245,7 +251,10 @@ class _PrayerRequestsScreenState extends State<PrayerRequestsScreen> {
     } on BackendApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: context.colors.error),
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: context.colors.error,
+        ),
       );
     } finally {
       _responding.remove(prayerId);
@@ -369,10 +378,7 @@ class _RequestCardState extends State<_RequestCard> {
                     ),
                     Text(
                       r.time,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        color: colors.textMuted,
-                      ),
+                      style: TextStyle(fontSize: 10.5, color: colors.textMuted),
                     ),
                   ],
                 ),
@@ -681,7 +687,7 @@ class _PrayerRepliesSheetState extends State<_PrayerRepliesSheet> {
                 ),
               )
             else
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   'No written duas yet.',

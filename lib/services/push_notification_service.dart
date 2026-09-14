@@ -27,6 +27,19 @@ Future<void> persistFcmPayload(Map<String, dynamic> data) async {
   }
 }
 
+/// A push remains unread until the person actually opens it. This is called
+/// for both warm and cold starts; failures are deliberately best-effort because
+/// the notification is still available in the in-app inbox.
+Future<void> markNotificationOpened(Map<String, dynamic> data) async {
+  final id = int.tryParse(data['notification_id']?.toString() ?? '');
+  if (id == null || id < 1) return;
+  try {
+    await BackendApi.instance.markNotificationRead(id);
+  } catch (error) {
+    debugPrint('Unable to mark opened notification $id as read: $error');
+  }
+}
+
 /// Background handler for Firebase messages. Runs in the background isolate.
 ///
 /// [H2] Display policy:
@@ -231,7 +244,9 @@ class PushNotificationService {
         message,
       ) async {
         try {
-          await persistFcmPayload(Map<String, dynamic>.from(message.data));
+          final data = Map<String, dynamic>.from(message.data);
+          await persistFcmPayload(data);
+          await markNotificationOpened(data);
         } catch (_) {}
       });
       _configured = true;

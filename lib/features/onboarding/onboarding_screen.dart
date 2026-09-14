@@ -97,17 +97,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(24, 10, 24, 24),
               child: Row(
                 children: [
-                  _ProgressDots(step: _step, colors: colors),
+                  Semantics(
+                    label: 'Onboarding step ${_step + 1} of 3',
+                    child: _ProgressDots(step: _step, colors: colors),
+                  ),
                   const Spacer(),
                   FilledButton.icon(
                     onPressed: _next,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(132, 50),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
                     icon: Icon(
                       _step == 2
-                          ? Icons.arrow_forward_rounded
-                          : Icons.north_east_rounded,
+                          ? Icons.check_rounded
+                          : Icons.arrow_forward_rounded,
                       size: 18,
                     ),
-                    label: Text(_step == 2 ? 'Begin' : 'Next'),
+                    label: Text(_step == 2 ? 'Start gently' : 'Continue'),
                   ),
                 ],
               ),
@@ -181,8 +188,8 @@ class _WelcomePage extends StatelessWidget {
   Widget build(BuildContext context) => _PageLayout(
     colors: colors,
     eyebrow: 'WELCOME TO MIZAN',
-    title: 'A quieter space\nfor what matters.',
-    body: 'Keep your good intentions close, one small practice at a time.',
+    title: 'Make room\nfor what matters.',
+    body: 'A private place for the small acts you want to keep close.',
     visual: _WelcomeVisual(colors: colors),
   );
 }
@@ -195,9 +202,9 @@ class _RhythmPage extends StatelessWidget {
   Widget build(BuildContext context) => _PageLayout(
     colors: colors,
     eyebrow: 'YOUR DAILY RHYTHM',
-    title: 'Small steps\nbecome a practice.',
+    title: 'Keep the rhythm\ngentle.',
     body:
-        'Reflect, read, pray, and give in a way that feels steady, private, and human.',
+        'Read a page. Make a prayer. Give what you can. Come back without guilt.',
     visual: _RhythmVisual(colors: colors),
   );
 }
@@ -224,34 +231,41 @@ class _PageLayout extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        visual,
+        FadeScaleTransition(child: visual),
         const SizedBox(height: 28),
-        Text(
-          eyebrow,
-          style: TextStyle(
-            color: colors.primary,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.3,
+        SlideUpFade(
+          child: Text(
+            eyebrow,
+            style: TextStyle(
+              color: colors.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.3,
+            ),
           ),
         ),
         const SizedBox(height: 12),
-        Text(
-          title,
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontSize: 36,
-            height: 1.05,
-            fontWeight: FontWeight.w800,
+        SlideUpFade(
+          child: Text(
+            title,
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontFamily: 'Georgia',
+              fontSize: 34,
+              height: 1.08,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         const SizedBox(height: 16),
-        Text(
-          body,
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: 16,
-            height: 1.45,
+        SlideUpFade(
+          child: Text(
+            body,
+            style: TextStyle(
+              color: colors.textSecondary,
+              fontSize: 16,
+              height: 1.5,
+            ),
           ),
         ),
       ],
@@ -264,52 +278,187 @@ class _WelcomeVisual extends StatelessWidget {
   final MizanColors colors;
 
   @override
-  Widget build(BuildContext context) => Container(
-    height: 210,
-    width: double.infinity,
-    decoration: BoxDecoration(
-      color: colors.primaryContainer,
-      borderRadius: BorderRadius.circular(28),
-      border: Border.all(color: colors.borderSubtle),
-    ),
-    child: Stack(
-      children: [
-        Positioned(
-          right: 24,
-          top: 20,
-          child: Icon(
-            Icons.nights_stay_rounded,
-            size: 82,
-            color: colors.primary,
-          ),
-        ),
-        Positioned(
-          left: 24,
-          bottom: 24,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                'Mizan',
-                style: TextStyle(
-                  color: colors.onPrimaryContainer,
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(24),
+    child: Container(
+      height: 226,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: colors.primaryContainer,
+        border: Border.all(color: colors.borderSubtle),
+      ),
+      child: Stack(
+        clipBehavior: Clip.hardEdge,
+        children: [
+          Positioned(
+            right: -34,
+            top: -42,
+            child: Container(
+              width: 142,
+              height: 142,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: colors.primary.withValues(alpha: 0.18),
+                  width: 18,
                 ),
               ),
-              const SizedBox(width: 10),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Icon(
-                  Icons.auto_awesome,
+            ),
+          ),
+          Positioned(
+            left: -8,
+            bottom: -2,
+            child: ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                colors.primary.withValues(alpha: 0.75),
+                BlendMode.srcIn,
+              ),
+              child: Image.asset(
+                'lib/assets/images/plants one.png',
+                width: 104,
+                height: 104,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 20,
+            left: 24,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.nights_stay_outlined,
                   color: colors.primary,
                   size: 18,
                 ),
-              ),
-            ],
+                const SizedBox(width: 7),
+                Text(
+                  'A place to return to',
+                  style: TextStyle(
+                    color: colors.onPrimaryContainer,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
           ),
+          const Center(child: _OpenBookIllustration()),
+          Positioned(
+            left: 24,
+            bottom: 18,
+            child: Text(
+              'One small act at a time',
+              style: TextStyle(
+                color: colors.onPrimaryContainer,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _OpenBookIllustration extends StatelessWidget {
+  const _OpenBookIllustration();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return SizedBox(
+      width: 190,
+      height: 118,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Transform.rotate(
+              angle: -0.06,
+              child: _BookPage(
+                colors: colors,
+                left: true,
+              ),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Transform.rotate(
+              angle: 0.06,
+              child: _BookPage(
+                colors: colors,
+                left: false,
+              ),
+            ),
+          ),
+          Container(
+            width: 2,
+            height: 92,
+            color: colors.primary.withValues(alpha: 0.48),
+          ),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: colors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.balance_rounded,
+              color: colors.onPrimary,
+              size: 19,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BookPage extends StatelessWidget {
+  const _BookPage({required this.colors, required this.left});
+
+  final MizanColors colors;
+  final bool left;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 88,
+    height: 106,
+    decoration: BoxDecoration(
+      color: colors.surfaceElevated,
+      borderRadius: BorderRadius.only(
+        topLeft: Radius.circular(left ? 8 : 3),
+        bottomLeft: Radius.circular(left ? 8 : 3),
+        topRight: Radius.circular(left ? 3 : 8),
+        bottomRight: Radius.circular(left ? 3 : 8),
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: colors.primary.withValues(alpha: 0.12),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
         ),
       ],
+    ),
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(left ? 14 : 10, 26, left ? 10 : 14, 14),
+      child: Column(
+        children: List.generate(
+          4,
+          (index) => Padding(
+            padding: const EdgeInsets.only(bottom: 9),
+            child: Container(
+              height: 2,
+              width: double.infinity,
+              color: colors.borderSubtle,
+            ),
+          ),
+        ),
+      ),
     ),
   );
 }
@@ -320,48 +469,59 @@ class _RhythmVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    height: 210,
+    height: 226,
     width: double.infinity,
-    padding: const EdgeInsets.all(20),
+    padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
     decoration: BoxDecoration(
       color: colors.surfaceElevated,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(24),
       border: Border.all(color: colors.borderSubtle),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
           'A GENTLE CHECK-IN',
           style: TextStyle(
-            color: colors.textMuted,
+            color: colors.primary,
             fontSize: 11,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.1,
           ),
         ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            _RhythmItem(
-              icon: Icons.menu_book_rounded,
-              label: 'Read',
-              colors: colors,
-            ),
-            _RhythmLine(colors: colors),
-            _RhythmItem(
-              icon: Icons.edit_note_rounded,
-              label: 'Reflect',
-              colors: colors,
-            ),
-            _RhythmLine(colors: colors),
-            _RhythmItem(
-              icon: Icons.volunteer_activism_rounded,
-              label: 'Give',
-              colors: colors,
-            ),
-          ],
+        const SizedBox(height: 14),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: _RhythmItem(
+                  icon: Icons.menu_book_rounded,
+                  label: 'Read a page',
+                  detail: 'A little time with the Quran',
+                  colors: colors,
+                ),
+              ),
+              _RhythmLine(colors: colors),
+              Expanded(
+                child: _RhythmItem(
+                  icon: Icons.edit_note_rounded,
+                  label: 'Make space to reflect',
+                  detail: 'Keep what you learn close',
+                  colors: colors,
+                ),
+              ),
+              _RhythmLine(colors: colors),
+              Expanded(
+                child: _RhythmItem(
+                  icon: Icons.volunteer_activism_rounded,
+                  label: 'Let a small act count',
+                  detail: 'Give, even when it is simple',
+                  colors: colors,
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     ),
@@ -372,35 +532,53 @@ class _RhythmItem extends StatelessWidget {
   const _RhythmItem({
     required this.icon,
     required this.label,
+    required this.detail,
     required this.colors,
   });
   final IconData icon;
   final String label;
+  final String detail;
   final MizanColors colors;
 
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Column(
-      children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            color: colors.primaryContainer,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: colors.primary, size: 22),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Container(
+        width: 38,
+        height: 38,
+        decoration: BoxDecoration(
+          color: colors.primaryContainer,
+          shape: BoxShape.circle,
         ),
-        const SizedBox(height: 9),
-        Text(
-          label,
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontWeight: FontWeight.w800,
-          ),
+        child: Icon(icon, color: colors.primary, size: 22),
+      ),
+      const SizedBox(width: 11),
+      Expanded(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              detail,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: colors.textSecondary, fontSize: 11),
+            ),
+          ],
         ),
-      ],
-    ),
+      ),
+    ],
   );
 }
 
@@ -409,8 +587,16 @@ class _RhythmLine extends StatelessWidget {
   final MizanColors colors;
 
   @override
-  Widget build(BuildContext context) =>
-      SizedBox(width: 18, child: Divider(color: colors.border, thickness: 1.5));
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: 19),
+    child: Align(
+      alignment: Alignment.centerLeft,
+      child: SizedBox(
+        height: 14,
+        child: VerticalDivider(color: colors.border, thickness: 1.5, width: 1),
+      ),
+    ),
+  );
 }
 
 class _SpacePage extends StatelessWidget {
@@ -439,18 +625,21 @@ class _SpacePage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
+        _SpaceVisual(colors: colors),
+        const SizedBox(height: 24),
         Text(
-          'How will you\nuse Mizan?',
+          'Begin where\nyou are.',
           style: TextStyle(
             color: colors.textPrimary,
-            fontSize: 36,
-            height: 1.05,
-            fontWeight: FontWeight.w800,
+            fontFamily: 'Georgia',
+            fontSize: 34,
+            height: 1.08,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 14),
         Text(
-          'Choose a starting point. You can change this later.',
+          'Choose the space that fits today. You can change it anytime.',
           style: TextStyle(
             color: colors.textSecondary,
             fontSize: 15,
@@ -484,6 +673,49 @@ class _SpacePage extends StatelessWidget {
           selected: selected,
           colors: colors,
           onSelect: onSelect,
+        ),
+      ],
+    ),
+  );
+}
+
+class _SpaceVisual extends StatelessWidget {
+  const _SpaceVisual({required this.colors});
+  final MizanColors colors;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    height: 112,
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 20),
+    decoration: BoxDecoration(
+      color: colors.surfaceElevated,
+      borderRadius: BorderRadius.circular(24),
+      border: Border.all(color: colors.borderSubtle),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: colors.primaryContainer,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(Icons.balance_rounded, color: colors.primary, size: 28),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            'A practice shaped around your life, not another thing to keep up with.',
+            style: TextStyle(
+              color: colors.textPrimary,
+              fontFamily: 'Georgia',
+              fontSize: 16,
+              height: 1.25,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ),
       ],
     ),

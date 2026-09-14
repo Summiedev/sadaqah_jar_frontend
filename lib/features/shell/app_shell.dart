@@ -74,7 +74,10 @@ class _AppShellState extends ConsumerState<AppShell> {
         // again after login or account restoration.
         await store.load();
         StreakProgressWidgetService.instance.update(store);
-        ConnectivityService.instance.initialize(ref);
+        ConnectivityService.instance.initialize(
+          ref,
+          onBecameOnline: () => QueueSyncService.instance.attemptSync(),
+        );
         QueueSyncService.instance.attemptSync();
       }
     });

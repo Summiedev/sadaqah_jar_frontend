@@ -10,6 +10,7 @@ import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../services/offline_action_queue.dart';
 import '../../services/queue_sync_service.dart';
+import '../../services/connectivity_service.dart';
 
 class AddActScreen extends ConsumerStatefulWidget {
   const AddActScreen({this.familyId, super.key});
@@ -131,6 +132,13 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
     // their jar always succeeds.
     try {
       if (widget.familyId == null) {
+        final online = await ConnectivityService.instance.checkNow().catchError(
+          (_) => false,
+        );
+        if (!online) {
+          await ref.read(actStoreProvider).add(type: type, note: note);
+          await QueueSyncService.instance.enqueueAndSync(queueItem);
+        } else {
         // Try the fast path: add remotely. If it fails (offline or server),
         // fall back to offline-first behaviour by recording locally and
         // enqueuing for background sync so the UI never blocks.
@@ -144,6 +152,7 @@ class _AddActScreenState extends ConsumerState<AddActScreen> {
           try {
             await QueueSyncService.instance.enqueueAndSync(queueItem);
           } catch (_) {}
+        }
         }
       } else {
         // Best-effort sync - never surface errors to the user.

@@ -192,7 +192,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   decoration: BoxDecoration(
                     color: tokens.errorContainer,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: tokens.error.withValues(alpha: 0.45)),
+                    border: Border.all(
+                      color: tokens.error.withValues(alpha: 0.45),
+                    ),
                   ),
                   child: Text(
                     _googleError!,
@@ -201,7 +203,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ),
               _GoogleButton(onTap: _continueWithGoogle, isLoading: _loading),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'Your account keeps your progress available across your devices.',
                 textAlign: TextAlign.center,
                 style: TextStyle(

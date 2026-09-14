@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
-import '../services/backend_api.dart' show BackendApi, NotificationItem;
+import '../services/backend_api.dart'
+    show BackendApi, NotificationItem, backendErrorMessage;
 
 class NotificationCenterScreen extends StatefulWidget {
   const NotificationCenterScreen({super.key, this.onUnreadCountChanged});
@@ -149,7 +150,9 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     widget.onUnreadCountChanged?.call(_unreadCount);
   }
 
-  Future<void> _markRead(int notificationId, int index) async {
+  Future<void> _markRead(int notificationId) async {
+    final currentIndex = _items.indexWhere((item) => item.id == notificationId);
+    if (currentIndex == -1 || _items[currentIndex].isRead) return;
     try {
       await BackendApi.instance.markNotificationRead(notificationId);
       if (!mounted) return;
@@ -160,16 +163,10 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
       );
       if (updatedIndex == -1) return;
       setState(() {
-        _items[updatedIndex] = NotificationItem(
-          id: _items[updatedIndex].id,
-          type: _items[updatedIndex].type,
-          title: _items[updatedIndex].title,
-          body: _items[updatedIndex].body,
-          isRead: true,
-          createdAt: _items[updatedIndex].createdAt,
-          data: _items[updatedIndex].data,
-        );
+        _items[updatedIndex] = _items[updatedIndex].copyWith(isRead: true);
+        if (_unreadCount > 0) _unreadCount -= 1;
       });
+      _notifyUnreadCount();
       _fetchUnreadCount();
     } catch (error) {
       if (!mounted) return;
@@ -181,23 +178,45 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     }
   }
 
+  Future<void> _openNotification(int index) async {
+    if (index < 0 || index >= _items.length) return;
+    final item = _items[index];
+    if (!item.isRead) {
+      await _markRead(item.id);
+      if (!mounted) return;
+    }
+    final path = item.data?['deep_link']?.toString();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: context.colors.surfaceElevated,
+      showDragHandle: true,
+      builder: (sheetContext) => _NotificationDetailSheet(
+        notification: _items.firstWhere(
+          (notification) => notification.id == item.id,
+          orElse: () => item,
+        ),
+        onOpen: path == null || path.isEmpty
+            ? null
+            : () {
+                Navigator.of(sheetContext).pop();
+                GoRouter.of(context).go(path);
+              },
+      ),
+    );
+  }
+
   Future<void> _markAllRead() async {
     try {
       await BackendApi.instance.markAllNotificationsRead();
       if (!mounted) return;
       setState(() {
         for (var i = 0; i < _items.length; i++) {
-          _items[i] = NotificationItem(
-            id: _items[i].id,
-            type: _items[i].type,
-            title: _items[i].title,
-            body: _items[i].body,
-            isRead: true,
-            createdAt: _items[i].createdAt,
-            data: _items[i].data,
-          );
+          _items[i] = _items[i].copyWith(isRead: true);
         }
+        _unreadCount = 0;
       });
+      _notifyUnreadCount();
       _fetchUnreadCount();
     } catch (error) {
       if (!mounted) return;
@@ -398,13 +417,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                   child: _DismissibleNotificationCard(
                                     scale: scale,
                                     notification: notification,
-                                    onTap:
-                                        notification.isRead
-                                            ? null
-                                            : () => _markRead(
-                                              notification.id,
-                                              index,
-                                            ),
+                                    onTap: () => _openNotification(index),
                                     onArchive: () => _archive(index),
                                   ),
                                 );
@@ -814,5 +827,73 @@ class _StateMessage extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _NotificationDetailSheet extends StatelessWidget {
+  const _NotificationDetailSheet({
+    required this.notification,
+    this.onOpen,
+  });
+
+  final NotificationItem notification;
+  final VoidCallback? onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.colors;
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(22, 4, 22, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              notification.title,
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _detailDate(notification.createdAt),
+              style: TextStyle(
+                color: tokens.textMuted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Text(
+              notification.body,
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: 16,
+                height: 1.55,
+              ),
+            ),
+            if (onOpen != null) ...[
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: onOpen,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Open in Mizan'),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _detailDate(String raw) {
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return raw;
+    final local = parsed.toLocal();
+    final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final minute = local.minute.toString().padLeft(2, '0');
+    return '${local.day}/${local.month}/${local.year} at $hour:$minute ${local.hour >= 12 ? 'PM' : 'AM'}';
   }
 }

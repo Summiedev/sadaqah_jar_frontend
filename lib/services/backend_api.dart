@@ -3942,6 +3942,7 @@ class NotificationItem {
     required this.body,
     required this.isRead,
     required this.createdAt,
+    this.action,
     this.data,
   });
 
@@ -3951,7 +3952,19 @@ class NotificationItem {
   final String body;
   final bool isRead;
   final String createdAt;
+  final String? action;
   final Map<String, dynamic>? data;
+
+  NotificationItem copyWith({bool? isRead}) => NotificationItem(
+    id: id,
+    type: type,
+    title: title,
+    body: body,
+    isRead: isRead ?? this.isRead,
+    createdAt: createdAt,
+    action: action,
+    data: data,
+  );
 
   factory NotificationItem.fromJson(Map<String, dynamic> json) {
     return NotificationItem(
@@ -3961,6 +3974,7 @@ class NotificationItem {
       body: (json['body'] ?? json['message'] ?? '').toString(),
       isRead: json['is_read'] as bool? ?? false,
       createdAt: json['created_at']?.toString() ?? '',
+      action: json['action']?.toString(),
       data:
           json['data'] is Map
               ? Map<String, dynamic>.from(json['data'] as Map)

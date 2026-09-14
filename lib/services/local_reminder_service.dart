@@ -25,7 +25,9 @@ class LocalReminderService {
     // [M4] Use a proper IANA timezone (e.g. "Africa/Lagos") resolved from the
     // platform, NOT the ambiguous abbreviation from DateTime.now().timeZoneName.
     await DeviceTimezone.instance.ensureTimezoneInitialized();
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    // Android status-bar icons must be monochrome. Keep the launcher icon for
+    // the app itself, but use Mizan's dedicated small icon for reminders.
+    const android = AndroidInitializationSettings('@drawable/ic_stat_mizan');
     const ios = DarwinInitializationSettings();
     await _local.initialize(
       const InitializationSettings(android: android, iOS: ios),

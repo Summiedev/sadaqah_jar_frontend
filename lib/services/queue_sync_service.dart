@@ -33,9 +33,7 @@ class QueueSyncService {
     await _attemptSync();
   }
 
-  Future<void> attemptSync() async {
-    _attemptSync();
-  }
+  Future<void> attemptSync() => _attemptSync();
 
   Future<void> _attemptSync() async {
     if (_syncing) return;

@@ -266,6 +266,7 @@ class QuranRepository {
   final _statusController = StreamController<QuranDownloadStatus>.broadcast();
   Database? _db;
   Directory? _filesDir;
+  Future<void>? _activeDownload;
 
   Stream<QuranDownloadStatus> get downloadStatus => _statusController.stream;
 
@@ -388,18 +389,25 @@ class QuranRepository {
 
   Future<bool> isOfflineReady() async {
     final prefs = await SharedPreferences.getInstance();
-    if (prefs.getBool(_offlineReadyKey) != true) return false;
     final db = await database;
     final verseCount =
         Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM verses'),
         ) ??
         0;
-    if (verseCount != 6236) return false;
+    var complete = verseCount == 6236;
     for (var page = 1; page <= 604; page++) {
-      if (!await _isPageDownloaded(page)) return false;
+      if (!await _isPageDownloaded(page)) {
+        complete = false;
+        break;
+      }
     }
-    return true;
+    // The persisted flag is only a cache. The stored Quran content is the
+    // source of truth, so repair the flag after an interrupted/restarted app.
+    if (prefs.getBool(_offlineReadyKey) != complete) {
+      await prefs.setBool(_offlineReadyKey, complete);
+    }
+    return complete;
   }
 
   /// Returns whether a single page can be rendered without a session or
@@ -426,7 +434,17 @@ class QuranRepository {
     return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM verses')) ?? 0;
   }
 
-  Future<void> ensureOfflineDataset() async {
+  Future<void> ensureOfflineDataset() {
+    final active = _activeDownload;
+    if (active != null) return active;
+    final operation = _ensureOfflineDataset();
+    _activeDownload = operation;
+    return operation.whenComplete(() {
+      if (identical(_activeDownload, operation)) _activeDownload = null;
+    });
+  }
+
+  Future<void> _ensureOfflineDataset() async {
     await _resetStaleDatasetIfNeeded();
     if (await isOfflineReady()) {
       await _publishDownloadStatus(
@@ -451,11 +469,11 @@ class QuranRepository {
     try {
       // Put the actual Mushaf pages first. The reader becomes useful early,
       // instead of making users wait for all 114 text requests before page 1
-      // is even attempted. Four independent image requests also avoid a
+      // is even attempted. Six independent image requests also avoid a
       // needlessly long serial download while keeping memory bounded.
-      for (var start = 1; start <= 604; start += 4) {
+      for (var start = 1; start <= 604; start += 6) {
         final pages = [
-          for (var page = start; page <= 604 && page < start + 4; page++) page,
+          for (var page = start; page <= 604 && page < start + 6; page++) page,
         ];
         final pending = <int>[];
         for (final page in pages) {
@@ -464,7 +482,6 @@ class QuranRepository {
         await Future.wait(
           pending.map((page) async {
             await _downloadPageImage(page);
-            await _markDownloadUnit(_completedPagesKey, page);
           }),
         );
         completed = await _downloadedUnitCount();
@@ -480,22 +497,36 @@ class QuranRepository {
 
       final translationId = await _resolveHilaliKhanTranslationId();
       final surahMetadata = await BackendApi.instance.getQuranSurahs();
-      for (var chapter = 1; chapter <= 114; chapter++) {
-        if (!await _isChapterDownloaded(chapter)) {
-          await _downloadChapter(
+      // Chapter requests are independent. A small bounded batch makes the
+      // first readable surahs arrive sooner without flooding the API or local
+      // database with an unbounded Future.wait.
+      for (var start = 1; start <= 114; start += 3) {
+        final chapters = [
+          for (var chapter = start;
+              chapter <= 114 && chapter < start + 3;
+              chapter++)
             chapter,
-            translationId,
-            allSurahs: surahMetadata,
-          );
-          await _markDownloadUnit(_completedChaptersKey, chapter);
+        ];
+        final pending = <int>[];
+        for (final chapter in chapters) {
+          if (!await _isChapterDownloaded(chapter)) pending.add(chapter);
         }
+        await Future.wait(
+          pending.map((chapter) async {
+            await _downloadChapter(
+              chapter,
+              translationId,
+              allSurahs: surahMetadata,
+            );
+          }),
+        );
         completed = await _downloadedUnitCount();
         await _publishDownloadStatus(
           QuranDownloadStatus(
             state: QuranDownloadState.downloading,
             completed: completed,
             total: _downloadTotal,
-            message: 'Downloaded surah $chapter of 114',
+            message: 'Downloaded surahs through ${chapters.last} of 114',
           ),
         );
       }
@@ -515,6 +546,12 @@ class QuranRepository {
         ),
       );
     } catch (error) {
+      try {
+        completed = await _downloadedUnitCount();
+      } catch (_) {
+        // Preserve the last known progress if reconciliation itself is the
+        // part that failed (for example while the device is out of space).
+      }
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(_offlineReadyKey, false);
       final waiting = _isNetworkError(error);
@@ -616,14 +653,6 @@ class QuranRepository {
       }
     } catch (_) {}
     return (chapters.length + pages.length).clamp(0, _downloadTotal);
-  }
-
-  Future<void> _markDownloadUnit(String key, int number) async {
-    final prefs = await SharedPreferences.getInstance();
-    final values = {...?prefs.getStringList(key)}..add('$number');
-    final ordered =
-        values.toList()..sort((a, b) => int.parse(a).compareTo(int.parse(b)));
-    await prefs.setStringList(key, ordered);
   }
 
   Future<bool> _isChapterDownloaded(int chapter) async {
@@ -934,7 +963,8 @@ class QuranRepository {
       final response = await http.get(uri).timeout(const Duration(seconds: 20));
       if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
       final pagesDir = p.join((await filesDir).path, 'pages');
-      final file = File(p.join(pagesDir, '$page.png'));
+      final extension = p.extension(uri.path).toLowerCase() == '.svg' ? 'svg' : 'png';
+      final file = File(p.join(pagesDir, '$page.$extension'));
       final partial = File('${file.path}.part');
       await partial.writeAsBytes(response.bodyBytes, flush: true);
       if (await file.exists()) await file.delete();
@@ -1252,7 +1282,7 @@ class QuranRepository {
     }
     final uri = Uri.parse(imageUrl);
     final response = await http.get(uri).timeout(const Duration(seconds: 20));
-    if (response.statusCode != 200) {
+    if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
       throw Exception(
         'Could not download mushaf page $page (${response.statusCode})',
       );

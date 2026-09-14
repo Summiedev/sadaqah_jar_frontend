@@ -631,6 +631,7 @@ class _MizanAppState extends ConsumerState<MizanApp>
         await prefs.remove('pending_notification_payload');
         // H1: decode structured JSON payload and resolve to a safe destination.
         final decoded = decodeNotificationPayload(payload);
+        await markNotificationOpened(decoded);
         final resolved = resolveNotificationDestination(decoded);
         if (resolved != null && mounted) {
           ref.read(routerProvider).go(resolved.route);

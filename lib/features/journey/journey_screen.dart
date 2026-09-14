@@ -1255,16 +1255,35 @@ class _HistorialTabState extends State<_HistorialTab> {
             message: 'Your journey begins with the first step.',
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 34),
           physics: const BouncingScrollPhysics(),
-          itemCount: items.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 14),
+          itemCount: items.length + 1,
           itemBuilder: (context, index) {
-            final refl = items[index];
-            return _TimelineItem(
-              Icons.edit_note_outlined,
-              '${refl.mood}: ${refl.title}',
+            if (index == 0) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: Row(
+                  children: [
+                    Icon(Icons.auto_stories_outlined, color: colors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        '${page!.total} reflection${page.total == 1 ? '' : 's'} in your journey',
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+            final reflection = items[index - 1];
+            return _HistoryTimelineItem(
+              reflection: reflection,
+              isLast: index == items.length,
             );
           },
         );
@@ -1273,41 +1292,186 @@ class _HistorialTabState extends State<_HistorialTab> {
   }
 }
 
-class _TimelineItem extends StatelessWidget {
-  const _TimelineItem(this.icon, this.text);
-  final IconData icon;
-  final String text;
+class _HistoryTimelineItem extends StatelessWidget {
+  const _HistoryTimelineItem({required this.reflection, required this.isLast});
+
+  final JourneyReflection reflection;
+  final bool isLast;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 33,
-            height: 33,
-            decoration: BoxDecoration(
-              color: colors.primaryContainer,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, size: 17, color: colors.primary),
+    final date = DateTime.tryParse(
+      reflection.date ?? reflection.createdAt,
+    )?.toLocal();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 30,
+          child: Column(
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                margin: const EdgeInsets.only(top: 19),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.background, width: 3),
+                ),
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: colors.borderSubtle,
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 5),
-              child: Text(
-                text,
-                style: TextStyle(color: colors.textSecondary, height: 1.5),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Material(
+              color: colors.surfaceElevated,
+              borderRadius: BorderRadius.circular(MizanRadii.card),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(MizanRadii.card),
+                onTap:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder:
+                            (_) => _ReflectionDetailPage(
+                              reflection: reflection,
+                            ),
+                      ),
+                    ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              _historyDateLabel(date),
+                              style: TextStyle(
+                                color: colors.textMuted,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          if (reflection.mood.trim().isNotEmpty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.primaryContainer,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                reflection.mood,
+                                style: TextStyle(
+                                  color: colors.onPrimaryContainer,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        reflection.title.trim().isEmpty
+                            ? 'Untitled reflection'
+                            : reflection.title,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      if (reflection.body.trim().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          reflection.body,
+                          maxLines: 4,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            height: 1.5,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Icon(
+                            reflection.isPrivate
+                                ? Icons.lock_outline_rounded
+                                : Icons.people_outline_rounded,
+                            size: 15,
+                            color: colors.textMuted,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            reflection.isPrivate
+                                ? 'Private journal'
+                                : 'Shared with your journey',
+                            style: TextStyle(
+                              color: colors.textMuted,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            'Read note',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
+}
+
+String _historyDateLabel(DateTime? date) {
+  if (date == null) return 'Date not recorded';
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
 class _ReaderData {
