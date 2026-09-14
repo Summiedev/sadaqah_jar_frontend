@@ -1595,7 +1595,7 @@ class _UthmaniTextPage extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
-                  '\u0645\u0635\u062D\u0641  \u2022  $page',
+                  '/* REMOVED BY REPOGUARD: obfuscated hex payload */ ''  \u2022  $page',
                   textDirection: TextDirection.rtl,
                   style: TextStyle(
                     color: tokens.primary,
@@ -1648,7 +1648,7 @@ class _UthmaniTextPage extends StatelessWidget {
 }
 
 String _arabicIndicNumber(int value) {
-  const digits = '\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669';
+  const digits = '/* REMOVED BY REPOGUARD: obfuscated hex payload */ ''';
   return value
       .toString()
       .split('')
