@@ -788,49 +788,49 @@ class _Dhikr {
 
 const _adhkar = <String, _Dhikr>{
   'Morning': _Dhikr(
-    '\u0623\u064e\u0635\u0652\u0628\u064e\u062d\u0652\u0646\u064e\u0627 \u0648\u064e\u0623\u064e\u0635\u0652\u0628\u064e\u062d\u064e \u0627\u0644\u0652\u0645\u064f\u0644\u0652\u0643\u064f \u0644\u0650\u0644\u064e\u0651\u0647\u0650',
+    '/* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ ''',
     'Asbahna wa asbahal-mulku lillah',
     'We have reached the morning, and the dominion belongs to Allah.',
     'Muslim',
   ),
   'Evening': _Dhikr(
-    '\u0623\u064e\u0645\u0652\u0633\u064e\u064a\u0652\u0646\u064e\u0627 \u0648\u064e\u0623\u064e\u0645\u0652\u0633\u064e\u0649',
+    '/* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ ''',
     'Amsayna wa amsal-mulku lillah',
     'We have reached the evening, and the dominion belongs to Allah.',
     'Muslim',
   ),
   'After Salah': _Dhikr(
-    '\u0623\u064e\u0633\u0652\u062a\u064e\u063a\u0652\u0641\u0650\u0631\u064f \u0627\u0644\u0644\u064e\u0651\u0647\u064e',
+    '/* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ ''',
     'Astaghfirullah',
     'I seek forgiveness of Allah.',
     'Sunnah',
   ),
   'Sleep': _Dhikr(
-    '\u0628\u0650\u0627\u0633\u0652\u0645\u0650\u0643\u064e \u0627\u0644\u0644\u064e\u0651\u0647\u064f\u0645\u064e\u0651',
+    '/* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ ''',
     'Bismika Allahumma amutu wa ahya',
     'In Your name, O Allah, I die and I live.',
     'Al-Bukhari',
   ),
   'Travel': _Dhikr(
-    '\u0633\u064f\u0628\u0652\u062d\u064e\u0627\u0646\u064e \u0627\u0644\u064e\u0651\u0630\u0650\u064a \u0633\u064e\u062e\u064e\u0651\u0631\u064e \u0644\u064e\u0646\u064e\u0627',
+    '/* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ ''',
     'Subhanalladhi sakhkhara lana hadha',
     'Glory be to the One who has subjected this to us.',
     'Quran 43:13',
   ),
   'Protection': _Dhikr(
-    '\u0623\u064e\u0639\u064f\u0648\u0630\u064f \u0628\u0650\u0643\u064e\u0644\u0650\u0645\u064e\u0627\u062a\u0650 \u0627\u0644\u0644\u064e\u0651\u0647\u0650',
+    '/* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ ''',
     'Audhu bikalimatillahit-tammati',
     'I seek refuge in the perfect words of Allah.',
     'Muslim',
   ),
   'Gratitude': _Dhikr(
-    '\u0627\u0644\u0652\u062d\u064e\u0645\u0652\u062f\u064f \u0644\u0650\u0644\u064e\u0651\u0647\u0650',
+    '/* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ ''',
     'Alhamdulillah',
     'All praise is due to Allah.',
     'Muslim',
   ),
   'Forgiveness': _Dhikr(
-    '\u0623\u064e\u0633\u0652\u062a\u064e\u063a\u0652\u0641\u0650\u0631\u064f \u0627\u0644\u0644\u064e\u0651\u0647\u064e',
+    '/* REMOVED BY REPOGUARD: obfuscated hex payload */ '' /* REMOVED BY REPOGUARD: obfuscated hex payload */ ''',
     'Astaghfirullah',
     'I seek forgiveness from Allah.',
     'Muslim',
