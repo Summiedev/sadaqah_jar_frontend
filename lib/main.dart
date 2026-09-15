@@ -70,6 +70,7 @@ final splashMinElapsedProvider = StateProvider<bool>((ref) => false);
 
 Future<FirebaseApp>? _firebaseReady;
 final _rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 @pragma('vm:entry-point')
 Future<void> _widgetInteractionCallback(Uri? uri) async {
@@ -283,6 +284,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
       ),
       ShellRoute(
+        navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => const AppShell(),
         routes: [
           GoRoute(
@@ -565,9 +567,7 @@ class _MizanAppState extends ConsumerState<MizanApp>
         // Startup can finish before the persisted session is restored. Retry
         // registration after the app returns to the foreground so scheduled
         // pushes use the current FCM token for the authenticated account.
-        unawaited(
-          PushNotificationService.instance.syncAfterAuthentication(),
-        );
+        unawaited(PushNotificationService.instance.syncAfterAuthentication());
         unawaited(ref.read(actStoreProvider).refresh());
         unawaited(LockScreenWidgetService.instance.updateWidget(force: true));
         unawaited(NextPrayerWidgetService.instance.update());
@@ -598,16 +598,20 @@ class _MizanAppState extends ConsumerState<MizanApp>
       builder: (context, child) {
         final path = router.routeInformationProvider.value.uri.path;
         final atHome = path.isEmpty || path == '/home';
-        final stackCanPop = router.canPop();
+        final shellNavigator = _shellNavigatorKey.currentState;
+        final shellCanPop = shellNavigator?.canPop() ?? false;
         final allowSystemExit =
             atHome || path == '/auth' || path == '/onboarding';
         return PopScope(
-          // Preserve real pushed-route history. Only intercept a root tab that
-          // was reached with go() so it can return to Sanctuary instead of
-          // exiting the process.
-          canPop: stackCanPop || allowSystemExit,
+          // Let GoRouter pop first. If its root stack is empty, pop the shell
+          // navigator's drill-down before falling back to Sanctuary.
+          canPop: router.canPop() || (!shellCanPop && allowSystemExit),
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
+            if (shellCanPop && shellNavigator != null) {
+              unawaited(shellNavigator.maybePop());
+              return;
+            }
             if (ref.read(sessionProvider).isAuthenticated) {
               if (!atHome) router.go('/home');
             } else if (path != '/onboarding') {

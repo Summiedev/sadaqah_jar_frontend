@@ -475,6 +475,22 @@ class _NotificationPreferencesScreenState
             onChanged: (value) => _setReminderPreference('tahajjud', value),
             activeThumbColor: colors.primary,
           ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Nawafil after Salah',
+              style: TextStyle(color: colors.textPrimary),
+            ),
+            subtitle: Text(
+              '15 minutes after Dhuhr, Maghrib and Isha. No reminder after Fajr or Asr.',
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
+            value:
+                _reminderPreferences['nawafil_after_salah'] as bool? ?? false,
+            onChanged:
+                (value) => _setReminderPreference('nawafil_after_salah', value),
+            activeThumbColor: colors.primary,
+          ),
         ],
       ),
     );

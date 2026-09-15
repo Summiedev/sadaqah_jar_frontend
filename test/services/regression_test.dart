@@ -63,6 +63,9 @@ void main() {
       await QuranRepository.instance.recordPageRead(2);
 
       expect(await QuranRepository.instance.readingDaysLast30(), 1);
+      final days = await QuranRepository.instance.readingDays();
+      final now = DateTime.now();
+      expect(days, [DateTime(now.year, now.month, now.day)]);
       expect(activityUpdates, 1);
       await subscription.cancel();
     });

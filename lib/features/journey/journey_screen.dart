@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +15,7 @@ import 'travel_adhkar_screen.dart';
 import 'others_adhkar_screen.dart';
 import 'book_reader_screen.dart';
 import 'quran/quran_screen.dart';
+import 'quran/quran_data.dart';
 import 'reflection_action_suggestion.dart';
 import '../../widgets/mizan_async_state.dart';
 
@@ -79,7 +79,7 @@ class _JourneyScreenState extends State<JourneyScreen>
                 floating: false,
                 toolbarHeight: 58,
                 elevation: dark ? 0 : 6,
-        shadowColor: colors.scrim.withValues(alpha: dark ? 0 : 0.14),
+                shadowColor: colors.scrim.withValues(alpha: dark ? 0 : 0.14),
                 scrolledUnderElevation: dark ? 0 : 6,
                 backgroundColor: colors.surface,
                 foregroundColor: colors.textPrimary,
@@ -283,7 +283,9 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
       _error = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(showReflectionActionSuggestion(context, reflection));
+      if (mounted) {
+        unawaited(showReflectionActionSuggestion(context, reflection));
+      }
     });
   }
 
@@ -946,16 +948,12 @@ class _Counter extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color:
-              value > 0 ? colors.successContainer : colors.primaryContainer,
+          color: value > 0 ? colors.successContainer : colors.primaryContainer,
           borderRadius: BorderRadius.circular(999),
         ),
         child: Text(
           '$value',
-          style: TextStyle(
-            color: colors.primary,
-            fontWeight: FontWeight.w700,
-          ),
+          style: TextStyle(color: colors.primary, fontWeight: FontWeight.w700),
         ),
       ),
     );
@@ -991,7 +989,6 @@ class _ReadingTabState extends State<_ReadingTab> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     return FutureBuilder<List<BookRead>>(
       future: _booksFuture,
       builder: (context, snapshot) {
@@ -1167,8 +1164,7 @@ class _SavedTabState extends State<_SavedTab> {
         if (snapshot.hasError) {
           return MizanErrorState(
             title: 'Could not load saved items',
-            message:
-                'Your saved items could not be loaded. Please try again.',
+            message: 'Your saved items could not be loaded. Please try again.',
             onRetry: _retry,
           );
         }
@@ -1177,8 +1173,7 @@ class _SavedTabState extends State<_SavedTab> {
           return const MizanEmptyState(
             icon: Icons.bookmark_border_rounded,
             title: 'No saved items yet',
-            message:
-                'Explore adhkar and reflections to build your collection.',
+            message: 'Explore adhkar and reflections to build your collection.',
           );
         }
         return ListView.separated(
@@ -1216,78 +1211,287 @@ class _HistorialTab extends StatefulWidget {
 }
 
 class _HistorialTabState extends State<_HistorialTab> {
-  late Future<JourneyReflectionPage> _future;
+  late Future<_HistoryLoad> _future;
+  StreamSubscription<DateTime>? _readingActivitySubscription;
 
   @override
   void initState() {
     super.initState();
-    _future = BackendApi.instance.getReflections();
+    _future = _loadHistory();
+    reflectionRevision.addListener(_onHistoryChanged);
+    _readingActivitySubscription = QuranRepository.instance.readingActivity
+        .listen((_) => _reload());
   }
 
-  void _retry() {
-    setState(() {
-      _future = BackendApi.instance.getReflections();
-    });
+  @override
+  void dispose() {
+    reflectionRevision.removeListener(_onHistoryChanged);
+    _readingActivitySubscription?.cancel();
+    super.dispose();
+  }
+
+  void _onHistoryChanged() => _reload();
+
+  void _reload() {
+    if (!mounted) return;
+    setState(() => _future = _loadHistory());
+  }
+
+  Future<void> _refresh() async {
+    _reload();
+    await _future;
+  }
+
+  Future<_HistoryLoad> _loadHistory() async {
+    List<DateTime> readingDays = const [];
+    List<JourneyReflection> reflections = const [];
+    Object? loadError;
+    try {
+      readingDays = await QuranRepository.instance.readingDays();
+    } catch (error) {
+      loadError = error;
+    }
+    try {
+      reflections = (await BackendApi.instance.getReflections()).items;
+    } catch (error) {
+      loadError ??= error;
+    }
+    return _HistoryLoad(
+      reflections: reflections,
+      readingDays: readingDays,
+      error: loadError,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return FutureBuilder<JourneyReflectionPage>(
+    return FutureBuilder<_HistoryLoad>(
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const MizanLoadingState(label: 'Loading your history...');
         }
-        if (snapshot.hasError) {
+        final loaded = snapshot.data;
+        if (snapshot.hasError || loaded == null) {
           return MizanErrorState(
             title: 'Could not load history',
             message: 'Your history could not be loaded. Please try again.',
-            onRetry: _retry,
+            onRetry: _reload,
           );
         }
-        final page = snapshot.data;
-        final items = page?.items ?? const [];
-        if (items.isEmpty) {
-          return const MizanEmptyState(
-            icon: Icons.history_rounded,
-            title: 'No history yet',
-            message: 'Your journey begins with the first step.',
+        final events = <_HistoryEvent>[
+          for (final reflection in loaded.reflections)
+            _HistoryEvent(
+              date:
+                  DateTime.tryParse(
+                    reflection.date ?? reflection.createdAt,
+                  )?.toLocal(),
+              reflection: reflection,
+            ),
+          for (final day in loaded.readingDays) _HistoryEvent(date: day),
+        ]..sort((a, b) {
+          if (a.date == null) return 1;
+          if (b.date == null) return -1;
+          return b.date!.compareTo(a.date!);
+        });
+        if (events.isEmpty && loaded.error != null) {
+          return MizanErrorState(
+            title: 'Could not load history',
+            message: backendErrorMessage(
+              loaded.error!,
+              fallback: 'Your history could not be loaded. Please try again.',
+            ),
+            onRetry: _reload,
           );
         }
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 34),
-          physics: const BouncingScrollPhysics(),
-          itemCount: items.length + 1,
-          itemBuilder: (context, index) {
-            if (index == 0) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 18),
-                child: Row(
-                  children: [
-                    Icon(Icons.auto_stories_outlined, color: colors.primary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        '${page!.total} reflection${page.total == 1 ? '' : 's'} in your journey',
-                        style: TextStyle(
-                          color: colors.textSecondary,
-                          fontWeight: FontWeight.w700,
+        if (events.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            color: colors.primary,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                SizedBox(
+                  height: 420,
+                  child: MizanEmptyState(
+                    icon: Icons.history_rounded,
+                    title: 'Your journey starts here',
+                    message:
+                        'Quran reading days and reflections will appear here as you build your practice.',
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          color: colors.primary,
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 34),
+            physics: const AlwaysScrollableScrollPhysics(),
+            itemCount: events.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(height: 0),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                final noteCount = loaded.reflections.length;
+                final readingCount = loaded.readingDays.length;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 18),
+                  child: Row(
+                    children: [
+                      Icon(Icons.auto_stories_outlined, color: colors.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '$noteCount reflection${noteCount == 1 ? '' : 's'}  ·  $readingCount Quran reading day${readingCount == 1 ? '' : 's'}',
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
+                      IconButton(
+                        tooltip: 'Refresh history',
+                        onPressed: _reload,
+                        icon: Icon(
+                          Icons.refresh_rounded,
+                          color: colors.iconSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              final event = events[index - 1];
+              if (event.reflection case final reflection?) {
+                return _HistoryTimelineItem(
+                  reflection: reflection,
+                  isLast: index == events.length,
+                );
+              }
+              return _QuranReadingHistoryItem(
+                date: event.date,
+                isLast: index == events.length,
               );
-            }
-            final reflection = items[index - 1];
-            return _HistoryTimelineItem(
-              reflection: reflection,
-              isLast: index == items.length,
-            );
-          },
+            },
+          ),
         );
       },
+    );
+  }
+}
+
+class _HistoryLoad {
+  const _HistoryLoad({
+    required this.reflections,
+    required this.readingDays,
+    this.error,
+  });
+
+  final List<JourneyReflection> reflections;
+  final List<DateTime> readingDays;
+  final Object? error;
+}
+
+class _HistoryEvent {
+  const _HistoryEvent({this.date, this.reflection});
+
+  final DateTime? date;
+  final JourneyReflection? reflection;
+}
+
+class _QuranReadingHistoryItem extends StatelessWidget {
+  const _QuranReadingHistoryItem({required this.date, required this.isLast});
+
+  final DateTime? date;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 30,
+          child: Column(
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                margin: const EdgeInsets.only(top: 19),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.background, width: 3),
+                ),
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: colors.borderSubtle,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+              decoration: BoxDecoration(
+                color: colors.surfaceElevated,
+                borderRadius: BorderRadius.circular(MizanRadii.card),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.menu_book_rounded, color: colors.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _historyDateLabel(date),
+                          style: TextStyle(
+                            color: colors.textMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          'Quran reading',
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          'A day spent with the Mushaf.',
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            height: 1.4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1301,9 +1505,8 @@ class _HistoryTimelineItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final date = DateTime.tryParse(
-      reflection.date ?? reflection.createdAt,
-    )?.toLocal();
+    final date =
+        DateTime.tryParse(reflection.date ?? reflection.createdAt)?.toLocal();
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1345,9 +1548,8 @@ class _HistoryTimelineItem extends StatelessWidget {
                     () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder:
-                            (_) => _ReflectionDetailPage(
-                              reflection: reflection,
-                            ),
+                            (_) =>
+                                _ReflectionDetailPage(reflection: reflection),
                       ),
                     ),
                 child: Padding(

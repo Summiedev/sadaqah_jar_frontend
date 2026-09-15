@@ -250,12 +250,7 @@ class QuranRepository {
   static const sourcePlan =
       'Mizan backend imports Quran.Foundation Content API data into PostgreSQL. Flutter syncs only from Mizan and stores the Quran locally for offline reading.';
   static const hilaliKhanTranslationId = 203;
-  static const reciters = <String, int>{
-    'Mishary Rashid Alafasy': 7,
-    'Abdul Basit': 1,
-    'Saad Al Ghamdi': 3,
-    'Maher Al Muaiqly': 4,
-  };
+  static const reciters = <String, int>{'Mishary Rashid Alafasy': 7};
 
   static const _settingsKey = 'mizan.quran.settings';
   static const _progressKey = 'mizan.quran.progress';
@@ -442,7 +437,10 @@ class QuranRepository {
 
   Future<int> offlineAyahCount() async {
     final db = await database;
-    return Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM verses')) ?? 0;
+    return Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM verses'),
+        ) ??
+        0;
   }
 
   Future<void> ensureOfflineDataset() {
@@ -513,9 +511,11 @@ class QuranRepository {
       // database with an unbounded Future.wait.
       for (var start = 1; start <= 114; start += 3) {
         final chapters = [
-          for (var chapter = start;
-              chapter <= 114 && chapter < start + 3;
-              chapter++)
+          for (
+            var chapter = start;
+            chapter <= 114 && chapter < start + 3;
+            chapter++
+          )
             chapter,
         ];
         final pending = <int>[];
@@ -682,12 +682,10 @@ class QuranRepository {
   Future<bool> _isPageDownloaded(int page) async {
     final dir = Directory(p.join((await filesDir).path, 'pages'));
     if (!await dir.exists()) return false;
-    return ['png', 'jpg', 'jpeg', 'svg'].any(
-      (extension) {
-        final file = File(p.join(dir.path, '$page.$extension'));
-        return file.existsSync() && file.lengthSync() > 0;
-      },
-    );
+    return ['png', 'jpg', 'jpeg', 'svg'].any((extension) {
+      final file = File(p.join(dir.path, '$page.$extension'));
+      return file.existsSync() && file.lengthSync() > 0;
+    });
   }
 
   Future<List<QuranSurah>> surahs() async {
@@ -974,7 +972,8 @@ class QuranRepository {
       final response = await http.get(uri).timeout(const Duration(seconds: 20));
       if (response.statusCode != 200 || response.bodyBytes.isEmpty) return null;
       final pagesDir = p.join((await filesDir).path, 'pages');
-      final extension = p.extension(uri.path).toLowerCase() == '.svg' ? 'svg' : 'png';
+      final extension =
+          p.extension(uri.path).toLowerCase() == '.svg' ? 'svg' : 'png';
       final file = File(p.join(pagesDir, '$page.$extension'));
       final partial = File('${file.path}.part');
       await partial.writeAsBytes(response.bodyBytes, flush: true);
@@ -1013,15 +1012,22 @@ class QuranRepository {
         p.join(audioDir.path, '${verse.key.replaceAll(':', '_')}.mp3'),
       );
       if (await file.exists()) {
-        bytes += await file.length();
-        continue;
+        final length = await file.length();
+        if (length > 0) {
+          bytes += length;
+          continue;
+        }
+        await file.delete();
       }
       final uri = await audioUriFor(verse, settings);
       final response = await http.get(uri).timeout(const Duration(seconds: 30));
-      if (response.statusCode != 200) {
+      if (response.statusCode != 200 || response.bodyBytes.isEmpty) {
         throw Exception('Could not download audio for ${verse.key}');
       }
-      await file.writeAsBytes(response.bodyBytes, flush: true);
+      final partial = File('${file.path}.part');
+      await partial.writeAsBytes(response.bodyBytes, flush: true);
+      if (await file.exists()) await file.delete();
+      await partial.rename(file.path);
       bytes += response.bodyBytes.length;
     }
     return bytes;
@@ -1041,7 +1047,7 @@ class QuranRepository {
         '${verse.key.replaceAll(':', '_')}.mp3',
       ),
     );
-    return file.existsSync() ? file : null;
+    return file.existsSync() && file.lengthSync() > 0 ? file : null;
   }
 
   Future<QuranSettings> loadSettings() async {
@@ -1049,7 +1055,11 @@ class QuranRepository {
     final raw = prefs.getString(_settingsKey);
     if (raw == null) return QuranSettings.defaults;
     try {
-      return QuranSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final saved = QuranSettings.fromJson(
+        jsonDecode(raw) as Map<String, dynamic>,
+      );
+      if (reciters.containsKey(saved.reciter)) return saved;
+      return saved.copyWith(reciter: reciters.keys.first);
     } catch (_) {
       return QuranSettings.defaults;
     }
@@ -1134,8 +1144,22 @@ class QuranRepository {
     return (prefs.getStringList(_readingDaysKey) ?? const <String>[])
         .map(_parseDay)
         .whereType<DateTime>()
-        .where((day) => !day.isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)))
+        .where(
+          (day) =>
+              !day.isBefore(DateTime(cutoff.year, cutoff.month, cutoff.day)),
+        )
         .length;
+  }
+
+  Future<List<DateTime>> readingDays() async {
+    final prefs = await SharedPreferences.getInstance();
+    final days =
+        (prefs.getStringList(_readingDaysKey) ?? const <String>[])
+            .map(_parseDay)
+            .whereType<DateTime>()
+            .toList()
+          ..sort((a, b) => b.compareTo(a));
+    return days;
   }
 
   Future<int> readingReflectionCount() async {
@@ -1148,7 +1172,9 @@ class QuranRepository {
 
   DateTime? _parseDay(String value) {
     final parsed = DateTime.tryParse(value);
-    return parsed == null ? null : DateTime(parsed.year, parsed.month, parsed.day);
+    return parsed == null
+        ? null
+        : DateTime(parsed.year, parsed.month, parsed.day);
   }
 
   Future<void> _saveLocalProgress(QuranProgress progress) async {
