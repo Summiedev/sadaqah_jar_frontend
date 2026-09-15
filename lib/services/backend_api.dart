@@ -1210,6 +1210,7 @@ class BackendApi {
     String? frequency,
     Map<String, bool>? categories,
     Map<String, dynamic>? quietHours,
+    Map<String, dynamic>? reminderPreferences,
   }) async {
     final response = await _put(
       '/notifications/preferences',
@@ -1219,6 +1220,8 @@ class BackendApi {
         if (frequency != null) 'frequency': frequency,
         if (categories != null) 'categories': categories,
         if (quietHours != null) 'quiet_hours': quietHours,
+        if (reminderPreferences != null)
+          'reminder_preferences': reminderPreferences,
       }),
     );
     final decoded = _handleJson(response);
@@ -1846,20 +1849,52 @@ class BackendApi {
     ).map((item) => expectMap(item, context: 'quran ayah')).toList();
   }
 
+  Future<Set<String>> getPrayerCompletions(DateTime localDate) async {
+    final response = await _get(
+      '/journey/prayers/progress',
+      auth: true,
+      query: {'local_date': localDate.toIso8601String().substring(0, 10)},
+    );
+    final decoded = _handleJson(response);
+    final data = expectMap(decoded, context: 'prayer progress');
+    final completed = data['completed_prayers'];
+    if (completed is! List) return <String>{};
+    return completed.map((item) => item.toString().toLowerCase()).toSet();
+  }
+
+  Future<void> setPrayerCompletion({
+    required DateTime localDate,
+    required String prayerName,
+    required bool completed,
+  }) async {
+    final response = await _put(
+      '/journey/prayers/progress',
+      auth: true,
+      body: jsonEncode({
+        'local_date': localDate.toIso8601String().substring(0, 10),
+        'prayer_name': prayerName.toLowerCase(),
+        'completed': completed,
+      }),
+    );
+    _handleJson(response);
+  }
+
   Future<List<Map<String, dynamic>>> getQuranJuzAyahs(int juzNumber) async {
     final response = await _get('/quran/juz/$juzNumber', auth: true);
     final decoded = _handleJson(response);
-    return expectList(decoded, context: 'quran juz ayahs')
-        .map((item) => expectMap(item, context: 'quran juz ayah'))
-        .toList();
+    return expectList(
+      decoded,
+      context: 'quran juz ayahs',
+    ).map((item) => expectMap(item, context: 'quran juz ayah')).toList();
   }
 
   Future<List<Map<String, dynamic>>> getQuranHizbAyahs(int hizbNumber) async {
     final response = await _get('/quran/hizb/$hizbNumber', auth: true);
     final decoded = _handleJson(response);
-    return expectList(decoded, context: 'quran hizb ayahs')
-        .map((item) => expectMap(item, context: 'quran hizb ayah'))
-        .toList();
+    return expectList(
+      decoded,
+      context: 'quran hizb ayahs',
+    ).map((item) => expectMap(item, context: 'quran hizb ayah')).toList();
   }
 
   Future<Map<String, dynamic>> getQuranPage(int pageNumber) async {
@@ -3269,10 +3304,13 @@ class CharityPage {
 
   factory CharityPage.fromJson(dynamic raw) {
     if (raw is List) {
-      final rows = raw
-          .whereType<Map>()
-          .map((item) => CharityItem.fromJson(Map<String, dynamic>.from(item)))
-          .toList();
+      final rows =
+          raw
+              .whereType<Map>()
+              .map(
+                (item) => CharityItem.fromJson(Map<String, dynamic>.from(item)),
+              )
+              .toList();
       return CharityPage(
         total: rows.length,
         limit: rows.length,
@@ -3280,9 +3318,10 @@ class CharityPage {
         data: rows,
       );
     }
-    final json = raw is Map<String, dynamic>
-        ? raw
-        : raw is Map
+    final json =
+        raw is Map<String, dynamic>
+            ? raw
+            : raw is Map
             ? Map<String, dynamic>.from(raw)
             : <String, dynamic>{};
     final rows =

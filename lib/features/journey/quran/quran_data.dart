@@ -139,6 +139,13 @@ class QuranRangeItem {
 }
 
 class QuranSettings {
+  static const minArabicSize = 24.0;
+  static const maxArabicSize = 40.0;
+  static const arabicSizeDivisions = 16;
+
+  static double normalizeArabicSize(double value) =>
+      value.clamp(minArabicSize, maxArabicSize).roundToDouble();
+
   const QuranSettings({
     required this.showPronunciation,
     required this.showTranslation,
@@ -182,7 +189,7 @@ class QuranSettings {
       showWordMeanings: showWordMeanings ?? this.showWordMeanings,
       showTafsir: showTafsir ?? this.showTafsir,
       reciter: reciter ?? this.reciter,
-      arabicSize: arabicSize ?? this.arabicSize,
+      arabicSize: normalizeArabicSize(arabicSize ?? this.arabicSize),
       readingMode: readingMode ?? this.readingMode,
     );
   }
@@ -206,7 +213,9 @@ class QuranSettings {
         json['showWordMeanings'] as bool? ?? defaults.showWordMeanings,
     showTafsir: json['showTafsir'] as bool? ?? defaults.showTafsir,
     reciter: json['reciter'] as String? ?? defaults.reciter,
-    arabicSize: (json['arabicSize'] as num?)?.toDouble() ?? defaults.arabicSize,
+    arabicSize: normalizeArabicSize(
+      (json['arabicSize'] as num?)?.toDouble() ?? defaults.arabicSize,
+    ),
     readingMode: _readingModeFromJson(json['readingMode']),
   );
 
@@ -264,11 +273,13 @@ class QuranRepository {
   static const _downloadTotal = 114 + 604;
 
   final _statusController = StreamController<QuranDownloadStatus>.broadcast();
+  final _readingActivityController = StreamController<DateTime>.broadcast();
   Database? _db;
   Directory? _filesDir;
   Future<void>? _activeDownload;
 
   Stream<QuranDownloadStatus> get downloadStatus => _statusController.stream;
+  Stream<DateTime> get readingActivity => _readingActivityController.stream;
 
   void emitDownloadStatus(QuranDownloadStatus status) {
     _statusController.add(status);
@@ -1098,13 +1109,15 @@ class QuranRepository {
       _readingReflectionsKey,
       (prefs.getInt(_readingReflectionsKey) ?? 0) + 1,
     );
+    _readingActivityController.add(DateTime.now());
   }
 
   Future<void> recordPageRead(int page) async {
     if (page < 1 || page > 604) return;
     final prefs = await SharedPreferences.getInstance();
     final today = _dayKey(DateTime.now());
-    final days = {...?prefs.getStringList(_readingDaysKey)}..add(today);
+    final days = {...?prefs.getStringList(_readingDaysKey)};
+    final isNewReadingDay = days.add(today);
     final sorted = days.toList()..sort();
     // Keep the local rhythm small and useful. It is device-local by design,
     // just like the offline reading cache, and never blocks reading.
@@ -1112,6 +1125,7 @@ class QuranRepository {
       _readingDaysKey,
       sorted.length > 120 ? sorted.sublist(sorted.length - 120) : sorted,
     );
+    if (isNewReadingDay) _readingActivityController.add(DateTime.now());
   }
 
   Future<int> readingDaysLast30() async {

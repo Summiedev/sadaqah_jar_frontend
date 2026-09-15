@@ -461,6 +461,11 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
                   elevation: 0,
                   title: const Text('Family'),
                   actions: [
+                    IconButton(
+                      onPressed: () => context.push('/qibla'),
+                      tooltip: 'Qibla direction',
+                      icon: Icon(Icons.explore_outlined, color: tokens.primary),
+                    ),
                     PopupMenuButton<String>(
                       tooltip: 'Create or join a family',
                       icon: Icon(Icons.add_rounded, color: tokens.iconPrimary),

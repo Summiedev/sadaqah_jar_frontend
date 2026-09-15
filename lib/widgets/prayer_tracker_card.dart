@@ -1,9 +1,11 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/prayer_countdown_service.dart';
-import '../core/theme/app_theme.dart';
+import '../services/backend_api.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/theme/theme_extensions.dart';
 
@@ -45,6 +47,85 @@ class _PrayerTrackerCardState extends State<PrayerTrackerCard> {
     final list = prefs.getStringList(_storageKey) ?? <String>[];
     if (!mounted) return;
     setState(() => _completed = list.toSet());
+    await _syncWithBackend(prefs, _today);
+  }
+
+  Future<void> _syncWithBackend(
+    SharedPreferences prefs,
+    DateTime localDate,
+  ) async {
+    final pendingKey = 'prayer_completion_pending_${_dateKey(localDate)}';
+    final pending = _readPending(prefs.getString(pendingKey));
+    try {
+      for (final entry in pending.entries.toList()) {
+        await BackendApi.instance.setPrayerCompletion(
+          localDate: localDate,
+          prayerName: entry.key,
+          completed: entry.value,
+        );
+        pending.remove(entry.key);
+        await prefs.setString(pendingKey, jsonEncode(pending));
+      }
+
+      final remote = await BackendApi.instance.getPrayerCompletions(localDate);
+      final local =
+          (prefs.getStringList(_storageKey) ?? <String>[])
+              .map((name) => name.toLowerCase())
+              .toSet();
+      final merged = <String>{...remote, ...local};
+      for (final name in local.difference(remote)) {
+        await BackendApi.instance.setPrayerCompletion(
+          localDate: localDate,
+          prayerName: name,
+          completed: true,
+        );
+      }
+      await prefs.setStringList(_storageKey, merged.map(_displayName).toList());
+      if (!mounted || !_sameDay(localDate, _today)) return;
+      setState(() => _completed = merged.map(_displayName).toSet());
+    } catch (_) {
+      // Keep the local checklist usable; pending changes sync on the next visit.
+    }
+  }
+
+  Map<String, bool> _readPending(String? raw) {
+    if (raw == null) return {};
+    try {
+      final value = jsonDecode(raw);
+      if (value is! Map) return {};
+      return value.map((key, item) => MapEntry(key.toString(), item == true));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  String _dateKey(DateTime date) =>
+      '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+
+  bool _sameDay(DateTime a, DateTime b) =>
+      a.year == b.year && a.month == b.month && a.day == b.day;
+
+  String _displayName(String name) =>
+      name.isEmpty ? name : '${name[0].toUpperCase()}${name.substring(1)}';
+
+  Future<void> _saveCompletion(String name, bool completed) async {
+    final prefs = await SharedPreferences.getInstance();
+    final date = DateTime(_today.year, _today.month, _today.day);
+    final pendingKey = 'prayer_completion_pending_${_dateKey(date)}';
+    final pending = _readPending(prefs.getString(pendingKey));
+    pending[name.toLowerCase()] = completed;
+    await prefs.setString(pendingKey, jsonEncode(pending));
+    try {
+      await BackendApi.instance.setPrayerCompletion(
+        localDate: date,
+        prayerName: name,
+        completed: completed,
+      );
+      pending.remove(name.toLowerCase());
+      await prefs.setString(pendingKey, jsonEncode(pending));
+    } catch (_) {
+      // Retain the queued local change for the next successful sync.
+    }
   }
 
   /// Determines if a prayer's time has arrived for today.
@@ -103,7 +184,6 @@ class _PrayerTrackerCardState extends State<PrayerTrackerCard> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
     final changed = Set<String>.from(_completed);
     if (changed.contains(name)) {
       changed.remove(name);
@@ -111,9 +191,11 @@ class _PrayerTrackerCardState extends State<PrayerTrackerCard> {
       changed.add(name);
       HapticFeedback.lightImpact();
     }
-    await prefs.setStringList(_storageKey, changed.toList());
     if (!mounted) return;
     setState(() => _completed = changed);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_storageKey, changed.toList());
+    await _saveCompletion(name, changed.contains(name));
   }
 
   @override
@@ -269,12 +351,13 @@ class _PrayerTrackerCardState extends State<PrayerTrackerCard> {
   }
 
   Future<void> _undo(String name) async {
-    final prefs = await SharedPreferences.getInstance();
     final changed = Set<String>.from(_completed);
     changed.remove(name);
-    await prefs.setStringList(_storageKey, changed.toList());
     if (!mounted) return;
     setState(() => _completed = changed);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_storageKey, changed.toList());
+    await _saveCompletion(name, false);
   }
 }
 
@@ -313,25 +396,25 @@ class _PrayerPill extends StatelessWidget {
             curve: Curves.easeOut,
             padding: const EdgeInsets.symmetric(vertical: 10),
             decoration: BoxDecoration(
-               color: done ? colors.primary : colors.surface,
-               borderRadius: BorderRadius.circular(MizanRadii.control),
-               border: Border.all(
-                 color: done ? colors.primary : colors.borderSubtle,
-               ),
+              color: done ? colors.primary : colors.surface,
+              borderRadius: BorderRadius.circular(MizanRadii.control),
+              border: Border.all(
+                color: done ? colors.primary : colors.borderSubtle,
+              ),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
                   done ? Icons.check_circle : Icons.radio_button_unchecked,
-                   color: done ? colors.onPrimary : colors.primary,
+                  color: done ? colors.onPrimary : colors.primary,
                   size: 18,
                 ),
                 const SizedBox(height: 6),
                 Text(
                   name,
                   style: TextStyle(
-                     color: done ? colors.onPrimary : colors.textPrimary,
+                    color: done ? colors.onPrimary : colors.textPrimary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),

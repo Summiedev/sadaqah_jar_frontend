@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/theme/theme_extensions.dart';
 import '../../services/location_service.dart';
@@ -79,6 +80,13 @@ class _QiblaScreenState extends ConsumerState<QiblaScreen> {
         elevation: dark ? 0 : 10,
         scrolledUnderElevation: dark ? 0 : 10,
         shadowColor: colors.scrim.withValues(alpha: dark ? 0 : 0.18),
+        actions: [
+          IconButton(
+            onPressed: () => context.push('/settings'),
+            tooltip: 'Settings',
+            icon: Icon(Icons.settings_outlined, color: colors.iconPrimary),
+          ),
+        ],
       ),
       body: SafeArea(
         child: LayoutBuilder(

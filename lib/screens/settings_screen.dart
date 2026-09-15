@@ -5,22 +5,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../services/location_service.dart';
-import '../../services/prayer_countdown_service.dart';
-import '../../services/local_reminder_service.dart';
-import '../../services/push_notification_service.dart';
+import '../services/location_service.dart';
+import '../services/prayer_countdown_service.dart';
+import '../services/local_reminder_service.dart';
+import '../services/push_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/theme/app_theme.dart';
-import '../../core/theme/design_tokens.dart';
-import '../../core/theme/theme_extensions.dart';
-import '../../core/theme/theme_mode_provider.dart';
+import '../core/theme/design_tokens.dart';
+import '../core/theme/theme_extensions.dart';
+import '../core/theme/theme_mode_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../services/backend_api.dart';
+import '../services/backend_api.dart';
 import 'change_password_screen.dart';
 import 'help_screen.dart';
 import 'about_screen.dart';
 import 'notification_preferences_screen.dart';
+import 'widgets_preview_screen.dart';
 import '../widgets/mizan_async_state.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
@@ -105,9 +105,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _loadStoredPosition();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               backendErrorMessage(
@@ -145,9 +143,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       });
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               backendErrorMessage(
@@ -279,11 +275,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             onChanged:
                                 profile == null
                                     ? null
-                                    : (value) =>
-                                        _toggleGeneralNotifications(
-                                          profile,
-                                          value,
-                                        ),
+                                    : (value) => _toggleGeneralNotifications(
+                                      profile,
+                                      value,
+                                    ),
                           ),
                           Divider(height: 1, color: tokens.divider),
                           _SettingsSwitchRow(
@@ -298,10 +293,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             onChanged:
                                 profile == null
                                     ? null
-                                    : (value) => _toggleFridayReminder(
-                                      profile,
-                                      value,
-                                    ),
+                                    : (value) =>
+                                        _toggleFridayReminder(profile, value),
                           ),
                           Divider(height: 1, color: tokens.divider),
                           _SettingsCard(
@@ -315,6 +308,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     },
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            _SettingsSection(
+              title: 'Widgets',
+              subtitle: 'Preview your Mizan home-screen widgets',
+              child: _SettingsCard(
+                icon: Icons.widgets_outlined,
+                title: 'Home screen widgets',
+                subtitle: 'Preview a widget before adding it',
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const WidgetsPreviewScreen(),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 14),
@@ -817,7 +827,7 @@ class _SettingsCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: enabled ? onTap : null,
-         borderRadius: BorderRadius.circular(MizanRadii.card),
+        borderRadius: BorderRadius.circular(MizanRadii.card),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           child: Row(
@@ -1020,7 +1030,7 @@ class _GoalTile extends StatelessWidget {
                   color:
                       isCompleted
                           ? tokens.success.withValues(alpha: 0.14)
-                            : isHistory
+                          : isHistory
                           ? tokens.surfaceContainerHigh
                           : tokens.primary.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(12),
@@ -1201,9 +1211,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
       Navigator.of(context).pop(updated);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'Could not save goal: ${backendErrorMessage(e, fallback: 'Please try again.')}',
@@ -1252,9 +1260,7 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
               'Could not complete goal: ${backendErrorMessage(e, fallback: 'Please try again.')}',
@@ -1273,7 +1279,9 @@ class _EditGoalScreenState extends State<EditGoalScreen> {
     final target = int.tryParse(_targetController.text.trim()) ?? 0;
     if (title.isEmpty || target <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Enter a title and a target greater than 0.')),
+        const SnackBar(
+          content: Text('Enter a title and a target greater than 0.'),
+        ),
       );
       return;
     }
@@ -2134,8 +2142,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 height: 18,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color:
-                                      tokens.onPrimary,
+                                  color: tokens.onPrimary,
                                 ),
                               )
                               : Text(

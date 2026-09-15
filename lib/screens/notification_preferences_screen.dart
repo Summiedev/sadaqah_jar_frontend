@@ -20,6 +20,7 @@ class _NotificationPreferencesScreenState
   String _frequency = 'medium';
   Map<String, bool> _categories = {};
   Map<String, String> _categoryLabels = {};
+  Map<String, dynamic> _reminderPreferences = {};
   bool _quietHoursEnabled = false;
   String _quietStart = '22:00';
   String _quietEnd = '07:00';
@@ -43,6 +44,10 @@ class _NotificationPreferencesScreenState
           _categories = cats.map(
             (k, v) => MapEntry(k.toString(), v as bool? ?? true),
           );
+        }
+        final reminderPrefs = prefs['reminder_preferences'];
+        if (reminderPrefs is Map) {
+          _reminderPreferences = Map<String, dynamic>.from(reminderPrefs);
         }
         final labels = prefs['category_labels'];
         if (labels is Map) {
@@ -90,6 +95,7 @@ class _NotificationPreferencesScreenState
           'start': _quietStart,
           'end': _quietEnd,
         },
+        reminderPreferences: _reminderPreferences,
       );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -130,9 +136,7 @@ class _NotificationPreferencesScreenState
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             backendErrorMessage(
@@ -177,6 +181,12 @@ class _NotificationPreferencesScreenState
                     _buildFrequencySection(),
                     const SizedBox(height: 16),
                     _buildQuietHoursSection(),
+                    const SizedBox(height: 16),
+                    _buildSalahSection(),
+                    const SizedBox(height: 16),
+                    _buildAdditionalWorshipSection(),
+                    const SizedBox(height: 16),
+                    _buildDailyTimeSection(),
                     const SizedBox(height: 16),
                     _buildCategorySection(),
                     const SizedBox(height: 24),
@@ -399,6 +409,263 @@ class _NotificationPreferencesScreenState
             ),
         ],
       ),
+    );
+  }
+
+  Map<String, dynamic> _nestedPreference(String key) {
+    final value = _reminderPreferences[key];
+    return value is Map ? Map<String, dynamic>.from(value) : {};
+  }
+
+  void _setSalahPreference(String prayer, String field, Object value) {
+    final prayers = _nestedPreference('prayer_reminders');
+    final raw = prayers[prayer];
+    final settings =
+        raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    settings[field] = value;
+    prayers[prayer] = settings;
+    setState(
+      () =>
+          _reminderPreferences = {
+            ..._reminderPreferences,
+            'prayer_reminders': prayers,
+          },
+    );
+  }
+
+  void _setReminderPreference(String key, bool value) {
+    setState(() {
+      _reminderPreferences = {..._reminderPreferences, key: value};
+    });
+  }
+
+  Widget _buildAdditionalWorshipSection() {
+    final colors = context.colors;
+    return _SectionCard(
+      title: 'Additional worship reminders',
+      subtitle: 'Optional reminders beyond the daily prayers.',
+      child: Column(
+        children: [
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Friday reminder',
+              style: TextStyle(color: colors.textPrimary),
+            ),
+            subtitle: Text(
+              'A gentle Jumu’ah prompt, including Al-Kahf.',
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
+            value: _reminderPreferences['friday_reminder'] as bool? ?? false,
+            onChanged:
+                (value) => _setReminderPreference('friday_reminder', value),
+            activeThumbColor: colors.primary,
+          ),
+          SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              'Tahajjud reminder',
+              style: TextStyle(color: colors.textPrimary),
+            ),
+            subtitle: Text(
+              'A quiet optional reminder before Fajr.',
+              style: TextStyle(color: colors.textSecondary, fontSize: 12),
+            ),
+            value: _reminderPreferences['tahajjud'] as bool? ?? false,
+            onChanged: (value) => _setReminderPreference('tahajjud', value),
+            activeThumbColor: colors.primary,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSalahSection() {
+    final colors = context.colors;
+    const prayers = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    const labels = {
+      'fajr': 'Fajr',
+      'dhuhr': 'Dhuhr',
+      'asr': 'Asr',
+      'maghrib': 'Maghrib',
+      'isha': 'Isha',
+    };
+    const offsets = <int, String>{
+      -10: '10 min before',
+      -5: '5 min before',
+      0: 'At Salah',
+      5: '5 min after',
+    };
+    final settings = _nestedPreference('prayer_reminders');
+    return _SectionCard(
+      title: 'Salah reminders',
+      subtitle: 'Use your local prayer times and choose a gentle lead-in.',
+      child: Column(
+        children: [
+          for (final prayer in prayers)
+            Builder(
+              builder: (context) {
+                final raw = settings[prayer];
+                final item =
+                    raw is Map
+                        ? Map<String, dynamic>.from(raw)
+                        : <String, dynamic>{};
+                final enabled = item['enabled'] as bool? ?? true;
+                final offset = (item['offset_minutes'] as num?)?.toInt() ?? 0;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(
+                            labels[prayer]!,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          value: enabled,
+                          activeThumbColor: colors.primary,
+                          onChanged:
+                              (value) =>
+                                  _setSalahPreference(prayer, 'enabled', value),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      DropdownButton<int>(
+                        value: offsets.containsKey(offset) ? offset : 0,
+                        onChanged:
+                            enabled
+                                ? (value) {
+                                  if (value != null) {
+                                    _setSalahPreference(
+                                      prayer,
+                                      'offset_minutes',
+                                      value,
+                                    );
+                                  }
+                                }
+                                : null,
+                        items:
+                            offsets.entries
+                                .map(
+                                  (entry) => DropdownMenuItem<int>(
+                                    value: entry.key,
+                                    child: Text(entry.value),
+                                  ),
+                                )
+                                .toList(),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDailyTimeSection() {
+    final dailyTimes = _nestedPreference('daily_times');
+    return _SectionCard(
+      title: 'Adhkar and Quran timing',
+      subtitle: 'By default, these follow the suggested prayer-relative times.',
+      child: Column(
+        children: [
+          _customTimeRow(
+            keyName: 'morning_adhkar',
+            title: 'Morning Adhkar',
+            subtitle: 'Suggested after Fajr',
+            value: dailyTimes['morning_adhkar']?.toString(),
+          ),
+          _customTimeRow(
+            keyName: 'quran',
+            title: 'Quran',
+            subtitle: 'Suggested around Maghrib; only when unread today',
+            value: dailyTimes['quran']?.toString(),
+          ),
+          _customTimeRow(
+            keyName: 'evening_adhkar',
+            title: 'Evening Adhkar',
+            subtitle: 'Suggested after Asr',
+            value: dailyTimes['evening_adhkar']?.toString(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _customTimeRow({
+    required String keyName,
+    required String title,
+    required String subtitle,
+    required String? value,
+  }) {
+    final colors = context.colors;
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title, style: TextStyle(color: colors.textPrimary)),
+      subtitle: Text(
+        value == null ? subtitle : '$subtitle · Custom: $value',
+        style: TextStyle(color: colors.textSecondary, fontSize: 12),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextButton(
+            onPressed: _saving ? null : () => _chooseDailyTime(keyName, value),
+            child: Text(value ?? 'Set time'),
+          ),
+          if (value != null)
+            IconButton(
+              tooltip: 'Use suggested time',
+              onPressed: _saving ? null : () => _setDailyTime(keyName, null),
+              icon: Icon(
+                Icons.restart_alt_rounded,
+                color: colors.iconSecondary,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _chooseDailyTime(String key, String? current) async {
+    final initial = _parseTime(current) ?? const TimeOfDay(hour: 14, minute: 0);
+    final picked = await showTimePicker(context: context, initialTime: initial);
+    if (picked == null || !mounted) return;
+    _setDailyTime(
+      key,
+      '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}',
+    );
+  }
+
+  TimeOfDay? _parseTime(String? value) {
+    if (value == null) return null;
+    final parts = value.split(':');
+    if (parts.length != 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || hour > 23 || minute > 59) return null;
+    return TimeOfDay(hour: hour, minute: minute);
+  }
+
+  void _setDailyTime(String key, String? value) {
+    final times = _nestedPreference('daily_times');
+    if (value == null) {
+      times.remove(key);
+    } else {
+      times[key] = value;
+    }
+    setState(
+      () =>
+          _reminderPreferences = {
+            ..._reminderPreferences,
+            'daily_times': times,
+          },
     );
   }
 }

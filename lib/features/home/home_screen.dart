@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../family/family_theme.dart' show FamilyJarView;
 import '../../core/act_store.dart';
-import '../../core/theme/app_theme.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
@@ -222,6 +221,21 @@ class _QuranQuietRhythm extends StatefulWidget {
 
 class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
   late Future<(int, int)> _future = _load();
+  late final StreamSubscription<DateTime> _activitySubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _activitySubscription = QuranRepository.instance.readingActivity.listen((_) {
+      _refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _activitySubscription.cancel();
+    super.dispose();
+  }
 
   Future<(int, int)> _load() async => (
     await QuranRepository.instance.readingDaysLast30(),
@@ -229,6 +243,7 @@ class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
   );
 
   void _refresh() {
+    if (!mounted) return;
     setState(() => _future = _load());
   }
 
@@ -339,38 +354,54 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  InkWell(
-                    onTap: () => context.push('/profile'),
-                    customBorder: const CircleBorder(),
-                    child: Container(
-                      padding: const EdgeInsets.all(2),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors:
-                              dark
-                                  ? [
-                                    tokens.accent.withValues(alpha: 0.6),
-                                    tokens.accent.withValues(alpha: 0.15),
-                                  ]
-                                  : [
-                                    tokens.primary.withValues(alpha: 0.5),
-                                    tokens.primary.withValues(alpha: 0.12),
-                                  ],
-                        ),
-                      ),
-                      child: CircleAvatar(
-                        radius: 19,
-                        backgroundColor:
-                            dark ? tokens.surfaceContainerHigh : tokens.surface,
-                        child: Text(
-                          initial,
-                          style: TextStyle(
-                            color: dark ? tokens.accent : tokens.primary,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 15,
+                  Tooltip(
+                    message: 'Open profile',
+                    child: Semantics(
+                      button: true,
+                      label: 'Open profile',
+                      child: InkWell(
+                        onTap: () => context.push('/profile'),
+                        customBorder: const CircleBorder(),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors:
+                                  dark
+                                      ? [
+                                        tokens.accent,
+                                        tokens.accent.withValues(alpha: 0.35),
+                                      ]
+                                      : [
+                                        tokens.primary,
+                                        tokens.primary.withValues(alpha: 0.35),
+                                      ],
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: tokens.primary.withValues(alpha: 0.16),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: CircleAvatar(
+                            radius: 21,
+                            backgroundColor:
+                                dark ? tokens.surfaceContainerHigh : tokens.surface,
+                            child: Text(
+                              initial,
+                              style: TextStyle(
+                                color: dark ? tokens.accent : tokens.primary,
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -420,6 +451,22 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
                     ),
                   ),
                   const SizedBox(width: 10),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: tokens.surfaceElevated,
+                      border: Border.all(color: border),
+                    ),
+                    child: IconButton(
+                      tooltip: 'Qibla direction',
+                      onPressed: () => context.push('/qibla'),
+                      padding: EdgeInsets.zero,
+                      icon: Icon(Icons.explore_outlined, color: tokens.primary),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Container(
                     width: 40,
                     height: 40,

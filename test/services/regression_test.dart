@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sadaqah_jar/services/backend_api.dart';
 import 'package:sadaqah_jar/core/user_facing_errors.dart';
@@ -33,6 +34,40 @@ void main() {
     });
   });
 
+  group('Quran reading experience', () {
+    test('pinch zoom and the settings slider share one-point steps', () {
+      expect(QuranSettings.normalizeArabicSize(27.6), 28);
+      expect(
+        QuranSettings.normalizeArabicSize(10),
+        QuranSettings.minArabicSize,
+      );
+      expect(
+        QuranSettings.normalizeArabicSize(60),
+        QuranSettings.maxArabicSize,
+      );
+      expect(
+        (QuranSettings.maxArabicSize - QuranSettings.minArabicSize) /
+            QuranSettings.arabicSizeDivisions,
+        1,
+      );
+    });
+
+    test('a reading day is counted once and refreshes listeners', () async {
+      SharedPreferences.setMockInitialValues({});
+      var activityUpdates = 0;
+      final subscription = QuranRepository.instance.readingActivity.listen((_) {
+        activityUpdates++;
+      });
+
+      await QuranRepository.instance.recordPageRead(1);
+      await QuranRepository.instance.recordPageRead(2);
+
+      expect(await QuranRepository.instance.readingDaysLast30(), 1);
+      expect(activityUpdates, 1);
+      await subscription.cancel();
+    });
+  });
+
   group('C4: API response parsing safety', () {
     test('bare object is accepted', () {
       final api = BackendApi.instance;
@@ -42,19 +77,28 @@ void main() {
 
     test('enveloped object is unwrapped', () {
       final api = BackendApi.instance;
-      final result = api.expectMap({'data': {'user_id': 2, 'username': 'b'}});
+      final result = api.expectMap({
+        'data': {'user_id': 2, 'username': 'b'},
+      });
       expect(result['user_id'], 2);
     });
 
     test('bare list is accepted', () {
       final api = BackendApi.instance;
-      final result = api.expectList([{'id': 1}, {'id': 2}]);
+      final result = api.expectList([
+        {'id': 1},
+        {'id': 2},
+      ]);
       expect(result.length, 2);
     });
 
     test('enveloped list is unwrapped', () {
       final api = BackendApi.instance;
-      final result = api.expectList({'data': [{'id': 1}]});
+      final result = api.expectList({
+        'data': [
+          {'id': 1},
+        ],
+      });
       expect(result.length, 1);
     });
 
@@ -191,7 +235,12 @@ void main() {
   group('Notification payload helpers', () {
     test('envelope data list is not double-unwrapped', () {
       final raw = {
-        'data': {'data': [{'id': 1}], 'total': 1},
+        'data': {
+          'data': [
+            {'id': 1},
+          ],
+          'total': 1,
+        },
       };
       // getBookmarks-style: outer envelope unwrap + inner paginated 'data'
       final outer = raw['data'] as Map<String, dynamic>;

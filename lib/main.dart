@@ -282,18 +282,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ),
       ),
-      GoRoute(
-        path: '/settings',
-        pageBuilder:
-            (context, state) => mizanPage(
-              child: SettingsScreen(
-                onLogout: () async {
-                  await ref.read(sessionProvider).signOut();
-                  if (context.mounted) context.go('/auth');
-                },
-              ),
-            ),
-      ),
       ShellRoute(
         builder: (context, state, child) => const AppShell(),
         routes: [
@@ -329,6 +317,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/family',
             builder: (context, state) => const FamilyScreen(),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder:
+                (context, state) => SettingsScreen(
+                  onLogout: () async {
+                    await ref.read(sessionProvider).signOut();
+                    if (context.mounted) context.go('/auth');
+                  },
+                ),
           ),
           GoRoute(
             path: '/profile',

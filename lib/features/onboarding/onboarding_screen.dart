@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../core/animations.dart';
 import '../../core/mode_provider.dart';
 import '../../core/session_controller.dart';
 import '../../core/theme/app_theme.dart';

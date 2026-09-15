@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/mode_provider.dart';
+import '../../core/session_controller.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
 import '../../core/act_store.dart';
@@ -16,14 +17,16 @@ import '../journey/journey_screen.dart';
 import '../family/family_screen.dart';
 import '../profile/profile_screen.dart';
 import '../qibla/qibla_screen.dart';
+import '../../screens/settings_screen.dart';
 
 /// Page indices are stable so the PageView controller never has to be recreated
 /// when the visible tab set changes with the mode.
 const int _kHome = 0;
 const int _kJourney = 1;
 const int _kFamily = 2;
-const int _kProfile = 3;
+const int _kSettings = 3;
 const int _kQibla = 4;
+const int _kProfile = 5;
 
 class _NavDef {
   const _NavDef(
@@ -52,12 +55,13 @@ class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
   ActStore? _observedActStore;
 
-  static const List<Widget> _pages = [
-    HomeScreen(),
-    JourneyScreen(),
-    FamilyScreen(),
-    ProfileScreen(),
-    QiblaScreen(),
+  List<Widget> get _pages => [
+    const HomeScreen(),
+    const JourneyScreen(),
+    const FamilyScreen(),
+    SettingsScreen(onLogout: _logout),
+    const QiblaScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -111,6 +115,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   int _indexFromLocation(String location) {
     if (location.startsWith('/qibla')) return _kQibla;
+    if (location.startsWith('/settings')) return _kSettings;
     if (location.startsWith('/journey')) return _kJourney;
     if (location.startsWith('/family')) return _kFamily;
     if (location.startsWith('/profile')) return _kProfile;
@@ -129,6 +134,20 @@ class _AppShellState extends ConsumerState<AppShell> {
             'Journey',
             '/journey',
           ),
+          _NavDef(
+            _kQibla,
+            Icons.explore_outlined,
+            Icons.explore,
+            'Qibla',
+            '/qibla',
+          ),
+          _NavDef(
+            _kSettings,
+            Icons.settings_outlined,
+            Icons.settings,
+            'Settings',
+            '/settings',
+          ),
         ];
       case kModeFamily:
         return const [
@@ -145,6 +164,20 @@ class _AppShellState extends ConsumerState<AppShell> {
             Icons.route,
             'Journey',
             '/journey',
+          ),
+          _NavDef(
+            _kQibla,
+            Icons.explore_outlined,
+            Icons.explore,
+            'Qibla',
+            '/qibla',
+          ),
+          _NavDef(
+            _kSettings,
+            Icons.settings_outlined,
+            Icons.settings,
+            'Settings',
+            '/settings',
           ),
         ];
       default:
@@ -173,6 +206,11 @@ class _AppShellState extends ConsumerState<AppShell> {
           ),
         ];
     }
+  }
+
+  Future<void> _logout() async {
+    await ref.read(sessionProvider).signOut();
+    if (mounted) context.go('/auth');
   }
 
   void _goTo(_NavDef tab) {

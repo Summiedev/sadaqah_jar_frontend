@@ -862,6 +862,10 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
                         ? _MushafPageMode(
                           page: _page,
                           settings: _settings,
+                          onArabicSizeChanged:
+                              (value) => _applySettings(
+                                _settings.copyWith(arabicSize: value),
+                              ),
                           playingVerse: _playingVerse,
                           translationRevealed: _translationRevealed,
                           onTapTranslation:
@@ -870,30 +874,30 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
                                     _translationRevealed =
                                         !_translationRevealed,
                               ),
-                          onPageChanged:
-                              (page) {
-                                setState(() {
-                                  _page = page;
-                                  _translationRevealed = false;
-                                });
-                                final pageVerses = verses.where(
-                                  (verse) => verse.page == page,
-                                );
-                                final first = pageVerses.isEmpty
+                          onPageChanged: (page) {
+                            setState(() {
+                              _page = page;
+                              _translationRevealed = false;
+                            });
+                            final pageVerses = verses.where(
+                              (verse) => verse.page == page,
+                            );
+                            final first =
+                                pageVerses.isEmpty
                                     ? (verses.isEmpty ? null : verses.first)
                                     : pageVerses.first;
-                                if (first != null) {
-                                  unawaited(
-                                    _repo.saveProgress(
-                                      QuranProgress(
-                                        surahId: first.surahId,
-                                        verseKey: first.key,
-                                        page: page,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
+                            if (first != null) {
+                              unawaited(
+                                _repo.saveProgress(
+                                  QuranProgress(
+                                    surahId: first.surahId,
+                                    verseKey: first.key,
+                                    page: page,
+                                  ),
+                                ),
+                              );
+                            }
+                          },
                         )
                         : _VerseReadingMode(
                           verses: verses,
@@ -921,10 +925,15 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
     },
   );
 
-  Future<(QuranSurah?, List<QuranVerse>)> _readerData() async => (
-    await _repo.surahById(widget.surahId),
-    await _repo.versesForSurah(widget.surahId),
-  );
+  Future<(QuranSurah?, List<QuranVerse>)> _readerData() async {
+    final surah = await _repo.surahById(widget.surahId);
+    final verses = await _repo.versesForSurah(widget.surahId);
+    if (verses.isNotEmpty) {
+      _page = widget.initialPage ?? verses.first.page;
+      await _repo.recordPageRead(_page);
+    }
+    return (surah, verses);
+  }
 
   void _toggleMode() {
     final nextMode = switch (_settings.readingMode) {
@@ -945,11 +954,12 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (_) => _QuranSettingsSheet(
-        settings: _settings,
-        onSettingsChanged: _applySettings,
-        onModeChanged: _canSetReadingMode,
-      ),
+      builder:
+          (_) => _QuranSettingsSheet(
+            settings: _settings,
+            onSettingsChanged: _applySettings,
+            onModeChanged: _canSetReadingMode,
+          ),
     );
   }
 
@@ -1362,6 +1372,7 @@ class _MushafPageMode extends StatefulWidget {
   const _MushafPageMode({
     required this.page,
     required this.settings,
+    required this.onArabicSizeChanged,
     required this.playingVerse,
     required this.translationRevealed,
     required this.onTapTranslation,
@@ -1369,6 +1380,7 @@ class _MushafPageMode extends StatefulWidget {
   });
   final int page;
   final QuranSettings settings;
+  final ValueChanged<double> onArabicSizeChanged;
   final String? playingVerse;
   final bool translationRevealed;
   final VoidCallback onTapTranslation;
@@ -1382,6 +1394,17 @@ class _MushafPageModeState extends State<_MushafPageMode> {
   late Future<List<QuranVerse>> _versesFuture;
   File? _pageImage;
   bool _pageImageLoading = true;
+  bool _showArtwork = false;
+  bool _modeChosen = false;
+  bool _textReady = false;
+  bool _pinchWaitingMessageShown = false;
+  final Map<int, Offset> _pointers = {};
+  bool _canTurnPage = false;
+  Offset? _singleFingerStart;
+  Offset? _singleFingerEnd;
+  double _pinchStartDistance = 0;
+  double _pinchStartArabicSize = 30;
+  double _lastPinchSize = 30;
   int _pageRequest = 0;
 
   @override
@@ -1396,13 +1419,103 @@ class _MushafPageModeState extends State<_MushafPageMode> {
     if (oldWidget.page != widget.page) {
       _beginPageLoad();
     }
+    if (oldWidget.settings.arabicSize != widget.settings.arabicSize &&
+        _showArtwork) {
+      _showArtwork = false;
+      _modeChosen = true;
+    }
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointers[event.pointer] = event.localPosition;
+    if (_pointers.length == 2) _pinchWaitingMessageShown = false;
+    if (_pointers.length == 1) {
+      _canTurnPage = true;
+      _singleFingerStart = event.localPosition;
+      _singleFingerEnd = event.localPosition;
+    } else {
+      _canTurnPage = false;
+      if (_pointers.length == 2) {
+        final points = _pointers.values.take(2).toList();
+        _pinchStartDistance = (points[0] - points[1]).distance;
+        _pinchStartArabicSize = widget.settings.arabicSize;
+        _lastPinchSize = _pinchStartArabicSize;
+      }
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent event) {
+    if (!_pointers.containsKey(event.pointer)) return;
+    _pointers[event.pointer] = event.localPosition;
+    if (_pointers.length == 1 && _canTurnPage) {
+      _singleFingerEnd = event.localPosition;
+      return;
+    }
+    if (_pointers.length < 2 || _pinchStartDistance <= 0) return;
+    if (_showArtwork && !_textReady) {
+      if (!_pinchWaitingMessageShown) {
+        _pinchWaitingMessageShown = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Quran text is still loading.')),
+        );
+      }
+      return;
+    }
+    final points = _pointers.values.take(2).toList();
+    final distance = (points[0] - points[1]).distance;
+    final size = QuranSettings.normalizeArabicSize(
+      _pinchStartArabicSize * distance / _pinchStartDistance,
+    );
+    if ((size - _lastPinchSize).abs() < 0.35) return;
+    _lastPinchSize = size;
+    if (_showArtwork || !_modeChosen) {
+      setState(() {
+        _showArtwork = false;
+        _modeChosen = true;
+      });
+    }
+    widget.onArabicSizeChanged(size);
+  }
+
+  void _onPointerUp(PointerEvent event, {bool allowPageTurn = true}) {
+    final wasSinglePointer = _pointers.length == 1 && _canTurnPage;
+    if (wasSinglePointer && allowPageTurn) {
+      _singleFingerEnd = event.localPosition;
+      _turnPageFromSwipe();
+    }
+    _pointers.remove(event.pointer);
+    if (_pointers.length < 2) _pinchStartDistance = 0;
+    if (_pointers.isEmpty) {
+      _canTurnPage = false;
+      _singleFingerStart = null;
+      _singleFingerEnd = null;
+    }
+  }
+
+  void _turnPageFromSwipe() {
+    final start = _singleFingerStart;
+    final end = _singleFingerEnd;
+    if (start == null || end == null) return;
+    final delta = end - start;
+    if (delta.dx.abs() < 56 || delta.dx.abs() < delta.dy.abs() * 1.2) return;
+    if (delta.dx < 0 && widget.page < 604) {
+      widget.onPageChanged(widget.page + 1);
+    } else if (delta.dx > 0 && widget.page > 1) {
+      widget.onPageChanged(widget.page - 1);
+    }
   }
 
   void _beginPageLoad() {
     final request = ++_pageRequest;
     _versesFuture = QuranRepository.instance.versesForPage(widget.page);
+    _textReady = false;
     _pageImage = null;
     _pageImageLoading = true;
+    _modeChosen = false;
+    _versesFuture.then<void>((verses) {
+      if (!mounted || request != _pageRequest) return;
+      setState(() => _textReady = verses.isNotEmpty);
+    }, onError: (Object _) {});
     // Artwork is deliberately independent of text. A cached/local page can
     // render immediately while a missing image is fetched in the background.
     QuranRepository.instance.pageImage(widget.page).then((file) {
@@ -1410,6 +1523,7 @@ class _MushafPageModeState extends State<_MushafPageMode> {
       setState(() {
         _pageImage = file;
         _pageImageLoading = false;
+        if (!_modeChosen) _showArtwork = file != null;
       });
     });
   }
@@ -1426,88 +1540,94 @@ class _MushafPageModeState extends State<_MushafPageMode> {
           verses.isEmpty &&
           (snapshot.connectionState != ConnectionState.done ||
               _pageImageLoading);
-      return GestureDetector(
-        onHorizontalDragEnd: (details) {
-          final velocity = details.primaryVelocity ?? 0;
-          if (velocity < -120 && widget.page < 604) {
-            widget.onPageChanged(widget.page + 1);
-          }
-          if (velocity > 120 && widget.page > 1) {
-            widget.onPageChanged(widget.page - 1);
-          }
-        },
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            LayoutBuilder(
+      return Column(
+        children: [
+          Expanded(
+            flex: widget.translationRevealed ? 5 : 1,
+            child: LayoutBuilder(
               builder: (context, constraints) {
-                // Madani page proportions are kept stable so the reader
-                // feels like one complete page rather than a clipped card.
-                final pageRatio = 0.707;
+                const pageRatio = 0.707;
+                final pageWidth =
+                    constraints.maxWidth < constraints.maxHeight * pageRatio
+                        ? constraints.maxWidth
+                        : constraints.maxHeight * pageRatio;
+                final pageHeight = pageWidth / pageRatio;
+                final Widget pageContent;
+
                 if (loading) {
-                  return AspectRatio(
-                    aspectRatio: pageRatio,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.surfaceElevated,
-                        border: Border.all(color: tokens.borderSubtle),
-                      ),
-                      child: Center(
-                        child: CircularProgressIndicator(color: tokens.primary),
-                      ),
-                    ),
+                  pageContent = Center(
+                    child: CircularProgressIndicator(color: tokens.primary),
                   );
-                }
-                if (file != null) {
-                  return AspectRatio(
-                    aspectRatio: pageRatio,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: tokens.surfaceElevated,
-                        border: Border.all(color: tokens.borderSubtle),
-                      ),
-                      child: ClipRect(
-                        child: InteractiveViewer(
-                          minScale: 1,
-                          maxScale: 3,
-                          boundaryMargin: const EdgeInsets.all(24),
-                          child:
-                              file.path.toLowerCase().endsWith('.svg')
-                                  ? SvgPicture.file(file, fit: BoxFit.contain)
-                                  : Image.file(file, fit: BoxFit.contain),
+                } else if (file != null && (_showArtwork || verses.isEmpty)) {
+                  pageContent =
+                      file.path.toLowerCase().endsWith('.svg')
+                          ? SvgPicture.file(file, fit: BoxFit.contain)
+                          : Image.file(file, fit: BoxFit.contain);
+                } else if (verses.isNotEmpty) {
+                  pageContent = _UthmaniTextPage(
+                    page: widget.page,
+                    verses: verses,
+                    arabicSize: widget.settings.arabicSize,
+                    pageWidth: pageWidth,
+                    pageHeight: pageHeight,
+                  );
+                } else {
+                  pageContent = Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Center(
+                      child: Text(
+                        'This Mushaf page is not available yet. Connect to the internet or continue the offline download.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: tokens.textSecondary,
+                          height: 1.5,
                         ),
                       ),
                     ),
                   );
                 }
-                if (verses.isNotEmpty) {
-                  return InteractiveViewer(
-                    minScale: 1,
-                    maxScale: 3,
-                    boundaryMargin: const EdgeInsets.all(24),
-                    child: _UthmaniTextPage(
-                      page: widget.page,
-                      verses: verses,
-                      arabicSize: widget.settings.arabicSize,
-                    ),
-                  );
-                }
-                return AspectRatio(
-                  aspectRatio: pageRatio,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
-                      border: Border.all(color: tokens.borderSubtle),
-                    ),
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Text(
-                          'This Mushaf page is not available yet. Connect to the internet or continue the offline download.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: tokens.textSecondary,
-                            height: 1.5,
+                final zoomContent =
+                    verses.isNotEmpty &&
+                            (file == null || !_showArtwork) &&
+                            !loading
+                        ? SizedBox(width: pageWidth, child: pageContent)
+                        : SizedBox(
+                          width: pageWidth,
+                          height: pageHeight,
+                          child: pageContent,
+                        );
+
+                return ColoredBox(
+                  color: tokens.background,
+                  child: Center(
+                    child: SizedBox(
+                      width: pageWidth,
+                      height: pageHeight,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          border: Border.all(color: tokens.borderSubtle),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 14,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: ClipRect(
+                          child: Listener(
+                            behavior: HitTestBehavior.opaque,
+                            onPointerDown: _onPointerDown,
+                            onPointerMove: _onPointerMove,
+                            onPointerUp: _onPointerUp,
+                            onPointerCancel:
+                                (event) =>
+                                    _onPointerUp(event, allowPageTurn: false),
+                            child: SingleChildScrollView(
+                              physics: const ClampingScrollPhysics(),
+                              child: zoomContent,
+                            ),
                           ),
                         ),
                       ),
@@ -1516,47 +1636,98 @@ class _MushafPageModeState extends State<_MushafPageMode> {
                 );
               },
             ),
-            const SizedBox(height: 12),
-            Center(
-              child: TextButton.icon(
-                onPressed: widget.onTapTranslation,
-                icon: Icon(
-                  widget.translationRevealed
-                      ? Icons.visibility_off_outlined
-                      : Icons.translate_rounded,
-                  size: 18,
+          ),
+          SizedBox(
+            height: 48,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  tooltip: 'Previous page',
+                  onPressed:
+                      widget.page > 1
+                          ? () => widget.onPageChanged(widget.page - 1)
+                          : null,
+                  icon: const Icon(Icons.chevron_left_rounded),
                 ),
-                label: Text(
-                  widget.translationRevealed
-                      ? 'Hide translation'
-                      : 'Reveal translation',
+                Container(
+                  constraints: const BoxConstraints(minWidth: 112),
+                  alignment: Alignment.center,
+                  child: Text(
+                    'Page ${widget.page} of 604',
+                    style: TextStyle(
+                      color: tokens.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
-                style: TextButton.styleFrom(
-                  foregroundColor: context.colors.primary,
+                IconButton(
+                  tooltip: 'Next page',
+                  onPressed:
+                      widget.page < 604
+                          ? () => widget.onPageChanged(widget.page + 1)
+                          : null,
+                  icon: const Icon(Icons.chevron_right_rounded),
                 ),
-              ),
+                if (file != null && verses.isNotEmpty)
+                  IconButton(
+                    tooltip:
+                        _showArtwork
+                            ? 'Show readable text'
+                            : 'Show page artwork',
+                    onPressed:
+                        () => setState(() {
+                          _showArtwork = !_showArtwork;
+                          _modeChosen = true;
+                        }),
+                    icon: Icon(
+                      _showArtwork
+                          ? Icons.text_fields_rounded
+                          : Icons.menu_book_rounded,
+                    ),
+                  ),
+              ],
             ),
-            if (widget.translationRevealed)
-              Container(
-                margin: const EdgeInsets.only(top: 4),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: context.colors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: context.colors.border),
-                ),
-                child: Text(
-                  verses
-                      .map((verse) => '${verse.key} ${verse.translation}')
-                      .join('\n\n'),
-                  style: TextStyle(
-                    color: context.colors.textSecondary,
-                    height: 1.55,
+          ),
+          TextButton.icon(
+            onPressed: widget.onTapTranslation,
+            icon: Icon(
+              widget.translationRevealed
+                  ? Icons.visibility_off_outlined
+                  : Icons.translate_rounded,
+              size: 18,
+            ),
+            label: Text(
+              widget.translationRevealed
+                  ? 'Hide translation'
+                  : 'Reveal translation',
+            ),
+            style: TextButton.styleFrom(foregroundColor: tokens.primary),
+          ),
+          if (widget.translationRevealed)
+            Expanded(
+              flex: 4,
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: tokens.borderSubtle),
+                  ),
+                  child: Text(
+                    verses
+                        .map((verse) => '${verse.key} ${verse.translation}')
+                        .join('\n\n'),
+                    style: TextStyle(color: tokens.textSecondary, height: 1.55),
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       );
     },
   );
@@ -1567,21 +1738,23 @@ class _UthmaniTextPage extends StatelessWidget {
     required this.page,
     required this.verses,
     required this.arabicSize,
+    required this.pageWidth,
+    required this.pageHeight,
   });
 
   final int page;
   final List<QuranVerse> verses;
   final double arabicSize;
+  final double pageWidth;
+  final double pageHeight;
 
   @override
   Widget build(BuildContext context) {
     final tokens = context.colors;
-    final size = arabicSize.clamp(22.0, 48.0).toDouble();
+    final size = QuranSettings.normalizeArabicSize(arabicSize);
     return Container(
-      width: double.infinity,
-      constraints: BoxConstraints(
-        minHeight: MediaQuery.sizeOf(context).width * 1.414,
-      ),
+      width: pageWidth,
+      constraints: BoxConstraints(minHeight: pageHeight),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
@@ -1773,9 +1946,7 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
             _SettingSwitch(
               'Pronunciation',
               _settings.showPronunciation,
-              (value) => _update(
-                _settings.copyWith(showPronunciation: value),
-              ),
+              (value) => _update(_settings.copyWith(showPronunciation: value)),
             ),
             _SettingSwitch(
               'Translation',
@@ -1805,8 +1976,7 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
                         ),
                       )
                       .toList(),
-              onChanged:
-                  (value) => _update(_settings.copyWith(reciter: value)),
+              onChanged: (value) => _update(_settings.copyWith(reciter: value)),
             ),
             const SizedBox(height: 14),
             Text(
@@ -1818,9 +1988,9 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
             ),
             Slider(
               value: _settings.arabicSize,
-              min: 24,
-              max: 40,
-              divisions: 8,
+              min: QuranSettings.minArabicSize,
+              max: QuranSettings.maxArabicSize,
+              divisions: QuranSettings.arabicSizeDivisions,
               activeColor: tokens.primary,
               onChanged:
                   (value) => _update(_settings.copyWith(arabicSize: value)),
@@ -1844,13 +2014,12 @@ class _QuranSettingsSheetState extends State<_QuranSettingsSheet> {
                 ),
               ],
               selected: {_settings.readingMode},
-              onSelectionChanged:
-                  (value) {
-                    final mode = value.first;
-                    if (widget.onModeChanged(mode)) {
-                      _update(_settings.copyWith(readingMode: mode));
-                    }
-                  },
+              onSelectionChanged: (value) {
+                final mode = value.first;
+                if (widget.onModeChanged(mode)) {
+                  _update(_settings.copyWith(readingMode: mode));
+                }
+              },
             ),
             const SizedBox(height: 18),
             SizedBox(
