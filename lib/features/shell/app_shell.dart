@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -50,7 +52,8 @@ class AppShell extends ConsumerStatefulWidget {
   ConsumerState<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends ConsumerState<AppShell> {
+class _AppShellState extends ConsumerState<AppShell>
+    with WidgetsBindingObserver {
   late final PageController _pageController;
   int _index = 0;
   ActStore? _observedActStore;
@@ -67,6 +70,7 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pageController = PageController();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
@@ -80,11 +84,31 @@ class _AppShellState extends ConsumerState<AppShell> {
         StreakProgressWidgetService.instance.update(store);
         ConnectivityService.instance.initialize(
           ref,
-          onBecameOnline: () => QueueSyncService.instance.attemptSync(),
+          onBecameOnline: _syncQueueBestEffort,
         );
-        QueueSyncService.instance.attemptSync();
+        _syncQueueBestEffort();
       }
     });
+  }
+
+  void _syncQueueBestEffort() {
+    unawaited(_syncQueue());
+  }
+
+  Future<void> _syncQueue() async {
+    try {
+      await QueueSyncService.instance.attemptSync();
+    } catch (_) {
+      // A temporary database/network failure is retried by the queue service;
+      // it must never become an unhandled lifecycle exception.
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || !mounted) return;
+    _syncQueueBestEffort();
+    unawaited(ref.read(actStoreProvider).refresh());
   }
 
   void _onActStoreChanged() {
@@ -106,6 +130,7 @@ class _AppShellState extends ConsumerState<AppShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _observedActStore?.removeListener(_onActStoreChanged);
     ConnectivityService.instance.dispose();
     QueueSyncService.instance.dispose();

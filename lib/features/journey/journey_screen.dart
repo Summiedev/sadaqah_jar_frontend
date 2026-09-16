@@ -5,6 +5,8 @@ import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/backend_api.dart';
+import '../../services/offline_action_queue.dart';
+import '../../services/queue_sync_service.dart';
 import 'journey_search_screen.dart';
 import 'journey_search_data.dart';
 import 'morning_adhkar_screen.dart';
@@ -31,6 +33,75 @@ class JourneyScreen extends StatefulWidget {
 
   @override
   State<JourneyScreen> createState() => _JourneyScreenState();
+}
+
+int _localReflectionId(String requestId) {
+  var hash = 0;
+  for (final unit in requestId.codeUnits) {
+    hash = (hash * 31 + unit) & 0x7fffffff;
+  }
+  return -(hash == 0 ? 1 : hash);
+}
+
+Future<List<JourneyReflection>> _pendingReflections() async {
+  final items = await OfflineActionQueue.instance.getUnfinished(
+    actionType: ActionType.createReflection,
+  );
+  return [
+    for (final item in items)
+      if ((item.payload['body']?.toString().trim().isNotEmpty ?? false))
+        JourneyReflection(
+          id: _localReflectionId(item.id),
+          title: item.payload['title']?.toString() ?? 'A note from today',
+          body: item.payload['body']!.toString(),
+          mood: item.payload['mood']?.toString() ?? 'Reflective',
+          isPrivate: item.payload['is_private'] as bool? ?? false,
+          createdAt: item.createdAt.toIso8601String(),
+          date: item.createdAt.toIso8601String(),
+        ),
+  ];
+}
+
+Future<List<JourneyHistoryItem>> _pendingJourneyHistory() async {
+  final items = await OfflineActionQueue.instance.getUnfinished();
+  return [
+    for (final item in items)
+      if (item.actionType != ActionType.createReflection)
+        JourneyHistoryItem(
+          id: 'local:${item.id}',
+          kind:
+              item.actionType == ActionType.addFamilyAct
+                  ? 'family'
+                  : 'sadaqah',
+          title:
+              item.actionType == ActionType.addFamilyAct
+                  ? 'Family activity saved'
+                  : 'Sadaqah recorded',
+          description: _pendingHistoryDescription(item),
+          occurredAt: item.createdAt.toIso8601String(),
+          metadata: const {'pending_sync': true},
+        ),
+  ];
+}
+
+String _pendingHistoryDescription(OfflineQueueItem item) {
+  final type = item.payload['type']?.toString().trim();
+  final note = item.payload['note']?.toString().trim();
+  final details = [
+    if (type != null && type.isNotEmpty) type.replaceAll('_', ' '),
+    if (note != null && note.isNotEmpty) note,
+  ];
+  return details.isEmpty
+      ? 'Saved on this device and waiting to sync.'
+      : '${details.join(' - ')}. Saved on this device and waiting to sync.';
+}
+
+String? _historyDayKey(DateTime? value) {
+  if (value == null) return null;
+  final local = value.toLocal();
+  return '${local.year.toString().padLeft(4, '0')}-'
+      '${local.month.toString().padLeft(2, '0')}-'
+      '${local.day.toString().padLeft(2, '0')}';
 }
 
 class _JourneyScreenState extends State<JourneyScreen>
@@ -252,19 +323,44 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
   Future<void> _load({bool showSpinner = true}) async {
     if (!mounted) return;
     if (showSpinner) setState(() => _loading = true);
+    JourneyReflectionPage? page;
+    Object? remoteError;
     try {
-      final page = await BackendApi.instance.getReflections();
+      page = await BackendApi.instance.getReflections();
+    } catch (error) {
+      remoteError = error;
+    }
+    try {
+      final pending = await _pendingReflections();
+      final remote = page?.items ?? const <JourneyReflection>[];
+      final merged = [
+        ...pending,
+        ...remote.where(
+          (item) => !pending.any(
+            (local) =>
+                local.title == item.title &&
+                local.body == item.body &&
+                local.mood == item.mood,
+          ),
+        ),
+      ];
       if (!mounted) return;
       setState(() {
-        _items = page.items;
+        _items = merged;
         _loading = false;
-        _error = null;
+        _error =
+            remoteError == null
+                ? null
+                : backendErrorMessage(
+                  remoteError,
+                  fallback: 'We could not reach your journal. Please try again.',
+                );
       });
-    } catch (e) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _error = backendErrorMessage(
-          e,
+          remoteError ?? error,
           fallback: 'We could not reach your journal. Please try again.',
         );
         _loading = false;
@@ -1219,6 +1315,7 @@ class _HistorialTabState extends State<_HistorialTab> {
     super.initState();
     _future = _loadHistory();
     reflectionRevision.addListener(_onHistoryChanged);
+    offlineQueueRevision.addListener(_onHistoryChanged);
     _readingActivitySubscription = QuranRepository.instance.readingActivity
         .listen((_) => _reload());
   }
@@ -1226,6 +1323,7 @@ class _HistorialTabState extends State<_HistorialTab> {
   @override
   void dispose() {
     reflectionRevision.removeListener(_onHistoryChanged);
+    offlineQueueRevision.removeListener(_onHistoryChanged);
     _readingActivitySubscription?.cancel();
     super.dispose();
   }
@@ -1245,6 +1343,8 @@ class _HistorialTabState extends State<_HistorialTab> {
   Future<_HistoryLoad> _loadHistory() async {
     List<DateTime> readingDays = const [];
     List<JourneyReflection> reflections = const [];
+    List<JourneyHistoryItem> historyItems = const [];
+    List<JourneyHistoryItem> pendingItems = const [];
     Object? loadError;
     try {
       readingDays = await QuranRepository.instance.readingDays();
@@ -1252,13 +1352,41 @@ class _HistorialTabState extends State<_HistorialTab> {
       loadError = error;
     }
     try {
-      reflections = (await BackendApi.instance.getReflections()).items;
+      final pending = await _pendingReflections();
+      final remote = (await BackendApi.instance.getReflections()).items;
+      reflections = [
+        ...pending,
+        ...remote.where(
+          (item) => !pending.any(
+            (local) =>
+                local.title == item.title &&
+                local.body == item.body &&
+                local.mood == item.mood,
+          ),
+        ),
+      ];
+    } catch (error) {
+      try {
+        reflections = await _pendingReflections();
+      } catch (_) {}
+      loadError ??= error;
+    }
+    try {
+      historyItems = (await BackendApi.instance.getJourneyHistory()).items;
+    } catch (error) {
+      // Keep local history usable while an older server is being upgraded.
+      loadError ??= error;
+    }
+    try {
+      pendingItems = await _pendingJourneyHistory();
     } catch (error) {
       loadError ??= error;
     }
     return _HistoryLoad(
       reflections: reflections,
       readingDays: readingDays,
+      historyItems: historyItems,
+      pendingItems: pendingItems,
       error: loadError,
     );
   }
@@ -1280,6 +1408,13 @@ class _HistorialTabState extends State<_HistorialTab> {
             onRetry: _reload,
           );
         }
+        final reflectionIds = {
+          for (final reflection in loaded.reflections)
+            if (reflection.id > 0) reflection.id,
+        };
+        final localReadingDays = {
+          for (final day in loaded.readingDays) _historyDayKey(day),
+        };
         final events = <_HistoryEvent>[
           for (final reflection in loaded.reflections)
             _HistoryEvent(
@@ -1290,6 +1425,23 @@ class _HistorialTabState extends State<_HistorialTab> {
               reflection: reflection,
             ),
           for (final day in loaded.readingDays) _HistoryEvent(date: day),
+          for (final item in loaded.pendingItems)
+            _HistoryEvent(
+              date: DateTime.tryParse(item.occurredAt)?.toLocal(),
+              history: item,
+            ),
+          for (final item in loaded.historyItems)
+            if (!(item.kind == 'reflection' &&
+                    item.referenceId != null &&
+                    reflectionIds.contains(item.referenceId)) &&
+                !(item.kind == 'quran' &&
+                    localReadingDays.contains(
+                      _historyDayKey(DateTime.tryParse(item.occurredAt)),
+                    )))
+              _HistoryEvent(
+                date: DateTime.tryParse(item.occurredAt)?.toLocal(),
+                history: item,
+              ),
         ]..sort((a, b) {
           if (a.date == null) return 1;
           if (b.date == null) return -1;
@@ -1318,7 +1470,7 @@ class _HistorialTabState extends State<_HistorialTab> {
                     icon: Icons.history_rounded,
                     title: 'Your journey starts here',
                     message:
-                        'Quran reading days and reflections will appear here as you build your practice.',
+                        'Your reflections, Quran reading, Salah, Adhkar, Sadaqah, goals and family activity will appear here.',
                   ),
                 ),
               ],
@@ -1345,7 +1497,9 @@ class _HistorialTabState extends State<_HistorialTab> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
-                          '$noteCount reflection${noteCount == 1 ? '' : 's'}  ·  $readingCount Quran reading day${readingCount == 1 ? '' : 's'}',
+                          '${events.length} activit${events.length == 1 ? 'y' : 'ies'} | '
+                          '$noteCount reflection${noteCount == 1 ? '' : 's'} | '
+                          '$readingCount Quran day${readingCount == 1 ? '' : 's'}',
                           style: TextStyle(
                             color: colors.textSecondary,
                             fontWeight: FontWeight.w700,
@@ -1371,6 +1525,12 @@ class _HistorialTabState extends State<_HistorialTab> {
                   isLast: index == events.length,
                 );
               }
+              if (event.history case final item?) {
+                return _HistoryActivityTimelineItem(
+                  item: item,
+                  isLast: index == events.length,
+                );
+              }
               return _QuranReadingHistoryItem(
                 date: event.date,
                 isLast: index == events.length,
@@ -1387,19 +1547,144 @@ class _HistoryLoad {
   const _HistoryLoad({
     required this.reflections,
     required this.readingDays,
+    required this.historyItems,
+    required this.pendingItems,
     this.error,
   });
 
   final List<JourneyReflection> reflections;
   final List<DateTime> readingDays;
+  final List<JourneyHistoryItem> historyItems;
+  final List<JourneyHistoryItem> pendingItems;
   final Object? error;
 }
 
 class _HistoryEvent {
-  const _HistoryEvent({this.date, this.reflection});
+  const _HistoryEvent({this.date, this.reflection, this.history});
 
   final DateTime? date;
   final JourneyReflection? reflection;
+  final JourneyHistoryItem? history;
+}
+
+class _HistoryActivityTimelineItem extends StatelessWidget {
+  const _HistoryActivityTimelineItem({required this.item, required this.isLast});
+
+  final JourneyHistoryItem item;
+  final bool isLast;
+
+  IconData get _icon => switch (item.kind) {
+    'sadaqah' => Icons.volunteer_activism_outlined,
+    'prayer' => Icons.mosque_outlined,
+    'adhkar' => Icons.spa_outlined,
+    'book' => Icons.auto_stories_outlined,
+    'quran' => Icons.menu_book_rounded,
+    'goal' => Icons.flag_outlined,
+    'family' => Icons.people_outline_rounded,
+    'activity' => Icons.check_circle_outline,
+    _ => Icons.history_rounded,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final date = DateTime.tryParse(item.occurredAt)?.toLocal();
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: 30,
+          child: Column(
+            children: [
+              Container(
+                width: 14,
+                height: 14,
+                margin: const EdgeInsets.only(top: 19),
+                decoration: BoxDecoration(
+                  color: colors.primary,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: colors.background, width: 3),
+                ),
+              ),
+              if (!isLast)
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    color: colors.borderSubtle,
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+              decoration: BoxDecoration(
+                color: colors.surfaceElevated,
+                borderRadius: BorderRadius.circular(MizanRadii.card),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(_icon, color: colors.primary),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _historyDateLabel(date),
+                          style: TextStyle(
+                            color: colors.textMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          item.title,
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        if (item.description?.trim().isNotEmpty == true) ...[
+                          const SizedBox(height: 5),
+                          Text(
+                            item.description!,
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                        if (item.metadata['pending_sync'] == true) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            'Waiting to sync',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _QuranReadingHistoryItem extends StatelessWidget {
@@ -1806,12 +2091,36 @@ class _ComposeSheetState extends State<_ComposeSheet> {
     if (body.isEmpty || _saving) return;
     setState(() => _saving = true);
     try {
-      final reflection = await BackendApi.instance.createReflection(
-        title: title.isEmpty ? 'A note from today' : title,
+      final resolvedTitle = title.isEmpty ? 'A note from today' : title;
+      final resolvedMood = _mood ?? 'Reflective';
+      final requestId =
+          'reflection_${DateTime.now().microsecondsSinceEpoch}';
+      final local = JourneyReflection(
+        id: _localReflectionId(requestId),
+        title: resolvedTitle,
         body: body,
-        mood: _mood ?? 'Reflective',
+        mood: resolvedMood,
         isPrivate: !_shareWithFamily,
+        createdAt: DateTime.now().toIso8601String(),
+        date: DateTime.now().toIso8601String(),
       );
+      // Persist first. The queue performs a best-effort remote sync without
+      // keeping this sheet mounted or making the user wait on the network.
+      await QueueSyncService.instance.enqueueAndSync(
+        OfflineQueueItem(
+          id: requestId,
+          actionType: ActionType.createReflection,
+          payload: {
+            'title': resolvedTitle,
+            'body': body,
+            'mood': resolvedMood,
+            'is_private': !_shareWithFamily,
+            'request_id': requestId,
+          },
+          createdAt: DateTime.now(),
+        ),
+      );
+      final reflection = local;
       if (mounted) Navigator.pop(context, reflection);
     } catch (_) {
       if (mounted) setState(() => _saving = false);

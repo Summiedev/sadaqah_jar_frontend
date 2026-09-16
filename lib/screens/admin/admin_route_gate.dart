@@ -4,6 +4,7 @@ import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
 import '../../widgets/mizan_async_state.dart';
 import 'admin_analytics_screen.dart';
+import 'admin_broadcasts_screen.dart';
 import 'admin_books_screen.dart';
 import 'admin_charities_screen.dart';
 import 'admin_evidence_screen.dart';
@@ -19,7 +20,17 @@ class AdminRouteGate extends StatefulWidget {
 }
 
 class _AdminRouteGateState extends State<AdminRouteGate> {
-  late final Future<bool> _isAdmin = BackendApi.instance.isCurrentUserAdmin();
+  late Future<bool> _isAdmin;
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadAccess();
+  }
+
+  void _reloadAccess() {
+    _isAdmin = BackendApi.instance.isCurrentUserAdmin();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +40,21 @@ class _AdminRouteGateState extends State<AdminRouteGate> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(
             body: MizanLoadingState(label: 'Checking access...'),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Scaffold(
+            appBar: AppBar(title: const Text('Admin Access')),
+            body: MizanErrorState(
+              message: backendErrorMessage(
+                snapshot.error,
+                fallback: 'We could not verify admin access right now.',
+              ),
+              onRetry: () {
+                setState(_reloadAccess);
+              },
+            ),
           );
         }
 
@@ -46,6 +72,8 @@ class _AdminRouteGateState extends State<AdminRouteGate> {
             return const AdminAnalyticsScreen();
           case '/admin/books':
             return const AdminBooksScreen();
+          case '/admin/broadcasts':
+            return const AdminBroadcastsScreen();
           case '/admin':
           default:
             return const AdminHomeScreen();

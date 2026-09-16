@@ -7,30 +7,37 @@ class QueueSyncService {
   QueueSyncService._();
   static final QueueSyncService instance = QueueSyncService._();
 
-  static const _maxRetries = 5;
-
   bool _syncing = false;
   Timer? _retryTimer;
   final BackendApi _api = BackendApi.instance;
 
   /// Durably records [item] and kicks off a best-effort background sync.
   ///
-  /// This is offline-first and defensive by contract: it never rethrows into
-  /// the caller. Callers (e.g. the add-act sheet) treat the local write as the
-  /// source of truth and must not be shown an error just because the network,
-  /// the connectivity check, or even the local queue insert misbehaved. Any
-  /// failure here is swallowed and a retry is scheduled so the act is not lost.
+  /// This is offline-first by contract: the durable local write completes
+  /// before any network work begins. Network failures are handled by the
+  /// background retry path; storage failures are returned to the caller so a
+  /// screen cannot claim an action was saved when the outbox was unavailable.
   Future<void> enqueueAndSync(OfflineQueueItem item) async {
+    // The local write is the completion point for an offline-first action.
+    // Let storage errors reach the caller because claiming success when the
+    // outbox could not be written would lose the user's action.
     try {
       await OfflineActionQueue.instance.enqueue(item);
     } catch (_) {
-      // If we couldn't even persist to the queue, there's nothing durable to
-      // retry - but we still must not surface this to the UI. Schedule a retry
-      // in case it was a transient DB lock.
       scheduleRetry();
-      return;
+      rethrow;
     }
-    await _attemptSync();
+    unawaited(_attemptSyncSafely());
+  }
+
+  Future<void> _attemptSyncSafely() async {
+    try {
+      await _attemptSync();
+    } catch (_) {
+      // A transient database/network failure must not become an unhandled
+      // Future error. The persisted item remains available for retry.
+      scheduleRetry();
+    }
   }
 
   Future<void> attemptSync() => _attemptSync();
@@ -75,17 +82,25 @@ class QueueSyncService {
           await OfflineActionQueue.instance.remove(item.id);
         } catch (e) {
           final newRetryCount = item.retryCount + 1;
-          if (newRetryCount >= _maxRetries) {
+          final errorMessage = e.toString();
+          if (newRetryCount >= OfflineActionQueue.maxRetries) {
             await OfflineActionQueue.instance.updateStatus(
               item.id,
               QueueStatus.failed,
-              error: e.toString(),
+              error: errorMessage,
             );
           } else {
+            // Record the failed attempt before returning to pending. This
+            // keeps retry limits meaningful across app restarts.
+            await OfflineActionQueue.instance.updateStatus(
+              item.id,
+              QueueStatus.failed,
+              error: errorMessage,
+            );
             await OfflineActionQueue.instance.updateStatus(
               item.id,
               QueueStatus.pending,
-              error: e.toString(),
+              error: errorMessage,
             );
             // Auto-retry with backoff instead of waiting for the next
             // manual action or app restart.
@@ -127,10 +142,12 @@ class QueueSyncService {
         final title = item.payload['title'] as String;
         final body = item.payload['body'] as String;
         final mood = item.payload['mood'] as String;
+        final isPrivate = item.payload['is_private'] as bool? ?? false;
         await _api.createReflection(
           title: title,
           body: body,
           mood: mood,
+          isPrivate: isPrivate,
           requestId: requestId,
         );
         return;
@@ -140,7 +157,7 @@ class QueueSyncService {
   void scheduleRetry() {
     _retryTimer?.cancel();
     _retryTimer = Timer(const Duration(minutes: 2), () {
-      _attemptSync();
+      unawaited(_attemptSyncSafely());
     });
   }
 

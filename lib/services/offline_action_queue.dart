@@ -1,8 +1,18 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 enum QueueStatus { pending, syncing, failed, synced }
+
+/// Changes whenever the durable offline outbox changes.
+///
+/// Screens that render optimistic local activity can listen to this instead
+/// of waiting for a restart or a manual refresh after an action is queued or
+/// synchronized.
+final ValueNotifier<int> offlineQueueRevision = ValueNotifier<int>(0);
 
 enum ActionType { addJarStar, addFamilyAct, createReflection }
 
@@ -64,10 +74,12 @@ class OfflineQueueItem {
     if (actionType == null) return null;
 
     final payloadRaw = json['payload'];
-    if (payloadRaw is! Map) return null;
     Map<String, dynamic> payload;
     try {
-      payload = Map<String, dynamic>.from(payloadRaw);
+      final decoded =
+          payloadRaw is String ? jsonDecode(payloadRaw) : payloadRaw;
+      if (decoded is! Map) return null;
+      payload = Map<String, dynamic>.from(decoded);
     } catch (_) {
       return null;
     }
@@ -113,7 +125,7 @@ class OfflineQueueItem {
     return {
       'id': id,
       'action_type': actionType.value,
-      'payload': payload,
+      'payload': jsonEncode(payload),
       'created_at': createdAt.toIso8601String(),
       'status': status.name,
       'retry_count': retryCount,
@@ -126,6 +138,8 @@ class OfflineActionQueue {
   OfflineActionQueue._();
   static final OfflineActionQueue instance = OfflineActionQueue._();
 
+  static const maxRetries = 5;
+
   Database? _db;
   bool _initialized = false;
 
@@ -135,7 +149,7 @@ class OfflineActionQueue {
     final path = join(dbPath, 'offline_queue.db');
     _db = await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE offline_queue (
@@ -149,21 +163,85 @@ class OfflineActionQueue {
           )
         ''');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // A killed process must not leave work permanently marked as
+          // syncing. The remote APIs are idempotent via the queue item id.
+          await db.update(
+            'offline_queue',
+            {'status': QueueStatus.pending.name},
+            where: 'status = ?',
+            whereArgs: [QueueStatus.syncing.name],
+          );
+        }
+      },
+    );
+    // A process can be killed without changing the database schema. Recover
+    // rows that were being sent so the next launch can safely retry them.
+    await _db!.update(
+      'offline_queue',
+      {'status': QueueStatus.pending.name},
+      where: 'status = ?',
+      whereArgs: [QueueStatus.syncing.name],
     );
     _initialized = true;
   }
 
   Future<void> enqueue(OfflineQueueItem item) async {
     await _ensureInitialized();
-    await _db!.insert('offline_queue', item.toJson());
+    // A retry or a rapid double tap must not create a second logical action.
+    await _db!.insert(
+      'offline_queue',
+      item.toJson(),
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+    offlineQueueRevision.value++;
   }
 
   Future<List<OfflineQueueItem>> getPending() async {
+    return _readItems(
+      where: 'status = ? OR (status = ? AND retry_count < ?)',
+      whereArgs: [
+        QueueStatus.pending.name,
+        QueueStatus.failed.name,
+        maxRetries,
+      ],
+    );
+  }
+
+  /// Returns unfinished actions, including a currently syncing action. This
+  /// is used to restore optimistic local UI after a process restart.
+  Future<List<OfflineQueueItem>> getUnfinished({ActionType? actionType}) async {
+    return _readItems(
+      where:
+          actionType == null
+              ? 'status IN (?, ?, ?)'
+              : 'action_type = ? AND status IN (?, ?, ?)',
+      whereArgs:
+          actionType == null
+              ? [
+                QueueStatus.pending.name,
+                QueueStatus.syncing.name,
+                QueueStatus.failed.name,
+              ]
+              : [
+                actionType.value,
+                QueueStatus.pending.name,
+                QueueStatus.syncing.name,
+                QueueStatus.failed.name,
+              ],
+    );
+  }
+
+  Future<List<OfflineQueueItem>> _readItems({
+    required String where,
+    required List<Object?> whereArgs,
+  }) async {
     await _ensureInitialized();
     final rows = await _db!.query(
       'offline_queue',
-      where: 'status IN (?, ?)',
-      whereArgs: [QueueStatus.pending.name, QueueStatus.failed.name],
+      where: where,
+      whereArgs: whereArgs,
       orderBy: 'created_at ASC',
     );
     final items = <OfflineQueueItem>[];
@@ -237,18 +315,21 @@ class OfflineActionQueue {
       where: 'id = ?',
       whereArgs: [id],
     );
+    offlineQueueRevision.value++;
   }
 
   Future<void> remove(String id) async {
     await _ensureInitialized();
     await _db!.delete('offline_queue', where: 'id = ?', whereArgs: [id]);
+    offlineQueueRevision.value++;
   }
 
   Future<int> getPendingCount() async {
     await _ensureInitialized();
     final result = await _db!.rawQuery(
-      "SELECT COUNT(*) as count FROM offline_queue WHERE status IN (?, ?)",
-      [QueueStatus.pending.name, QueueStatus.failed.name],
+      "SELECT COUNT(*) as count FROM offline_queue "
+      "WHERE status = ? OR (status = ? AND retry_count < ?)",
+      [QueueStatus.pending.name, QueueStatus.failed.name, maxRetries],
     );
     return (result.first['count'] as int?) ?? 0;
   }
@@ -267,6 +348,7 @@ class OfflineActionQueue {
   Future<void> clearForLogout() async {
     await _ensureInitialized();
     await _db!.delete('offline_queue');
+    offlineQueueRevision.value++;
   }
 
   Future<void> _ensureInitialized() async {

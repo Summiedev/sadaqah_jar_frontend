@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
+import '../../services/backend_api.dart';
 import '../../widgets/mizan_async_state.dart';
 import '../../widgets/mizan_surface.dart';
-import '../../services/backend_api.dart';
 
 class AdminAnalyticsScreen extends StatefulWidget {
   const AdminAnalyticsScreen({super.key});
@@ -15,40 +15,42 @@ class AdminAnalyticsScreen extends StatefulWidget {
 }
 
 class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
-  late Future<_AdminAnalyticsBundle> _future = _load();
+  int _rangeDays = 30;
+  late Future<AdminAnalyticsOverview> _future = _load();
 
-  Future<_AdminAnalyticsBundle> _load() async {
-    final results = await Future.wait([
-      BackendApi.instance.getAdminDailyUsers(),
-      BackendApi.instance.getAdminStarsToday(),
-      BackendApi.instance.getAdminTopActs(),
-      BackendApi.instance.getAdminDonationIntents(),
-    ]);
-    return _AdminAnalyticsBundle(
-      dailyUsers: results[0] as int,
-      starsToday: results[1] as int,
-      topActs: results[2] as List<AdminTopActEntry>,
-      donationIntents: results[3] as List<AdminDonationIntentEntry>,
+  Future<AdminAnalyticsOverview> _load() {
+    final end = DateTime.now();
+    final start = end.subtract(Duration(days: _rangeDays - 1));
+    return BackendApi.instance.getAdminAnalyticsOverview(
+      startDate: start,
+      endDate: end,
     );
   }
 
-  void _refresh() {
+  void _refresh() => setState(() => _future = _load());
+
+  void _changeRange(int days) {
+    if (days == _rangeDays) return;
     setState(() {
+      _rangeDays = days;
       _future = _load();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Analytics'),
         actions: [
-          IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
+          IconButton(
+            onPressed: _refresh,
+            tooltip: 'Refresh analytics',
+            icon: const Icon(Icons.refresh_rounded),
+          ),
         ],
       ),
-      body: FutureBuilder<_AdminAnalyticsBundle>(
+      body: FutureBuilder<AdminAnalyticsOverview>(
         future: _future,
         builder: (context, snapshot) {
           if (snapshot.connectionState != ConnectionState.done) {
@@ -56,7 +58,11 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
           }
           if (snapshot.hasError) {
             return MizanErrorState(
-              message: 'We could not load analytics right now.',
+              title: 'Could not load analytics',
+              message: backendErrorMessage(
+                snapshot.error!,
+                fallback: 'We could not load analytics right now.',
+              ),
               onRetry: _refresh,
             );
           }
@@ -68,103 +74,178 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
               message: 'There is no analytics data to show yet.',
             );
           }
-          return ListView(
-            padding: MizanSpacing.screen,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _MetricCard(
-                      title: 'New users',
-                      value: data.dailyUsers.toString(),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _MetricCard(
-                      title: 'Stars today',
-                      value: data.starsToday.toString(),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: MizanSpacing.lg),
-              Text(
-                'Top acts',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: MizanSpacing.md),
-              SizedBox(
-                height: 220,
-                child: BarChart(
-                  BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    maxY:
-                        (data.topActs
-                            .map((e) => e.count)
-                            .fold<int>(0, (a, b) => a > b ? a : b)).toDouble() +
-                        1,
-                    barTouchData: BarTouchData(enabled: false),
-                    titlesData: const FlTitlesData(show: false),
-                    borderData: FlBorderData(show: false),
-                    gridData: const FlGridData(show: false),
-                    barGroups: List.generate(
-                      data.topActs.length,
-                      (index) => BarChartGroupData(
-                        x: index,
-                        barRods: [
-                          BarChartRodData(
-                            toY: data.topActs[index].count.toDouble(),
-                            width: 18,
-                            borderRadius: BorderRadius.circular(4),
-                            color: colors.primary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: MizanSpacing.lg),
-              Text(
-                'Donation intents',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: MizanSpacing.sm),
-              if (data.donationIntents.isEmpty)
-                Text(
-                  'No donation intent data.',
-                  style: TextStyle(color: colors.textSecondary),
-                )
-              else
-                ...data.donationIntents.map(
-                  (item) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(
-                      Icons.favorite_border,
-                      color: colors.iconSecondary,
-                    ),
-                    title: Text('Charity #${item.charityId}'),
-                    trailing: Text(
-                      item.count.toString(),
-                      style: TextStyle(
-                        color: colors.textPrimary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          return _AnalyticsView(
+            data: data,
+            rangeDays: _rangeDays,
+            onRangeChanged: _changeRange,
           );
         },
+      ),
+    );
+  }
+}
+
+class _AnalyticsView extends StatelessWidget {
+  const _AnalyticsView({
+    required this.data,
+    required this.rangeDays,
+    required this.onRangeChanged,
+  });
+
+  final AdminAnalyticsOverview data;
+  final int rangeDays;
+  final ValueChanged<int> onRangeChanged;
+
+  int _value(Map<String, int> values, String key) => values[key] ?? 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final users = data.users;
+    final activity = data.activity;
+    return ListView(
+      padding: MizanSpacing.screen,
+      children: [
+        Row(
+          children: [
+            Text(
+              'Overview',
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const Spacer(),
+            DropdownButton<int>(
+              value: rangeDays,
+              underline: const SizedBox.shrink(),
+              items: const [
+                DropdownMenuItem(value: 7, child: Text('7 days')),
+                DropdownMenuItem(value: 30, child: Text('30 days')),
+                DropdownMenuItem(value: 90, child: Text('90 days')),
+              ],
+              onChanged: (value) {
+                if (value != null) onRangeChanged(value);
+              },
+            ),
+          ],
+        ),
+        const SizedBox(height: MizanSpacing.md),
+        _MetricGrid(
+          items: [
+            ('Registered users', _value(users, 'total')),
+            ('Active, 30 days', _value(users, 'active_30_days')),
+            ('Returning users', _value(users, 'returning')),
+            ('New today', _value(users, 'new_today')),
+            ('New this week', _value(users, 'new_this_week')),
+            ('New this month', _value(users, 'new_this_month')),
+          ],
+        ),
+        const SizedBox(height: MizanSpacing.xl),
+        _SectionTitle('Activity in selected range'),
+        const SizedBox(height: MizanSpacing.md),
+        _MetricGrid(
+          items: [
+            ('Journey events', _value(activity, 'journey_events')),
+            ('Reflections', _value(activity, 'reflections')),
+            ('Sadaqah records', _value(activity, 'sadaqah_records')),
+            ('Quran/book saves', _value(activity, 'books_saved')),
+            ('Donation intents', _value(activity, 'donation_intents')),
+            ('Broadcast views', _value(activity, 'broadcast_views')),
+            ('Broadcast clicks', _value(activity, 'broadcast_clicks')),
+            ('Activity completions', _value(activity, 'completions')),
+          ],
+        ),
+        const SizedBox(height: MizanSpacing.xl),
+        _SectionTitle('Daily active users'),
+        const SizedBox(height: MizanSpacing.md),
+        if (data.dailyActiveUsers.isEmpty)
+          Text(
+            'No activity was recorded in this period.',
+            style: TextStyle(color: colors.textSecondary),
+          )
+        else
+          MizanSurface(
+            padding: const EdgeInsets.fromLTRB(10, 18, 18, 12),
+            child: SizedBox(
+              height: 220,
+              child: LineChart(
+                LineChartData(
+                  minY: 0,
+                  gridData: const FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  titlesData: const FlTitlesData(show: false),
+                  lineTouchData: const LineTouchData(enabled: true),
+                  lineBarsData: [
+                    LineChartBarData(
+                      isCurved: true,
+                      barWidth: 3,
+                      color: colors.primary,
+                      dotData: const FlDotData(show: false),
+                      spots: [
+                        for (var index = 0;
+                            index < data.dailyActiveUsers.length;
+                            index++)
+                          FlSpot(
+                            index.toDouble(),
+                            data.dailyActiveUsers[index].count.toDouble(),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: MizanSpacing.lg),
+        Text(
+          'Daily active: ${_value(users, 'daily_active')}  |  Weekly active: ${_value(users, 'weekly_active')}  |  Monthly active: ${_value(users, 'monthly_active')}',
+          style: TextStyle(color: colors.textSecondary, height: 1.4),
+        ),
+      ],
+    );
+  }
+}
+
+class _MetricGrid extends StatelessWidget {
+  const _MetricGrid({required this.items});
+
+  final List<(String, int)> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.65,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) => _MetricCard(
+        title: items[index].$1,
+        value: items[index].$2.toString(),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: TextStyle(
+        color: context.colors.textPrimary,
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
       ),
     );
   }
@@ -183,14 +264,20 @@ class _MetricCard extends StatelessWidget {
       padding: MizanSpacing.card,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(title, style: TextStyle(color: colors.textSecondary)),
-          const SizedBox(height: MizanSpacing.sm),
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: colors.textSecondary, fontSize: 12),
+          ),
+          const SizedBox(height: MizanSpacing.xs),
           Text(
             value,
             style: TextStyle(
               color: colors.textPrimary,
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -198,18 +285,4 @@ class _MetricCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _AdminAnalyticsBundle {
-  _AdminAnalyticsBundle({
-    required this.dailyUsers,
-    required this.starsToday,
-    required this.topActs,
-    required this.donationIntents,
-  });
-
-  final int dailyUsers;
-  final int starsToday;
-  final List<AdminTopActEntry> topActs;
-  final List<AdminDonationIntentEntry> donationIntents;
 }

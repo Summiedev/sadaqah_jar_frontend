@@ -450,22 +450,8 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: tokens.surfaceElevated,
-                      border: Border.all(color: border),
-                    ),
-                    child: IconButton(
-                      tooltip: 'Qibla direction',
-                      onPressed: () => context.push('/qibla'),
-                      padding: EdgeInsets.zero,
-                      icon: Icon(Icons.explore_outlined, color: tokens.primary),
-                    ),
-                  ),
+                  
+                
                   const SizedBox(width: 8),
                   Container(
                     width: 40,
@@ -2434,30 +2420,22 @@ class _VerseReflectionSheetState extends State<_VerseReflectionSheet> {
       final title = widget.verse.source;
       final reflectionBody =
           '${widget.verse.arabic}\n\n${widget.verse.body}\n\n${widget.prompt}\n\n$body';
-      try {
-        await BackendApi.instance.createReflection(
-          title: title,
-          body: reflectionBody,
-          mood: 'Reflective',
-          requestId: localId,
-        );
-      } catch (_) {
-        // Preserve the entry offline; the queue uses the same request ID so a
-        // retry cannot create a duplicate once connectivity returns.
-        await QueueSyncService.instance.enqueueAndSync(
-          OfflineQueueItem(
-            id: localId,
-            actionType: ActionType.createReflection,
-            payload: {
-              'title': title,
-              'body': reflectionBody,
-              'mood': 'Reflective',
-              'request_id': localId,
-            },
-            createdAt: DateTime.now(),
-          ),
-        );
-      }
+      // Save to the durable outbox before attempting any network work. The
+      // shared sync service handles retries and request-id deduplication.
+      await QueueSyncService.instance.enqueueAndSync(
+        OfflineQueueItem(
+          id: localId,
+          actionType: ActionType.createReflection,
+          payload: {
+            'title': title,
+            'body': reflectionBody,
+            'mood': 'Reflective',
+            'is_private': false,
+            'request_id': localId,
+          },
+          createdAt: DateTime.now(),
+        ),
+      );
       if (!mounted) return;
       Navigator.of(context).pop(true);
     } catch (e) {

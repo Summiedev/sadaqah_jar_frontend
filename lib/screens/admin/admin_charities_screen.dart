@@ -16,8 +16,28 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
   late Future<AdminCharityPage> _future = _load();
   final Set<int> _busy = {};
 
-  Future<AdminCharityPage> _load() =>
-      BackendApi.instance.getAdminCharities(limit: 100, offset: 0);
+  Future<AdminCharityPage> _load() async {
+    const pageSize = 200;
+    var offset = 0;
+    var total = 0;
+    final rows = <AdminCharityRecord>[];
+    do {
+      final page = await BackendApi.instance.getAdminCharities(
+        limit: pageSize,
+        offset: offset,
+      );
+      total = page.total;
+      rows.addAll(page.data);
+      if (page.data.isEmpty) break;
+      offset += page.data.length;
+    } while (rows.length < total);
+    return AdminCharityPage(
+      total: total,
+      limit: rows.length,
+      offset: 0,
+      data: rows,
+    );
+  }
   void _refresh() {
     setState(() {
       _future = _load();
@@ -79,13 +99,16 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
         _refresh();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upload failed: $e'),
+            content: Text(
+              backendErrorMessage(e, fallback: 'Upload failed. Please try again.'),
+            ),
             backgroundColor: context.colors.error,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _busy.remove(donation.id));
     }
@@ -146,13 +169,16 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
         _refresh();
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not remove files: $e'),
+            content: Text(
+              backendErrorMessage(e, fallback: 'Could not remove files.'),
+            ),
             backgroundColor: context.colors.error,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _busy.remove(donation.id));
     }
@@ -191,12 +217,25 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
           ),
     );
     if (confirmed != true) return;
-    await BackendApi.instance.deleteAdminCharity(donation.id);
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Donation closed.')));
-      _refresh();
+    try {
+      await BackendApi.instance.deleteAdminCharity(donation.id);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Donation closed.')));
+        _refresh();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              backendErrorMessage(error, fallback: 'Could not close donation.'),
+            ),
+            backgroundColor: context.colors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -223,24 +262,30 @@ class _AdminCharitiesScreenState extends State<AdminCharitiesScreen> {
       body: FutureBuilder<AdminCharityPage>(
         future: _future,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting)
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(
               child: CircularProgressIndicator(color: colors.primary),
             );
-          if (snapshot.hasError)
+          }
+          if (snapshot.hasError) {
             return _EmptyState(
               icon: Icons.error_outline_rounded,
               title: 'Could not load donations',
-              body: 'Check your connection and try again.',
+              body: backendErrorMessage(
+                snapshot.error,
+                fallback: 'We could not load donations right now. Please try again.',
+              ),
             );
+          }
           final donations = snapshot.data?.data ?? [];
-          if (donations.isEmpty)
+          if (donations.isEmpty) {
             return const _EmptyState(
               icon: Icons.volunteer_activism_outlined,
               title: 'No donations yet',
               body:
                   'Create a personal case or link to a verified external campaign.',
             );
+          }
           return LayoutBuilder(
             builder: (context, constraints) {
               final twoColumns = constraints.maxWidth >= 780;
@@ -331,6 +376,7 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
   late String _type = widget.donation?.donationType ?? 'external';
   late String _status = widget.donation?.status ?? 'active';
   late bool _published = widget.donation?.isPublished ?? true;
+  late bool _active = widget.donation?.isActive ?? true;
   late bool _verified = widget.donation?.isVerified ?? true;
   late bool _featured = widget.donation?.isFeatured ?? false;
   bool _saving = false;
@@ -399,6 +445,7 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
           deadline:
               _deadline.text.trim().isEmpty ? null : _deadline.text.trim(),
           isPublished: _published,
+          isActive: _active,
           isFeatured: _featured,
         );
       } else {
@@ -421,20 +468,23 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
           deadline:
               _deadline.text.trim().isEmpty ? null : _deadline.text.trim(),
           isPublished: _published,
+          isActive: _active,
           isVerified: _verified,
-          isActive: true,
           isFeatured: _featured,
         );
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not save donation: $e'),
+            content: Text(
+              backendErrorMessage(e, fallback: 'Could not save donation.'),
+            ),
             backgroundColor: context.colors.error,
           ),
         );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -615,6 +665,12 @@ class _DonationEditorSheetState extends State<_DonationEditorSheet> {
                   onChanged: (value) => setState(() => _published = value),
                   title: const Text('Published'),
                   subtitle: const Text('Visible on the user donation page'),
+                ),
+                SwitchListTile(
+                  value: _active,
+                  onChanged: (value) => setState(() => _active = value),
+                  title: const Text('Active'),
+                  subtitle: const Text('Keep this campaign available for management and publishing'),
                 ),
                 SwitchListTile(
                   value: _verified,

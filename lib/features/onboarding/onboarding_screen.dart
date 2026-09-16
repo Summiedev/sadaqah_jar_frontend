@@ -191,7 +191,10 @@ class _WelcomePage extends StatelessWidget {
     eyebrow: 'WELCOME TO MIZAN',
     title: 'Make room\nfor what matters.',
     body: 'A private place for the small acts you want to keep close.',
-    visual: _WelcomeVisual(colors: colors),
+    visual: const _OnboardingIllustration(
+      asset: 'lib/assets/images/onboarding_prayer_scene.png',
+      semanticLabel: 'A quiet prayer space at dawn',
+    ),
   );
 }
 
@@ -206,7 +209,10 @@ class _RhythmPage extends StatelessWidget {
     title: 'Keep the rhythm\ngentle.',
     body:
         'Read a page. Make a prayer. Give what you can. Come back without guilt.',
-    visual: _RhythmVisual(colors: colors),
+    visual: const _OnboardingIllustration(
+      asset: 'lib/assets/images/onboarding_quran_scene.png',
+      semanticLabel: 'A person reading the Quran at home',
+    ),
   );
 }
 
@@ -217,6 +223,7 @@ class _PageLayout extends StatelessWidget {
     required this.title,
     required this.body,
     required this.visual,
+    this.supportingContent,
   });
 
   final MizanColors colors;
@@ -224,378 +231,126 @@ class _PageLayout extends StatelessWidget {
   final String title;
   final String body;
   final Widget visual;
+  final Widget? supportingContent;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        FadeScaleTransition(child: visual),
-        const SizedBox(height: 28),
-        SlideUpFade(
-          child: Text(
-            eyebrow,
-            style: TextStyle(
-              color: colors.primary,
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.3,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        SlideUpFade(
-          child: Text(
-            title,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontFamily: 'Georgia',
-              fontSize: 34,
-              height: 1.08,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-        SlideUpFade(
-          child: Text(
-            body,
-            style: TextStyle(
-              color: colors.textSecondary,
-              fontSize: 16,
-              height: 1.5,
-            ),
-          ),
-        ),
-      ],
-    ),
-  );
-}
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxHeight < 600;
+      final hasChoices = supportingContent != null;
+      final artworkHeight =
+          (constraints.maxHeight * (hasChoices ? 0.34 : 0.46))
+              .clamp(hasChoices ? 168.0 : 218.0, hasChoices ? 224.0 : 312.0)
+              .toDouble();
+      final horizontalPadding = compact ? 20.0 : 26.0;
 
-class _WelcomeVisual extends StatelessWidget {
-  const _WelcomeVisual({required this.colors});
-  final MizanColors colors;
-
-  @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(24),
-    child: Container(
-      height: 226,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: colors.primaryContainer,
-        border: Border.all(color: colors.borderSubtle),
-      ),
-      child: Stack(
-        clipBehavior: Clip.hardEdge,
-        children: [
-          Positioned(
-            right: -34,
-            top: -42,
-            child: Container(
-              width: 142,
-              height: 142,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: colors.primary.withValues(alpha: 0.18),
-                  width: 18,
-                ),
-              ),
-            ),
+      return SingleChildScrollView(
+        padding: const EdgeInsets.only(top: 4, bottom: 14),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight:
+                (constraints.maxHeight - 18)
+                    .clamp(0, double.infinity)
+                    .toDouble(),
           ),
-          Positioned(
-            left: -8,
-            bottom: -2,
-            child: ColorFiltered(
-              colorFilter: ColorFilter.mode(
-                colors.primary.withValues(alpha: 0.75),
-                BlendMode.srcIn,
-              ),
-              child: Image.asset(
-                'lib/assets/images/plants one.png',
-                width: 104,
-                height: 104,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 20,
-            left: 24,
-            child: Row(
-              children: [
-                Icon(
-                  Icons.nights_stay_outlined,
-                  color: colors.primary,
-                  size: 18,
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  'A place to return to',
-                  style: TextStyle(
-                    color: colors.onPrimaryContainer,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                height: artworkHeight,
+                child: ColoredBox(
+                  color: colors.surfaceContainerHigh,
+                  child: FadeScaleTransition(
+                    key: ValueKey(eyebrow),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                        vertical: 8,
+                      ),
+                      child: visual,
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ),
-          const Center(child: _OpenBookIllustration()),
-          Positioned(
-            left: 24,
-            bottom: 18,
-            child: Text(
-              'One small act at a time',
-              style: TextStyle(
-                color: colors.onPrimaryContainer,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
               ),
-            ),
-          ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _OpenBookIllustration extends StatelessWidget {
-  const _OpenBookIllustration();
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return SizedBox(
-      width: 190,
-      height: 118,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Transform.rotate(
-              angle: -0.06,
-              child: _BookPage(
-                colors: colors,
-                left: true,
-              ),
-            ),
-          ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Transform.rotate(
-              angle: 0.06,
-              child: _BookPage(
-                colors: colors,
-                left: false,
-              ),
-            ),
-          ),
-          Container(
-            width: 2,
-            height: 92,
-            color: colors.primary.withValues(alpha: 0.48),
-          ),
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: colors.primary,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.balance_rounded,
-              color: colors.onPrimary,
-              size: 19,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BookPage extends StatelessWidget {
-  const _BookPage({required this.colors, required this.left});
-
-  final MizanColors colors;
-  final bool left;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 88,
-    height: 106,
-    decoration: BoxDecoration(
-      color: colors.surfaceElevated,
-      borderRadius: BorderRadius.only(
-        topLeft: Radius.circular(left ? 8 : 3),
-        bottomLeft: Radius.circular(left ? 8 : 3),
-        topRight: Radius.circular(left ? 3 : 8),
-        bottomRight: Radius.circular(left ? 3 : 8),
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: colors.primary.withValues(alpha: 0.12),
-          blurRadius: 12,
-          offset: const Offset(0, 6),
-        ),
-      ],
-    ),
-    child: Padding(
-      padding: EdgeInsets.fromLTRB(left ? 14 : 10, 26, left ? 10 : 14, 14),
-      child: Column(
-        children: List.generate(
-          4,
-          (index) => Padding(
-            padding: const EdgeInsets.only(bottom: 9),
-            child: Container(
-              height: 2,
-              width: double.infinity,
-              color: colors.borderSubtle,
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
-}
-
-class _RhythmVisual extends StatelessWidget {
-  const _RhythmVisual({required this.colors});
-  final MizanColors colors;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 226,
-    width: double.infinity,
-    padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
-    decoration: BoxDecoration(
-      color: colors.surfaceElevated,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: colors.borderSubtle),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'A GENTLE CHECK-IN',
-          style: TextStyle(
-            color: colors.primary,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.1,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: _RhythmItem(
-                  icon: Icons.menu_book_rounded,
-                  label: 'Read a page',
-                  detail: 'A little time with the Quran',
-                  colors: colors,
-                ),
-              ),
-              _RhythmLine(colors: colors),
-              Expanded(
-                child: _RhythmItem(
-                  icon: Icons.edit_note_rounded,
-                  label: 'Make space to reflect',
-                  detail: 'Keep what you learn close',
-                  colors: colors,
-                ),
-              ),
-              _RhythmLine(colors: colors),
-              Expanded(
-                child: _RhythmItem(
-                  icon: Icons.volunteer_activism_rounded,
-                  label: 'Let a small act count',
-                  detail: 'Give, even when it is simple',
-                  colors: colors,
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(height: compact ? 14 : 22),
+                    SlideUpFade(
+                      child: Text(
+                        eyebrow,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.primary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    SlideUpFade(
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.textPrimary,
+                          fontFamily: 'Georgia',
+                          fontSize: compact ? 30 : 34,
+                          height: 1.08,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 360),
+                      child: SlideUpFade(
+                        child: Text(
+                          body,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 15.5,
+                            height: 1.45,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (supportingContent != null) ...[
+                      SizedBox(height: compact ? 14 : 20),
+                      supportingContent!,
+                    ],
+                  ],
                 ),
               ),
             ],
           ),
         ),
-      ],
-    ),
+      );
+    },
   );
 }
 
-class _RhythmItem extends StatelessWidget {
-  const _RhythmItem({
-    required this.icon,
-    required this.label,
-    required this.detail,
-    required this.colors,
+class _OnboardingIllustration extends StatelessWidget {
+  const _OnboardingIllustration({
+    required this.asset,
+    required this.semanticLabel,
   });
-  final IconData icon;
-  final String label;
-  final String detail;
-  final MizanColors colors;
+
+  final String asset;
+  final String semanticLabel;
 
   @override
-  Widget build(BuildContext context) => Row(
-    children: [
-      Container(
-        width: 38,
-        height: 38,
-        decoration: BoxDecoration(
-          color: colors.primaryContainer,
-          shape: BoxShape.circle,
-        ),
-        child: Icon(icon, color: colors.primary, size: 22),
-      ),
-      const SizedBox(width: 11),
-      Expanded(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              detail,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: colors.textSecondary, fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-class _RhythmLine extends StatelessWidget {
-  const _RhythmLine({required this.colors});
-  final MizanColors colors;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(left: 19),
-    child: Align(
-      alignment: Alignment.centerLeft,
-      child: SizedBox(
-        height: 14,
-        child: VerticalDivider(color: colors.border, thickness: 1.5, width: 1),
-      ),
+  Widget build(BuildContext context) => Center(
+    child: Image.asset(
+      asset,
+      fit: BoxFit.contain,
+      semanticLabel: semanticLabel,
+      filterQuality: FilterQuality.medium,
     ),
   );
 }
@@ -611,43 +366,17 @@ class _SpacePage extends StatelessWidget {
   final ValueChanged<int> onSelect;
 
   @override
-  Widget build(BuildContext context) => SingleChildScrollView(
-    padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => _PageLayout(
+    colors: colors,
+    eyebrow: 'MAKE IT YOURS',
+    title: 'Begin where\nyou are.',
+    body: 'Choose the space that fits today. You can change it anytime.',
+    visual: const _OnboardingIllustration(
+      asset: 'lib/assets/images/onboarding_family_scene.png',
+      semanticLabel: 'A family sharing a quiet moment at home',
+    ),
+    supportingContent: Column(
       children: [
-        Text(
-          'MAKE IT YOURS',
-          style: TextStyle(
-            color: colors.primary,
-            fontSize: 11,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.3,
-          ),
-        ),
-        const SizedBox(height: 12),
-        _SpaceVisual(colors: colors),
-        const SizedBox(height: 24),
-        Text(
-          'Begin where\nyou are.',
-          style: TextStyle(
-            color: colors.textPrimary,
-            fontFamily: 'Georgia',
-            fontSize: 34,
-            height: 1.08,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          'Choose the space that fits today. You can change it anytime.',
-          style: TextStyle(
-            color: colors.textSecondary,
-            fontSize: 15,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 24),
         _Choice(
           title: 'Just me',
           body: 'A private daily practice',
@@ -674,49 +403,6 @@ class _SpacePage extends StatelessWidget {
           selected: selected,
           colors: colors,
           onSelect: onSelect,
-        ),
-      ],
-    ),
-  );
-}
-
-class _SpaceVisual extends StatelessWidget {
-  const _SpaceVisual({required this.colors});
-  final MizanColors colors;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    height: 112,
-    width: double.infinity,
-    padding: const EdgeInsets.symmetric(horizontal: 20),
-    decoration: BoxDecoration(
-      color: colors.surfaceElevated,
-      borderRadius: BorderRadius.circular(24),
-      border: Border.all(color: colors.borderSubtle),
-    ),
-    child: Row(
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: colors.primaryContainer,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(Icons.balance_rounded, color: colors.primary, size: 28),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Text(
-            'A practice shaped around your life, not another thing to keep up with.',
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontFamily: 'Georgia',
-              fontSize: 16,
-              height: 1.25,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
         ),
       ],
     ),

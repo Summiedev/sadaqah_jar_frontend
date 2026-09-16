@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'dart:async';
 
@@ -188,16 +188,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Settings',
-                        style: TextStyle(
-                          fontFamily: 'Georgia',
-                          fontSize: 28,
-                          color: tokens.textPrimary,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1,
-                        ),
-                      ),
                       const SizedBox(height: 4),
                       Text(
                         'Update your profile and preferences.',

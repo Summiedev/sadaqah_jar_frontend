@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme/theme_extensions.dart';
 import '../services/backend_api.dart';
+import '../services/location_service.dart';
 import '../services/push_notification_service.dart';
 
 class NotificationPreferencesScreen extends StatefulWidget {
@@ -98,8 +99,19 @@ class _NotificationPreferencesScreenState
         reminderPreferences: _reminderPreferences,
       );
       if (!mounted) return;
+      final prayerLocationAvailable =
+          await LocationService.instance.getStoredPosition() != null;
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notification preferences saved.')),
+        SnackBar(
+          content: Text(
+            _allEnabled &&
+                    (_categories['prayer_fardh'] ?? true) &&
+                    !prayerLocationAvailable
+                ? 'Preferences saved. Allow location access so Mizan can schedule Salah at your local prayer times.'
+                : 'Notification preferences saved.',
+          ),
+        ),
       );
     } catch (e) {
       if (mounted) {

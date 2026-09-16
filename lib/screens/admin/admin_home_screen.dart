@@ -44,6 +44,13 @@ class AdminHomeScreen extends StatelessWidget {
             subtitle: 'View admin metrics and live summaries',
             onTap: () => context.push('/admin/analytics'),
           ),
+          const SizedBox(height: MizanSpacing.md),
+          _AdminTile(
+            icon: Icons.campaign_outlined,
+            title: 'Broadcasts',
+            subtitle: 'Create announcements and measure engagement',
+            onTap: () => context.push('/admin/broadcasts'),
+          ),
         ],
       ),
     );

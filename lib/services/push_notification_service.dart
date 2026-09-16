@@ -123,6 +123,14 @@ class PushNotificationService {
         !localAllowed) {
       return false;
     }
+    // Exact Salah reminders are calculated on the backend and require the
+    // user's coordinates. Notification permission alone is not enough. Ask
+    // for a current position during explicit reminder opt-in when no cached
+    // position exists, then include it with the FCM token registration below.
+    // Denying location still leaves non-prayer reminders available.
+    if (await LocationService.instance.getStoredPosition() == null) {
+      await LocationService.instance.getCurrentPosition();
+    }
     await _configureForegroundNotifications();
     // A device can keep an FCM token that Google has already invalidated.
     // Refresh it during explicit opt-in so scheduled reminders can recover

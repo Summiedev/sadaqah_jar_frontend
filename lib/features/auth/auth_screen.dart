@@ -85,7 +85,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 ],
               ),
 
-              const SizedBox(height: 42),
+              const SizedBox(height: 15),
               Text(
                 _register ? 'Create your first gateway' : 'Welcome back',
                 style: TextStyle(

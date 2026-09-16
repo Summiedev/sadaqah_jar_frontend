@@ -14,8 +14,30 @@ class AdminEvidenceScreen extends StatefulWidget {
 class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
   late Future<AdminEvidencePage> _future = _load();
 
-  Future<AdminEvidencePage> _load() =>
-      BackendApi.instance.getAdminEvidence(limit: 100, offset: 0);
+  Future<AdminEvidencePage> _load() async {
+    const pageSize = 100;
+    var offset = 0;
+    var total = 0;
+    final records = <AdminEvidenceRecord>[];
+
+    do {
+      final page = await BackendApi.instance.getAdminEvidence(
+        limit: pageSize,
+        offset: offset,
+      );
+      records.addAll(page.data);
+      total = page.total;
+      offset += page.data.length;
+      if (page.data.isEmpty) break;
+    } while (offset < total);
+
+    return AdminEvidencePage(
+      total: total,
+      limit: pageSize,
+      offset: 0,
+      data: records,
+    );
+  }
 
   void _refresh() {
     setState(() {
@@ -138,7 +160,7 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                           content: const Text(
                             'Please fill in all required fields',
                           ),
-                          backgroundColor: Colors.red,
+                          backgroundColor: context.colors.error,
                         ),
                       );
                       return;
@@ -188,8 +210,13 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(error.toString()),
-                            backgroundColor: Colors.red,
+                            content: Text(
+                              backendErrorMessage(
+                                error,
+                                fallback: 'Could not save evidence.',
+                              ),
+                            ),
+                            backgroundColor: context.colors.error,
                           ),
                         );
                       }
@@ -243,10 +270,10 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
               ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(true),
-                child: const Text(
+                child: Text(
                   'Delete',
                   style: TextStyle(
-                    color: Colors.red,
+                    color: context.colors.error,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -255,8 +282,23 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
           ),
     );
     if (confirmed != true) return;
-    await BackendApi.instance.deleteAdminEvidence(evidence.id);
-    _refresh();
+    try {
+      await BackendApi.instance.deleteAdminEvidence(evidence.id);
+      if (mounted) _refresh();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            backendErrorMessage(
+              error,
+              fallback: 'Could not delete evidence.',
+            ),
+          ),
+          backgroundColor: context.colors.error,
+        ),
+      );
+    }
   }
 
   @override
@@ -290,7 +332,10 @@ class _AdminEvidenceScreenState extends State<AdminEvidenceScreen> {
           }
           if (snapshot.hasError) {
             return MizanErrorState(
-              message: 'We could not load evidence.',
+              message: backendErrorMessage(
+                snapshot.error,
+                fallback: 'We could not load evidence right now.',
+              ),
               onRetry: _refresh,
             );
           }

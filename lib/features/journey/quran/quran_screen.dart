@@ -1147,6 +1147,8 @@ class _UnavailableReader extends StatelessWidget {
 }
 
 class _ReaderTopBar extends StatelessWidget {
+  static const height = 51.0;
+
   const _ReaderTopBar({
     required this.title,
     required this.mode,
@@ -1640,18 +1642,17 @@ class _MushafPageModeState extends State<_MushafPageMode> {
               child: Padding(
                 padding: EdgeInsets.fromLTRB(
                   0,
-                  safeTop + 66,
+                  safeTop + _ReaderTopBar.height,
                   0,
-                  safeBottom + 58,
+                  safeBottom,
                 ),
                 child: LayoutBuilder(
                   builder: (context, constraints) {
-                    const pageRatio = 0.707;
-                    final pageWidth =
-                        constraints.maxWidth < constraints.maxHeight * pageRatio
-                            ? constraints.maxWidth
-                            : constraints.maxHeight * pageRatio;
-                    final pageHeight = pageWidth / pageRatio;
+                    // The reader owns the complete area between the header and
+                    // the system navigation inset. The page controls float on
+                    // top of this viewport; only the content inside it scrolls.
+                    final pageWidth = constraints.maxWidth;
+                    final pageHeight = constraints.maxHeight;
                     final Widget pageContent;
 
                     if (loading) {
@@ -1660,10 +1661,14 @@ class _MushafPageModeState extends State<_MushafPageMode> {
                       );
                     } else if (file != null &&
                         (_showArtwork || verses.isEmpty)) {
-                      pageContent =
-                          file.path.toLowerCase().endsWith('.svg')
-                              ? SvgPicture.file(file, fit: BoxFit.contain)
-                              : Image.file(file, fit: BoxFit.contain);
+                      pageContent = SizedBox(
+                        width: pageWidth,
+                        height: pageHeight,
+                        child:
+                            file.path.toLowerCase().endsWith('.svg')
+                                ? SvgPicture.file(file, fit: BoxFit.contain)
+                                : Image.file(file, fit: BoxFit.contain),
+                      );
                     } else if (verses.isNotEmpty) {
                       pageContent = _UthmaniTextPage(
                         page: widget.page,
@@ -1687,45 +1692,35 @@ class _MushafPageModeState extends State<_MushafPageMode> {
                         ),
                       );
                     }
-                    final zoomContent =
-                        verses.isNotEmpty &&
-                                (file == null || !_showArtwork) &&
-                                !loading
-                            ? SizedBox(width: pageWidth, child: pageContent)
-                            : SizedBox(
-                              width: pageWidth,
-                              height: pageHeight,
-                              child: pageContent,
-                            );
-
-                    return Center(
-                      child: SizedBox(
-                        width: pageWidth,
-                        height: pageHeight,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: tokens.surfaceElevated,
-                            border: Border.all(color: tokens.borderSubtle),
-                            boxShadow: [
-                              BoxShadow(
-                                color: tokens.scrim.withValues(alpha: 0.22),
-                                blurRadius: 20,
-                                offset: const Offset(0, 6),
-                              ),
-                            ],
+                    return SizedBox(
+                      width: pageWidth,
+                      height: pageHeight,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          border: Border.symmetric(
+                            horizontal: BorderSide(
+                              color: tokens.borderSubtle,
+                            ),
                           ),
-                          child: ClipRect(
-                            child: Listener(
-                              behavior: HitTestBehavior.opaque,
-                              onPointerDown: _onPointerDown,
-                              onPointerMove: _onPointerMove,
-                              onPointerUp: _onPointerUp,
-                              onPointerCancel:
-                                  (event) =>
-                                      _onPointerUp(event, allowPageTurn: false),
-                              child: SingleChildScrollView(
-                                physics: const ClampingScrollPhysics(),
-                                child: zoomContent,
+                        ),
+                        child: ClipRect(
+                          child: Listener(
+                            behavior: HitTestBehavior.opaque,
+                            onPointerDown: _onPointerDown,
+                            onPointerMove: _onPointerMove,
+                            onPointerUp: _onPointerUp,
+                            onPointerCancel:
+                                (event) =>
+                                    _onPointerUp(event, allowPageTurn: false),
+                            child: SingleChildScrollView(
+                              physics: const ClampingScrollPhysics(),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minWidth: pageWidth,
+                                  minHeight: pageHeight,
+                                ),
+                                child: pageContent,
                               ),
                             ),
                           ),

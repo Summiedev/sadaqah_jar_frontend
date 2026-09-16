@@ -1,14 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:epub_view/epub_view.dart' hide Image;
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
 
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
+import '../../services/book_offline_store.dart';
 
 class BookReaderScreen extends StatefulWidget {
   const BookReaderScreen({
@@ -30,15 +31,69 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
   int _page = 0;
   bool _bookmarked = false;
   bool _bookmarkBusy = false;
+  bool _offlineBusy = false;
 
   @override
   void initState() {
     super.initState();
-    _future =
-        widget.adminPreview
-            ? BackendApi.instance.getAdminBook(widget.book.id)
-            : BackendApi.instance.getBook(widget.book.id);
+    _future = _loadBook();
     if (!widget.adminPreview) _loadBookmark();
+  }
+
+  Future<BookDetail> _loadBook() async {
+    if (!widget.adminPreview) {
+      final cached = await BookOfflineStore.instance.loadDetail(widget.book.id);
+      if (cached != null) return cached;
+    }
+    final book =
+        widget.adminPreview
+            ? await BackendApi.instance.getAdminBook(widget.book.id)
+            : await BackendApi.instance.getBook(widget.book.id);
+    if (!widget.adminPreview) {
+      await BookOfflineStore.instance.saveDetail(book);
+    }
+    return book;
+  }
+
+  Future<void> _saveForOffline() async {
+    if (_offlineBusy || widget.adminPreview) return;
+    setState(() => _offlineBusy = true);
+    try {
+      final book = await _future;
+      await BookOfflineStore.instance.saveDetail(book);
+      final format = (book.fileFormat ?? '').toLowerCase();
+      if (book.fileUrl != null && (format == 'pdf' || format == 'epub')) {
+        await BookOfflineStore.instance.downloadContent(
+          bookId: book.id,
+          url: BackendApi.instance.absoluteApiUrl(book.fileUrl!),
+          format: format,
+        );
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            format == 'images'
+                ? 'Book saved. Pages become available offline as you read them.'
+                : 'This book is available offline.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            backendErrorMessage(
+              error,
+              fallback: 'Could not save this book for offline reading.',
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _offlineBusy = false);
+    }
   }
 
   Future<void> _loadBookmark() async {
@@ -115,6 +170,19 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
                     : Icons.bookmark_border_rounded,
               ),
             ),
+          if (!widget.adminPreview)
+            IconButton(
+              onPressed: _offlineBusy ? null : _saveForOffline,
+              tooltip: 'Save for offline',
+              icon:
+                  _offlineBusy
+                      ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.download_for_offline_outlined),
+            ),
         ],
       ),
       body: FutureBuilder<BookDetail>(
@@ -143,12 +211,14 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
               ),
             );
             return _PdfBook(
+              bookId: book.id,
               url: BackendApi.instance.absoluteApiUrl(book.fileUrl!),
               title: book.title,
             );
           }
           if (format == 'epub' && (book.fileUrl ?? '').isNotEmpty) {
             return _EpubBook(
+              bookId: book.id,
               url: BackendApi.instance.absoluteApiUrl(book.fileUrl!),
               controllerBuilder: _setEpubController,
             );
@@ -180,31 +250,67 @@ class _BookReaderScreenState extends State<BookReaderScreen> {
   }
 }
 
-class _PdfBook extends StatelessWidget {
-  const _PdfBook({required this.url, required this.title});
+class _PdfBook extends StatefulWidget {
+  const _PdfBook({required this.bookId, required this.url, required this.title});
 
+  final int bookId;
   final String url;
   final String title;
 
   @override
+  State<_PdfBook> createState() => _PdfBookState();
+}
+
+class _PdfBookState extends State<_PdfBook> {
+  late Future<File> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = BookOfflineStore.instance.downloadContent(
+      bookId: widget.bookId,
+      url: widget.url,
+      format: 'pdf',
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SfPdfViewer.network(
-      url,
-      canShowScrollHead: true,
-      canShowScrollStatus: true,
-      onDocumentLoadFailed:
-          (_) => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not open this PDF. Please try again.'),
-            ),
-          ),
+    return FutureBuilder<File>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const _ReaderState(
+            icon: Icons.download_for_offline_outlined,
+            title: 'Preparing this book',
+            body: 'Saving it on this device for reliable reading.',
+          );
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return const _ReaderState(
+            icon: Icons.error_outline_rounded,
+            title: 'Could not open this PDF',
+            body: 'Connect to the internet and try again.',
+          );
+        }
+        return SfPdfViewer.file(
+          snapshot.data!,
+          canShowScrollHead: true,
+          canShowScrollStatus: true,
+        );
+      },
     );
   }
 }
 
 class _EpubBook extends StatefulWidget {
-  const _EpubBook({required this.url, required this.controllerBuilder});
+  const _EpubBook({
+    required this.bookId,
+    required this.url,
+    required this.controllerBuilder,
+  });
 
+  final int bookId;
   final String url;
   final EpubController Function(Uint8List bytes) controllerBuilder;
 
@@ -222,11 +328,12 @@ class _EpubBookState extends State<_EpubBook> {
   }
 
   Future<EpubController> _load() async {
-    final response = await http.get(Uri.parse(widget.url));
-    if (response.statusCode >= 400 || response.bodyBytes.isEmpty) {
-      throw BackendApiException('Could not download EPUB', response.statusCode);
-    }
-    return widget.controllerBuilder(response.bodyBytes);
+    final file = await BookOfflineStore.instance.downloadContent(
+      bookId: widget.bookId,
+      url: widget.url,
+      format: 'epub',
+    );
+    return widget.controllerBuilder(await file.readAsBytes());
   }
 
   @override
@@ -302,32 +409,62 @@ class _ImageBook extends StatelessWidget {
               return InteractiveViewer(
                 minScale: 1,
                 maxScale: 4,
-                child: Center(
-                  child: Image.network(
-                    page.imageUrl,
-                    fit: BoxFit.contain,
-                    errorBuilder:
-                        (_, __, ___) => const _ReaderState(
-                          icon: Icons.broken_image_outlined,
-                          title: 'Page image unavailable',
-                          body: 'This page could not be loaded.',
-                        ),
-                    loadingBuilder:
-                        (context, child, event) =>
-                            event == null
-                                ? child
-                                : Center(
-                                  child: CircularProgressIndicator(
-                                    color: context.colors.primary,
-                                  ),
-                                ),
-                  ),
-                ),
+                child: _CachedBookPage(page: page),
               );
             },
           ),
         ),
       ],
+    );
+  }
+}
+
+class _CachedBookPage extends StatefulWidget {
+  const _CachedBookPage({required this.page});
+
+  final BookPageRead page;
+
+  @override
+  State<_CachedBookPage> createState() => _CachedBookPageState();
+}
+
+class _CachedBookPageState extends State<_CachedBookPage> {
+  late Future<File> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<File> _load() async {
+    final cached = await BookOfflineStore.instance.existingPage(widget.page);
+    if (cached != null) return cached;
+    final url = BackendApi.instance.absoluteApiUrl(widget.page.imageUrl);
+    return BookOfflineStore.instance.cachePage(page: widget.page, url: url);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<File>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(
+            child: CircularProgressIndicator(color: context.colors.primary),
+          );
+        }
+        if (snapshot.hasError || snapshot.data == null) {
+          return const _ReaderState(
+            icon: Icons.broken_image_outlined,
+            title: 'Page image unavailable',
+            body: 'Connect to the internet to save this page for offline reading.',
+          );
+        }
+        return Center(
+          child: Image.file(snapshot.data!, fit: BoxFit.contain),
+        );
+      },
     );
   }
 }

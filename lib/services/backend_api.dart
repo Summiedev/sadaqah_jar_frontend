@@ -431,6 +431,12 @@ class BackendApi {
   ///
   /// Throws [BackendApiException] if the body is not a Map after unwrapping.
   Map<String, dynamic> expectMap(dynamic body, {String? context}) {
+    // A paginated response uses `data` as a field of the resource itself.
+    // Preserve that map instead of unwrapping its rows as though it were an
+    // envelope.
+    if (body is Map && _isPaginatedMap(body)) {
+      return Map<String, dynamic>.from(body);
+    }
     final unwrapped = _unwrap(body);
     if (unwrapped is Map<String, dynamic>) {
       return unwrapped;
@@ -445,6 +451,25 @@ class BackendApi {
       0,
     );
   }
+
+  /// Preserves a bare object containing a `data` field. This is used by the
+  /// older admin list endpoints, which predate the standard Envelope type.
+  Map<String, dynamic> expectMapWithData(dynamic body, {String? context}) {
+    if (body is Map &&
+        (body.containsKey('meta') || body.containsKey('message'))) {
+      return expectMap(body, context: context);
+    }
+    if (body is Map && body.containsKey('data')) {
+      return Map<String, dynamic>.from(body);
+    }
+    return expectMap(body, context: context);
+  }
+
+  bool _isPaginatedMap(Map body) =>
+      body.containsKey('data') &&
+      (body.containsKey('total') ||
+          body.containsKey('limit') ||
+          body.containsKey('offset'));
 
   /// Safely unwraps a decoded response body and returns it as a List.
   ///
@@ -1246,14 +1271,19 @@ class BackendApi {
   Future<AdminCharityPage> getAdminCharities({
     int limit = 50,
     int offset = 0,
+    bool includeInactive = true,
   }) async {
     final response = await _get(
       '/admin/charities/',
       auth: true,
-      query: {'limit': limit, 'offset': offset},
+      query: {
+        'limit': limit,
+        'offset': offset,
+        'include_inactive': includeInactive,
+      },
     );
     return AdminCharityPage.fromJson(
-      expectMap(_handleJson(response), context: 'admin charities'),
+      expectMapWithData(_handleJson(response), context: 'admin charities'),
     );
   }
 
@@ -1275,6 +1305,7 @@ class BackendApi {
     String status = 'active',
     String? deadline,
     bool isPublished = true,
+    bool isActive = true,
     bool isFeatured = false,
   }) async {
     final response = await _post(
@@ -1299,6 +1330,7 @@ class BackendApi {
         'status': status,
         if (deadline != null) 'deadline': deadline,
         'is_published': isPublished,
+        'is_active': isActive,
         'is_featured': isFeatured,
       }),
     );
@@ -1443,6 +1475,156 @@ class BackendApi {
     return CharityPage.fromJson(_handleJson(response));
   }
 
+  Future<List<BroadcastItem>> getActiveBroadcasts() async {
+    final response = await _get('/broadcasts/active', auth: true);
+    final decoded = _handleJson(response);
+    return expectListOrEmpty(decoded, context: 'active broadcasts')
+        .map((item) => BroadcastItem.fromJson(expectMap(item, context: 'broadcast')))
+        .toList();
+  }
+
+  Future<AdminAnalyticsOverview> getAdminAnalyticsOverview({
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    final response = await _get(
+      '/admin/analytics/overview',
+      auth: true,
+      query: {
+        if (startDate != null) 'start_date': _dateOnly(startDate),
+        if (endDate != null) 'end_date': _dateOnly(endDate),
+      },
+    );
+    return AdminAnalyticsOverview.fromJson(
+      expectMap(_handleJson(response), context: 'admin analytics overview'),
+    );
+  }
+
+  String _dateOnly(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
+
+  Future<void> recordBroadcastView(int broadcastId) async {
+    final response = await _post('/broadcasts/$broadcastId/view', auth: true);
+    _handleJson(response);
+  }
+
+  Future<void> recordBroadcastDismissal(int broadcastId) async {
+    final response = await _post('/broadcasts/$broadcastId/dismiss', auth: true);
+    _handleJson(response);
+  }
+
+  Future<void> recordBroadcastClick(int broadcastId) async {
+    final response = await _post('/broadcasts/$broadcastId/click', auth: true);
+    _handleJson(response);
+  }
+
+  Future<List<AdminBroadcast>> getAdminBroadcasts() async {
+    final response = await _get('/admin/broadcasts/', auth: true);
+    final decoded = _handleJson(response);
+    final map = expectMapWithData(decoded, context: 'admin broadcasts');
+    return expectListOrEmpty(map['data'], context: 'admin broadcast items')
+        .map((item) => AdminBroadcast.fromJson(expectMap(item, context: 'admin broadcast')))
+        .toList();
+  }
+
+  Future<AdminBroadcast> createAdminBroadcast({
+    required String title,
+    required String body,
+    String? imageUrl,
+    String? ctaLabel,
+    String? ctaLink,
+    String? startsAt,
+    String? endsAt,
+    String audience = 'all',
+    String displayMode = 'until_dismissed',
+    bool isActive = true,
+  }) async {
+    final response = await _post(
+      '/admin/broadcasts/',
+      auth: true,
+      body: jsonEncode({
+        'title': title,
+        'body': body,
+        if (imageUrl?.isNotEmpty == true) 'image_url': imageUrl,
+        if (ctaLabel?.isNotEmpty == true) 'cta_label': ctaLabel,
+        if (ctaLink?.isNotEmpty == true) 'cta_link': ctaLink,
+        if (startsAt != null) 'starts_at': startsAt,
+        if (endsAt != null) 'ends_at': endsAt,
+        'audience': audience,
+        'display_mode': displayMode,
+        'is_active': isActive,
+      }),
+    );
+    return AdminBroadcast.fromJson(
+      expectMap(_handleJson(response), context: 'admin broadcast'),
+    );
+  }
+
+  Future<AdminBroadcast> updateAdminBroadcast(
+    int broadcastId, {
+    String? title,
+    String? body,
+    String? imageUrl,
+    String? ctaLabel,
+    String? ctaLink,
+    String? startsAt,
+    String? endsAt,
+    bool clearEndsAt = false,
+    String? audience,
+    String? displayMode,
+    bool? isActive,
+  }) async {
+    final values = <String, dynamic>{
+      if (title != null) 'title': title,
+      if (body != null) 'body': body,
+      if (imageUrl != null) 'image_url': imageUrl,
+      if (ctaLabel != null) 'cta_label': ctaLabel,
+      if (ctaLink != null) 'cta_link': ctaLink,
+      if (startsAt != null) 'starts_at': startsAt,
+      if (endsAt != null || clearEndsAt) 'ends_at': endsAt,
+      if (audience != null) 'audience': audience,
+      if (displayMode != null) 'display_mode': displayMode,
+      if (isActive != null) 'is_active': isActive,
+    };
+    final response = await _patch(
+      '/admin/broadcasts/$broadcastId',
+      auth: true,
+      body: jsonEncode(values),
+    );
+    return AdminBroadcast.fromJson(
+      expectMap(_handleJson(response), context: 'admin broadcast'),
+    );
+  }
+
+  Future<void> deleteAdminBroadcast(int broadcastId) async {
+    await _delete('/admin/broadcasts/$broadcastId', auth: true);
+  }
+
+  Future<JourneyHistoryPage> getJourneyHistory({
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    final response = await _get(
+      '/journey/history',
+      auth: true,
+      query: {
+        'limit': limit,
+        'offset': offset,
+      },
+    );
+    final decoded = _handleJson(response);
+    final items = expectListOrEmpty(decoded, context: 'journey history')
+        .map((item) => JourneyHistoryItem.fromJson(expectMap(item, context: 'history item')))
+        .toList();
+    final meta = decoded is Map<String, dynamic> ? _getEnvelopeMeta(decoded) : null;
+    return JourneyHistoryPage(
+      items: items,
+      total: (meta?['total'] as num?)?.toInt() ?? items.length,
+    );
+  }
+
   Future<AdminEvidencePage> getAdminEvidence({
     int limit = 50,
     int offset = 0,
@@ -1453,7 +1635,7 @@ class BackendApi {
       query: {'limit': limit, 'offset': offset},
     );
     return AdminEvidencePage.fromJson(
-      expectMap(_handleJson(response), context: 'admin evidence'),
+      expectMapWithData(_handleJson(response), context: 'admin evidence'),
     );
   }
 
@@ -2584,7 +2766,6 @@ class BackendApi {
   Future<List<BookRead>> getBooks({int limit = 50, int offset = 0}) async {
     final response = await _get(
       '/books/',
-      auth: true,
       query: {'limit': limit, 'offset': offset},
     );
     final decoded = _handleJson(response);
@@ -2595,13 +2776,13 @@ class BackendApi {
   }
 
   Future<BookDetail> getBook(int bookId) async {
-    final response = await _get('/books/$bookId', auth: true);
+    final response = await _get('/books/$bookId');
     final decoded = _handleJson(response);
     return BookDetail.fromJson(expectMap(decoded, context: 'book'));
   }
 
   Future<List<BookChapterRead>> getBookChapters(int bookId) async {
-    final response = await _get('/books/$bookId/chapters', auth: true);
+    final response = await _get('/books/$bookId/chapters');
     final decoded = _handleJson(response);
     return expectList(decoded, context: 'book chapters')
         .map(
@@ -2776,11 +2957,45 @@ class BackendApiException implements Exception {
           : 'BackendApiException($statusCode, $code): $message';
 }
 
-String backendErrorMessage(Object error, {required String fallback}) {
-  if (error is BackendApiException && error.message.trim().isNotEmpty) {
-    return error.message.trim();
+String backendErrorMessage(Object? error, {required String fallback}) {
+  if (error is! BackendApiException) return fallback;
+
+  final message = error.message.trim();
+  if (error.statusCode == 401) {
+    return 'Your session has ended. Please sign in again.';
+  }
+  if (error.statusCode == 403) {
+    return "You don't have permission to do that.";
+  }
+  if (error.statusCode == 404) {
+    return 'This item is no longer available.';
+  }
+  if (error.statusCode == 409 && !_looksLikeRawError(message)) {
+    return message.isEmpty
+        ? 'That action conflicts with the current state. Refresh and try again.'
+        : message;
+  }
+  if (error.statusCode == 422 && !_looksLikeRawError(message)) {
+    return message.isEmpty
+        ? 'Please check the information entered and try again.'
+        : message;
+  }
+  if (error.statusCode >= 500 || _looksLikeRawError(message)) {
+    return fallback;
+  }
+  if (message.isNotEmpty) {
+    return message;
   }
   return fallback;
+}
+
+bool _looksLikeRawError(String message) {
+  final lower = message.toLowerCase();
+  return message.startsWith('{') ||
+      message.startsWith('[') ||
+      lower.contains('traceback') ||
+      lower.contains('internal server error') ||
+      lower.contains('backendapiexception');
 }
 
 class PickedUploadFile {
@@ -3700,6 +3915,61 @@ class AdminTopActEntry {
   }
 }
 
+class AdminAnalyticsOverview {
+  AdminAnalyticsOverview({
+    required this.users,
+    required this.activity,
+    required this.dailyActiveUsers,
+  });
+
+  final Map<String, int> users;
+  final Map<String, int> activity;
+  final List<AdminDailyActiveUsers> dailyActiveUsers;
+
+  factory AdminAnalyticsOverview.fromJson(Map<String, dynamic> json) {
+    Map<String, int> integerMap(dynamic value) {
+      if (value is! Map) return const {};
+      return value.map(
+        (key, value) => MapEntry(
+          key.toString(),
+          value is num ? value.toInt() : int.tryParse('$value') ?? 0,
+        ),
+      );
+    }
+
+    final daily = json['daily_active_users'];
+    return AdminAnalyticsOverview(
+      users: integerMap(json['users']),
+      activity: integerMap(json['activity']),
+      dailyActiveUsers:
+          daily is List
+              ? daily
+                  .whereType<Map>()
+                  .map(
+                    (item) => AdminDailyActiveUsers.fromJson(
+                      Map<String, dynamic>.from(item),
+                    ),
+                  )
+                  .toList()
+              : const [],
+    );
+  }
+}
+
+class AdminDailyActiveUsers {
+  const AdminDailyActiveUsers({required this.date, required this.count});
+
+  final String date;
+  final int count;
+
+  factory AdminDailyActiveUsers.fromJson(Map<String, dynamic> json) {
+    return AdminDailyActiveUsers(
+      date: json['date']?.toString() ?? '',
+      count: (json['count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class AdminDonationIntentEntry {
   AdminDonationIntentEntry({required this.charityId, required this.count});
 
@@ -3729,6 +3999,7 @@ class AdminBookRecord {
     required this.published,
     this.sortOrder,
     this.pageCount = 0,
+    this.chapterCount = 0,
   });
 
   final int id;
@@ -3744,6 +4015,7 @@ class AdminBookRecord {
   final bool published;
   final int? sortOrder;
   final int pageCount;
+  final int chapterCount;
 
   factory AdminBookRecord.fromJson(Map<String, dynamic> json) {
     return AdminBookRecord(
@@ -3760,6 +4032,7 @@ class AdminBookRecord {
       published: json['published'] as bool? ?? true,
       sortOrder: (json['sort_order'] as num?)?.toInt(),
       pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
+      chapterCount: (json['chapter_count'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -3846,6 +4119,23 @@ class BookRead {
       pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'author': author,
+    'description': description,
+    'cover_url': coverUrl,
+    'file_url': fileUrl,
+    'file_format': fileFormat,
+    'file_type': fileType,
+    'category': category,
+    'language': language,
+    'published': published,
+    'chapter_count': chapterCount,
+    'total_reading_time': totalReadingTime,
+    'page_count': pageCount,
+  };
 }
 
 class BookDetail {
@@ -3919,6 +4209,27 @@ class BookDetail {
               .toList(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    ...BookRead(
+      id: id,
+      title: title,
+      author: author,
+      description: description,
+      coverUrl: coverUrl,
+      fileUrl: fileUrl,
+      fileFormat: fileFormat,
+      fileType: fileType,
+      category: category,
+      language: language,
+      published: published,
+      chapterCount: chapterCount,
+      totalReadingTime: totalReadingTime,
+      pageCount: pageCount,
+    ).toJson(),
+    'chapters': chapters.map((chapter) => chapter.toJson()).toList(),
+    'pages': pages.map((page) => page.toJson()).toList(),
+  };
 }
 
 class BookPageRead {
@@ -3945,6 +4256,14 @@ class BookPageRead {
       imageType: json['image_type']?.toString(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'book_id': bookId,
+    'page_number': pageNumber,
+    'image_url': imageUrl,
+    'image_type': imageType,
+  };
 }
 
 class BookChapterRead {
@@ -3971,6 +4290,14 @@ class BookChapterRead {
       content: json['content']?.toString(),
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'book_id': bookId,
+    'chapter_number': chapterNumber,
+    'title': title,
+    'content': content,
+  };
 }
 
 class NotificationItem {
@@ -4093,6 +4420,140 @@ class JourneyReflectionPage {
 
   final List<JourneyReflection> items;
   final int total;
+}
+
+class JourneyHistoryItem {
+  JourneyHistoryItem({
+    required this.id,
+    required this.kind,
+    required this.title,
+    required this.occurredAt,
+    this.description,
+    this.referenceId,
+    this.metadata = const {},
+  });
+
+  final String id;
+  final String kind;
+  final String title;
+  final String? description;
+  final String occurredAt;
+  final int? referenceId;
+  final Map<String, dynamic> metadata;
+
+  factory JourneyHistoryItem.fromJson(Map<String, dynamic> json) {
+    return JourneyHistoryItem(
+      id: json['id']?.toString() ?? '',
+      kind: json['kind']?.toString() ?? 'activity',
+      title: json['title']?.toString() ?? 'Journey activity',
+      description: json['description']?.toString(),
+      occurredAt: json['occurred_at']?.toString() ?? '',
+      referenceId: (json['reference_id'] as num?)?.toInt(),
+      metadata:
+          json['metadata'] is Map
+              ? Map<String, dynamic>.from(json['metadata'] as Map)
+              : const {},
+    );
+  }
+}
+
+class JourneyHistoryPage {
+  JourneyHistoryPage({required this.items, required this.total});
+
+  final List<JourneyHistoryItem> items;
+  final int total;
+}
+
+class BroadcastItem {
+  BroadcastItem({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.displayMode,
+    this.imageUrl,
+    this.ctaLabel,
+    this.ctaLink,
+    this.endsAt,
+  });
+
+  final int id;
+  final String title;
+  final String body;
+  final String displayMode;
+  final String? imageUrl;
+  final String? ctaLabel;
+  final String? ctaLink;
+  final String? endsAt;
+
+  factory BroadcastItem.fromJson(Map<String, dynamic> json) {
+    return BroadcastItem(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      title: json['title']?.toString() ?? '',
+      body: json['body']?.toString() ?? '',
+      displayMode: json['display_mode']?.toString() ?? 'until_dismissed',
+      imageUrl: json['image_url']?.toString(),
+      ctaLabel: json['cta_label']?.toString(),
+      ctaLink: json['cta_link']?.toString(),
+      endsAt: json['ends_at']?.toString(),
+    );
+  }
+}
+
+class AdminBroadcast {
+  AdminBroadcast({
+    required this.id,
+    required this.title,
+    required this.body,
+    required this.displayMode,
+    required this.isActive,
+    required this.views,
+    required this.dismissals,
+    required this.clicks,
+    this.imageUrl,
+    this.ctaLabel,
+    this.ctaLink,
+    this.startsAt,
+    this.endsAt,
+    this.audience = 'all',
+  });
+
+  final int id;
+  final String title;
+  final String body;
+  final String displayMode;
+  final bool isActive;
+  final int views;
+  final int dismissals;
+  final int clicks;
+  final String? imageUrl;
+  final String? ctaLabel;
+  final String? ctaLink;
+  final String? startsAt;
+  final String? endsAt;
+  final String audience;
+
+  factory AdminBroadcast.fromJson(Map<String, dynamic> json) {
+    final analytics =
+        json['analytics'] is Map
+            ? Map<String, dynamic>.from(json['analytics'] as Map)
+            : const <String, dynamic>{};
+    return AdminBroadcast(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      title: json['title']?.toString() ?? '',
+      body: json['body']?.toString() ?? '',
+      displayMode: json['display_mode']?.toString() ?? 'until_dismissed',
+      isActive: json['is_active'] as bool? ?? false,
+      views: (analytics['views'] as num?)?.toInt() ?? 0,
+      dismissals: (analytics['dismissals'] as num?)?.toInt() ?? 0,
+      clicks: (analytics['clicks'] as num?)?.toInt() ?? 0,
+      imageUrl: json['image_url']?.toString(),
+      ctaLabel: json['cta_label']?.toString(),
+      ctaLink: json['cta_link']?.toString(),
+      startsAt: json['starts_at']?.toString(),
+      endsAt: json['ends_at']?.toString(),
+      audience: json['audience']?.toString() ?? 'all',
+    );
+  }
 }
 
 class JourneyAdhkarProgress {

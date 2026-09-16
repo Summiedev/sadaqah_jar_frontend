@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/design_tokens.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../../services/backend_api.dart';
+import '../../services/book_offline_store.dart';
 import '../../widgets/mizan_async_state.dart';
 import 'book_reader_screen.dart';
 
@@ -20,12 +21,24 @@ class _BooksListScreenState extends ConsumerState<BooksListScreen> {
   @override
   void initState() {
     super.initState();
-    _future = BackendApi.instance.getBooks();
+    _future = _loadBooks();
+  }
+
+  Future<List<BookRead>> _loadBooks() async {
+    try {
+      final books = await BackendApi.instance.getBooks();
+      await BookOfflineStore.instance.saveCatalog(books);
+      return books;
+    } catch (error) {
+      final cached = await BookOfflineStore.instance.loadCatalog();
+      if (cached != null) return cached;
+      throw error;
+    }
   }
 
   void _refresh() {
     setState(() {
-      _future = BackendApi.instance.getBooks();
+      _future = _loadBooks();
     });
   }
 

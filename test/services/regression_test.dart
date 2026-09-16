@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sadaqah_jar/services/backend_api.dart';
 import 'package:sadaqah_jar/core/user_facing_errors.dart';
 import 'package:sadaqah_jar/services/device_timezone.dart';
+import 'package:sadaqah_jar/services/offline_action_queue.dart';
 import 'package:sadaqah_jar/services/websocket_service.dart';
 import 'package:sadaqah_jar/features/journey/quran/quran_data.dart';
 
@@ -105,6 +106,30 @@ void main() {
       expect(result.length, 1);
     });
 
+    test('paginated resource keeps its data list', () {
+      final api = BackendApi.instance;
+      final result = api.expectMap({
+        'total': 2,
+        'limit': 50,
+        'offset': 0,
+        'data': [
+          {'id': 1},
+        ],
+      });
+      expect(result['total'], 2);
+      expect(result['data'], isA<List<dynamic>>());
+    });
+
+    test('bare data resource keeps its list for admin responses', () {
+      final api = BackendApi.instance;
+      final result = api.expectMapWithData({
+        'data': [
+          {'id': 1},
+        ],
+      });
+      expect(result['data'], isA<List<dynamic>>());
+    });
+
     test('empty response yields empty map (no crash)', () {
       final api = BackendApi.instance;
       final result = api.expectMapOrNull(null);
@@ -117,6 +142,56 @@ void main() {
         () => api.expectMap('not a map'),
         throwsA(isA<BackendApiException>()),
       );
+    });
+
+    test('server errors map to a useful safe fallback', () {
+      expect(
+        backendErrorMessage(
+          BackendApiException('[{"type":"internal"}]', 422),
+          fallback: 'Could not save this item.',
+        ),
+        'Could not save this item.',
+      );
+      expect(
+        backendErrorMessage(
+          BackendApiException('Invalid family code', 400),
+          fallback: 'Could not join the family.',
+        ),
+        'Invalid family code',
+      );
+      expect(
+        backendErrorMessage(
+          BackendApiException('database exploded', 500),
+          fallback: 'Could not load this right now.',
+        ),
+        'Could not load this right now.',
+      );
+    });
+  });
+
+  group('Offline action durability', () {
+    test('queue payload survives SQLite JSON serialization', () {
+      final createdAt = DateTime(2026, 9, 16, 10, 30);
+      final item = OfflineQueueItem(
+        id: 'reflection-sync-1',
+        actionType: ActionType.createReflection,
+        payload: {
+          'title': 'A quiet note',
+          'body': 'Saved without a connection.',
+          'mood': 'grateful',
+          'is_private': true,
+        },
+        createdAt: createdAt,
+      );
+
+      final restored = OfflineQueueItem.tryFromJson(item.toJson());
+
+      expect(restored, isNotNull);
+      expect(restored!.id, item.id);
+      expect(restored.actionType, ActionType.createReflection);
+      expect(restored.payload['body'], 'Saved without a connection.');
+      expect(restored.payload['is_private'], isTrue);
+      expect(restored.createdAt, createdAt);
     });
   });
 

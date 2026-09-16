@@ -15,9 +15,38 @@ class AdminBooksScreen extends StatefulWidget {
 class _AdminBooksScreenState extends State<AdminBooksScreen> {
   late Future<AdminBookPage> _future = _load();
   final Set<int> _busyBooks = {};
+  final TextEditingController _searchController = TextEditingController();
+  String _publicationFilter = 'all';
+  String _sort = 'recent';
 
-  Future<AdminBookPage> _load() =>
-      BackendApi.instance.getAdminBooks(limit: 100, offset: 0);
+  Future<AdminBookPage> _load() async {
+    const pageSize = 200;
+    var offset = 0;
+    var total = 0;
+    final books = <AdminBookRecord>[];
+    do {
+      final page = await BackendApi.instance.getAdminBooks(
+        limit: pageSize,
+        offset: offset,
+      );
+      total = page.total;
+      books.addAll(page.data);
+      if (page.data.isEmpty) break;
+      offset += page.data.length;
+    } while (books.length < total);
+    return AdminBookPage(
+      total: total,
+      limit: books.length,
+      offset: 0,
+      data: books,
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _refresh() {
     setState(() {
@@ -80,7 +109,9 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Upload failed: $e'),
+            content: Text(
+              backendErrorMessage(e, fallback: 'Could not update book file.'),
+            ),
             backgroundColor: context.colors.error,
           ),
         );
@@ -123,12 +154,25 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
           ),
     );
     if (confirm != true) return;
-    await BackendApi.instance.deleteAdminBook(book.id);
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Book deleted.')));
-      _refresh();
+    try {
+      await BackendApi.instance.deleteAdminBook(book.id);
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Book deleted.')));
+        _refresh();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              backendErrorMessage(error, fallback: 'Could not delete book.'),
+            ),
+            backgroundColor: context.colors.error,
+          ),
+        );
+      }
     }
   }
 
@@ -176,39 +220,114 @@ class _AdminBooksScreenState extends State<AdminBooksScreen> {
                   'Create a book, upload its reading file, then publish it when ready.',
             );
           }
+          final query = _searchController.text.trim().toLowerCase();
+          final filteredBooks = books.where((book) {
+            final matchesQuery = query.isEmpty ||
+                book.title.toLowerCase().contains(query) ||
+                book.author.toLowerCase().contains(query) ||
+                book.category.toLowerCase().contains(query);
+            final matchesStatus = _publicationFilter == 'all' ||
+                (_publicationFilter == 'published' && book.published) ||
+                (_publicationFilter == 'draft' && !book.published);
+            return matchesQuery && matchesStatus;
+          }).toList();
+          filteredBooks.sort((a, b) {
+            switch (_sort) {
+              case 'title':
+                return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+              case 'oldest':
+                return a.id.compareTo(b.id);
+              default:
+                return b.id.compareTo(a.id);
+            }
+          });
           return LayoutBuilder(
             builder: (context, constraints) {
               final twoColumns = constraints.maxWidth >= 760;
-              return GridView.builder(
-                padding: const EdgeInsets.all(18),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: twoColumns ? 2 : 1,
-                  mainAxisSpacing: 14,
-                  crossAxisSpacing: 14,
-                  mainAxisExtent: 236,
-                ),
-                itemCount: books.length,
-                itemBuilder:
-                    (context, index) => _BookCard(
-                      book: books[index],
-                      busy: _busyBooks.contains(books[index].id),
-                      onEdit: () => _openForm(book: books[index]),
-                      onPreview:
-                          () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder:
-                                  (_) => BookReaderScreen(
-                                    book: books[index].asBookRead(),
-                                    adminPreview: true,
-                                  ),
+              return Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _searchController,
+                            onChanged: (_) => setState(() {}),
+                            decoration: const InputDecoration(
+                              prefixIcon: Icon(Icons.search_rounded),
+                              hintText: 'Search title, author, or category',
                             ),
                           ),
-                      onDelete: () => _delete(books[index]),
-                      onUploadPdf: () => _replaceFile(books[index], 'pdf'),
-                      onUploadEpub: () => _replaceFile(books[index], 'epub'),
-                      onUploadImages:
-                          () => _replaceFile(books[index], 'images'),
+                        ),
+                        const SizedBox(width: 10),
+                        DropdownButton<String>(
+                          value: _publicationFilter,
+                          items: const [
+                            DropdownMenuItem(value: 'all', child: Text('All')),
+                            DropdownMenuItem(value: 'published', child: Text('Published')),
+                            DropdownMenuItem(value: 'draft', child: Text('Drafts')),
+                          ],
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() => _publicationFilter = value);
+                            }
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        Tooltip(
+                          message: 'Sort books',
+                          child: DropdownButton<String>(
+                            value: _sort,
+                            items: const [
+                              DropdownMenuItem(value: 'recent', child: Text('Recent')),
+                              DropdownMenuItem(value: 'title', child: Text('Title')),
+                              DropdownMenuItem(value: 'oldest', child: Text('Oldest')),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) setState(() => _sort = value);
+                            },
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                  Expanded(
+                    child: filteredBooks.isEmpty
+                        ? const _EmptyState(
+                            icon: Icons.search_off_rounded,
+                            title: 'No matching books',
+                            body: 'Try a different search or publication filter.',
+                          )
+                        : GridView.builder(
+                            padding: const EdgeInsets.all(18),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: twoColumns ? 2 : 1,
+                              mainAxisSpacing: 14,
+                              crossAxisSpacing: 14,
+                              mainAxisExtent: 236,
+                            ),
+                            itemCount: filteredBooks.length,
+                            itemBuilder: (context, index) => _BookCard(
+                              book: filteredBooks[index],
+                              busy: _busyBooks.contains(filteredBooks[index].id),
+                              onEdit: () => _openForm(book: filteredBooks[index]),
+                              onPreview: () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => BookReaderScreen(
+                                    book: filteredBooks[index].asBookRead(),
+                                    adminPreview: true,
+                                  ),
+                                ),
+                              ),
+                              onDelete: () => _delete(filteredBooks[index]),
+                              onUploadPdf: () => _replaceFile(filteredBooks[index], 'pdf'),
+                              onUploadEpub: () => _replaceFile(filteredBooks[index], 'epub'),
+                              onUploadImages: () => _replaceFile(filteredBooks[index], 'images'),
+                            ),
+                          ),
+                  ),
+                ],
               );
             },
           );
@@ -246,11 +365,10 @@ String _adminBookError(Object? error) {
   if (error is BackendApiException && error.statusCode >= 500) {
     return 'The books service is unavailable. Make sure the latest backend migrations have run, then refresh.';
   }
-  final text = error?.toString() ?? '';
-  if (text.contains('BackendApiException(500')) {
-    return 'The books service is unavailable. Make sure the latest backend migrations have run, then refresh.';
-  }
-  return 'Check your connection and try again.';
+  return backendErrorMessage(
+    error,
+    fallback: 'We could not load the books right now. Please try again.',
+  );
 }
 
 class _BookEditorSheet extends StatefulWidget {
@@ -456,7 +574,9 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
         setState(() => _status = 'Failed. Check the file type and try again.');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not save book: $e'),
+            content: Text(
+              backendErrorMessage(e, fallback: 'Could not save book.'),
+            ),
             backgroundColor: context.colors.error,
           ),
         );

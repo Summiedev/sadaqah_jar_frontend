@@ -46,6 +46,7 @@ import 'screens/admin/admin_route_gate.dart';
 import 'screens/notification_center_screen.dart';
 import 'screens/settings_screen.dart' hide EditGoalScreen;
 import 'screens/charities_list_screen.dart';
+import 'widgets/broadcast_host.dart';
 import 'services/lock_screen_widget_service.dart';
 import 'services/next_prayer_widget_service.dart';
 import 'services/offline_action_queue.dart';
@@ -70,6 +71,7 @@ final splashMinElapsedProvider = StateProvider<bool>((ref) => false);
 
 Future<FirebaseApp>? _firebaseReady;
 final _rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
 @pragma('vm:entry-point')
@@ -157,6 +159,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final minElapsed = ref.watch(splashMinElapsedProvider);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/splash',
     redirect: (context, state) {
       final path = state.uri.path;
@@ -447,6 +450,13 @@ final routerProvider = Provider<GoRouter>((ref) {
               child: const AdminRouteGate(routeName: '/admin/books'),
             ),
       ),
+      GoRoute(
+        path: '/admin/broadcasts',
+        pageBuilder:
+            (context, state) => mizanPage(
+              child: const AdminRouteGate(routeName: '/admin/broadcasts'),
+            ),
+      ),
     ],
   );
 });
@@ -618,7 +628,11 @@ class _MizanAppState extends ConsumerState<MizanApp>
               router.go('/onboarding');
             }
           },
-          child: child ?? const SizedBox.shrink(),
+          child: BroadcastHost(
+            navigatorKey: _rootNavigatorKey,
+            onDeepLink: (path) => router.push(path),
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
     );
