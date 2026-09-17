@@ -2693,7 +2693,10 @@ class BackendApi {
   }) async {
     final response = await _get(
       '/family/$familyId/activity',
-      auth: false,
+      // The API checks active family membership. Omitting the bearer token
+      // made the Family activity tab fail with 401 even though the family
+      // detail request itself had succeeded.
+      auth: true,
       query: {'limit': limit, if (cursor != null) 'cursor': cursor},
     );
     final decoded = _handleJson(response);

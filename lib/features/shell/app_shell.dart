@@ -167,11 +167,11 @@ class _AppShellState extends ConsumerState<AppShell>
             '/qibla',
           ),
           _NavDef(
-            _kSettings,
-            Icons.settings_outlined,
-            Icons.settings,
-            'Settings',
-            '/settings',
+            _kProfile,
+            Icons.person_outline_rounded,
+            Icons.person_rounded,
+            'Profile',
+            '/profile',
           ),
         ];
       case kModeFamily:
@@ -198,11 +198,11 @@ class _AppShellState extends ConsumerState<AppShell>
             '/qibla',
           ),
           _NavDef(
-            _kSettings,
-            Icons.settings_outlined,
-            Icons.settings,
-            'Settings',
-            '/settings',
+            _kProfile,
+            Icons.person_outline_rounded,
+            Icons.person_rounded,
+            'Profile',
+            '/profile',
           ),
         ];
       default:

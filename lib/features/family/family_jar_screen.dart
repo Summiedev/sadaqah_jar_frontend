@@ -1210,11 +1210,14 @@ class _ActivityState extends State<_Activity> {
         _loading = false;
         _error = null;
       });
-    } catch (_) {
+    } catch (error) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Could not load the latest activity.';
+        _error = backendErrorMessage(
+          error,
+          fallback: 'Could not load the latest activity. Please try again.',
+        );
       });
     }
   }

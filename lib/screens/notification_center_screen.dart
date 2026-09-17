@@ -6,6 +6,9 @@ import '../../core/theme/theme_extensions.dart';
 import '../../core/animations.dart';
 import '../services/backend_api.dart'
     show BackendApi, NotificationItem, backendErrorMessage;
+import '../services/connectivity_service.dart';
+import '../services/offline_action_queue.dart';
+import '../services/queue_sync_service.dart';
 
 class NotificationCenterScreen extends StatefulWidget {
   const NotificationCenterScreen({super.key, this.onUnreadCountChanged});
@@ -30,6 +33,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   int _offset = 0;
   int _total = 0;
   int _unreadCount = 0;
+  final Set<int> _pendingArchivedIds = <int>{};
 
   @override
   void initState() {
@@ -47,6 +51,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
   Future<void> _loadPage() async {
     if (_loadingMore) return;
+    await _refreshPendingArchives();
+    if (!mounted) return;
     setState(() {
       _loadingMore = true;
       _error = null;
@@ -57,11 +63,14 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         offset: _offset,
       );
       if (!mounted) return;
+      final visible = page.data
+          .where((item) => !_pendingArchivedIds.contains(item.id))
+          .toList();
       setState(() {
-        _total = page.total;
+        _total = _visibleTotal(page.total);
         _offset = page.offset + page.data.length;
-        _items.addAll(page.data);
-        _hasMore = _items.length < page.total && page.data.isNotEmpty;
+        _items.addAll(visible);
+        _hasMore = _items.length < _total && page.data.isNotEmpty;
         _initialLoading = false;
         _loadingMore = false;
       });
@@ -99,6 +108,8 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
   }
 
   Future<void> _refresh() async {
+    await _refreshPendingArchives();
+    if (!mounted) return;
     setState(() => _refreshing = true);
     try {
       final page = await BackendApi.instance.getNotifications(
@@ -106,13 +117,16 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
         offset: 0,
       );
       if (!mounted) return;
+      final visible = page.data
+          .where((item) => !_pendingArchivedIds.contains(item.id))
+          .toList();
       setState(() {
         _items
           ..clear()
-          ..addAll(page.data);
-        _total = page.total;
+          ..addAll(visible);
+        _total = _visibleTotal(page.total);
         _offset = page.data.length;
-        _hasMore = _items.length < page.total && page.data.isNotEmpty;
+        _hasMore = _items.length < _total && page.data.isNotEmpty;
         _error = null;
         _refreshing = false;
       });
@@ -148,6 +162,34 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
 
   void _notifyUnreadCount() {
     widget.onUnreadCountChanged?.call(_unreadCount);
+  }
+
+  Future<void> _refreshPendingArchives() async {
+    try {
+      final pending = await OfflineActionQueue.instance.getUnfinished(
+        actionType: ActionType.archiveNotification,
+      );
+      _pendingArchivedIds
+        ..clear()
+        ..addAll(
+          pending
+              .where(
+                (item) =>
+                    item.status != QueueStatus.failed ||
+                    item.retryCount < OfflineActionQueue.maxRetries,
+              )
+              .map((item) => (item.payload['notification_id'] as num?)?.toInt())
+              .whereType<int>(),
+        );
+    } catch (_) {
+      // The server list remains usable if the local outbox is temporarily
+      // unavailable. A later refresh will reconcile the tombstones.
+    }
+  }
+
+  int _visibleTotal(int total) {
+    final visible = total - _pendingArchivedIds.length;
+    return visible < 0 ? 0 : visible;
   }
 
   Future<void> _markRead(int notificationId) async {
@@ -226,41 +268,79 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
     }
   }
 
-  Future<void> _archive(int index) async {
+  Future<bool> _archive(int notificationId) async {
+    final index = _items.indexWhere((item) => item.id == notificationId);
+    if (index == -1) return false;
     final item = _items[index];
+
+    Future<bool> queueOfflineArchive() async {
+      try {
+        // Replacing a previous exhausted attempt resets its retry budget.
+        // The stable ID still prevents duplicate archive operations while a
+        // current attempt is pending.
+        await OfflineActionQueue.instance.remove(
+          'archive_notification_${item.id}',
+        );
+        await QueueSyncService.instance.enqueueAndSync(
+          OfflineQueueItem(
+            id: 'archive_notification_${item.id}',
+            actionType: ActionType.archiveNotification,
+            payload: {'notification_id': item.id},
+            createdAt: DateTime.now(),
+          ),
+        );
+        _pendingArchivedIds.add(item.id);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    bool online = true;
+    try {
+      online = await ConnectivityService.instance.checkNow();
+    } catch (_) {
+      online = false;
+    }
+    if (!online && await queueOfflineArchive()) return true;
+
     try {
       await BackendApi.instance.deleteNotification(item.id);
-      if (!mounted) return;
-      // C5: same guard - find by ID after the await rather than using a
-      // potentially stale index.
-      final updatedIndex = _items.indexWhere((n) => n.id == item.id);
-      if (updatedIndex == -1) return;
-      setState(() => _items.removeAt(updatedIndex));
-      _fetchUnreadCount();
+      return true;
+    } catch (_) {
+      // A failed request while offline is still a successful local action.
+      // The tombstone prevents the notification returning after a refresh and
+      // QueueSyncService retries the server delete when connectivity returns.
+      bool online = true;
+      try {
+        online = await ConnectivityService.instance.checkNow();
+      } catch (_) {
+        online = false;
+      }
+      if (!online && await queueOfflineArchive()) return true;
+      if (!mounted) return false;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Notification archived'),
-          action: SnackBarAction(
-            label: 'Undo',
-            onPressed: () {
-              if (mounted) {
-                setState(
-                  () => _items.insert(
-                    updatedIndex.clamp(0, _items.length).toInt(),
-                    item,
-                  ),
-                );
-              }
-            },
+        const SnackBar(
+          content: Text(
+            'Could not archive this notification. Please try again.',
           ),
         ),
       );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not archive notification.')),
-      );
+      return false;
     }
+  }
+
+  void _removeArchivedNotification(int notificationId) {
+    final index = _items.indexWhere((item) => item.id == notificationId);
+    if (index == -1 || !mounted) return;
+    final wasUnread = !_items[index].isRead;
+    setState(() {
+      _items.removeAt(index);
+      if (_total > 0) _total -= 1;
+      if (wasUnread && _unreadCount > 0) _unreadCount -= 1;
+    });
+    _notifyUnreadCount();
+    _fetchUnreadCount();
   }
 
   @override
@@ -418,7 +498,12 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
                                     scale: scale,
                                     notification: notification,
                                     onTap: () => _openNotification(index),
-                                    onArchive: () => _archive(index),
+                                    onArchive:
+                                        () => _archive(notification.id),
+                                    onDismissed:
+                                        () => _removeArchivedNotification(
+                                          notification.id,
+                                        ),
                                   ),
                                 );
                               },
@@ -450,12 +535,14 @@ class _DismissibleNotificationCard extends StatelessWidget {
     required this.scale,
     required this.notification,
     required this.onArchive,
+    required this.onDismissed,
     this.onTap,
   });
 
   final double scale;
   final NotificationItem notification;
-  final VoidCallback onArchive;
+  final Future<bool> Function() onArchive;
+  final VoidCallback onDismissed;
   final VoidCallback? onTap;
 
   @override
@@ -493,7 +580,8 @@ class _DismissibleNotificationCard extends StatelessWidget {
           );
         },
       ),
-      onDismissed: (_) => onArchive(),
+      confirmDismiss: (_) => onArchive(),
+      onDismissed: (_) => onDismissed(),
       child: _NotificationCard(
         scale: scale,
         notification: notification,

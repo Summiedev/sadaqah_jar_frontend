@@ -14,7 +14,12 @@ enum QueueStatus { pending, syncing, failed, synced }
 /// synchronized.
 final ValueNotifier<int> offlineQueueRevision = ValueNotifier<int>(0);
 
-enum ActionType { addJarStar, addFamilyAct, createReflection }
+enum ActionType {
+  addJarStar,
+  addFamilyAct,
+  createReflection,
+  archiveNotification,
+}
 
 extension ActionTypeExtension on ActionType {
   String get value {
@@ -25,6 +30,8 @@ extension ActionTypeExtension on ActionType {
         return 'add_family_act';
       case ActionType.createReflection:
         return 'create_reflection';
+      case ActionType.archiveNotification:
+        return 'archive_notification';
     }
   }
 
@@ -36,6 +43,8 @@ extension ActionTypeExtension on ActionType {
         return ActionType.addFamilyAct;
       case 'create_reflection':
         return ActionType.createReflection;
+      case 'archive_notification':
+        return ActionType.archiveNotification;
       default:
         return null;
     }

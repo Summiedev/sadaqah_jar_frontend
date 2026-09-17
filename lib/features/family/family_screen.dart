@@ -50,7 +50,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
         _families = families;
         _loading = false;
       });
-      _loadPendingInvitations();
+      await _loadPendingInvitations();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -403,7 +403,7 @@ class _FamilyScreenState extends ConsumerState<FamilyScreen> {
         ),
       );
       // Silent sync so the joined jar appears without a jarring reload spinner.
-      _loadFamilies(showSpinner: false);
+      await _loadFamilies(showSpinner: false);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

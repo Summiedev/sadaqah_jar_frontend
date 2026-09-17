@@ -1336,8 +1336,9 @@ class _HistorialTabState extends State<_HistorialTab> {
   }
 
   Future<void> _refresh() async {
-    _reload();
-    await _future;
+    final future = _loadHistory();
+    if (mounted) setState(() => _future = future);
+    await future;
   }
 
   Future<_HistoryLoad> _loadHistory() async {
@@ -1345,11 +1346,11 @@ class _HistorialTabState extends State<_HistorialTab> {
     List<JourneyReflection> reflections = const [];
     List<JourneyHistoryItem> historyItems = const [];
     List<JourneyHistoryItem> pendingItems = const [];
-    Object? loadError;
+    final loadErrors = <Object>[];
     try {
       readingDays = await QuranRepository.instance.readingDays();
     } catch (error) {
-      loadError = error;
+      loadErrors.add(error);
     }
     try {
       final pending = await _pendingReflections();
@@ -1369,25 +1370,25 @@ class _HistorialTabState extends State<_HistorialTab> {
       try {
         reflections = await _pendingReflections();
       } catch (_) {}
-      loadError ??= error;
+      loadErrors.add(error);
     }
     try {
       historyItems = (await BackendApi.instance.getJourneyHistory()).items;
     } catch (error) {
       // Keep local history usable while an older server is being upgraded.
-      loadError ??= error;
+      loadErrors.add(error);
     }
     try {
       pendingItems = await _pendingJourneyHistory();
     } catch (error) {
-      loadError ??= error;
+      loadErrors.add(error);
     }
     return _HistoryLoad(
       reflections: reflections,
       readingDays: readingDays,
       historyItems: historyItems,
       pendingItems: pendingItems,
-      error: loadError,
+      errors: loadErrors,
     );
   }
 
@@ -1447,11 +1448,11 @@ class _HistorialTabState extends State<_HistorialTab> {
           if (b.date == null) return -1;
           return b.date!.compareTo(a.date!);
         });
-        if (events.isEmpty && loaded.error != null) {
+        if (events.isEmpty && loaded.errors.isNotEmpty) {
           return MizanErrorState(
             title: 'Could not load history',
             message: backendErrorMessage(
-              loaded.error!,
+              loaded.errors.first,
               fallback: 'Your history could not be loaded. Please try again.',
             ),
             onRetry: _reload,
@@ -1483,7 +1484,7 @@ class _HistorialTabState extends State<_HistorialTab> {
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 34),
             physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: events.length + 1,
+            itemCount: events.length + 1 + (loaded.errors.isNotEmpty ? 1 : 0),
             separatorBuilder: (_, __) => const SizedBox(height: 0),
             itemBuilder: (context, index) {
               if (index == 0) {
@@ -1518,22 +1519,48 @@ class _HistorialTabState extends State<_HistorialTab> {
                   ),
                 );
               }
-              final event = events[index - 1];
+              if (loaded.errors.isNotEmpty && index == 1) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: colors.warningContainer,
+                      borderRadius: BorderRadius.circular(MizanRadii.card),
+                      border: Border.all(color: colors.warning.withValues(alpha: 0.35)),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.sync_problem_rounded, color: colors.warning, size: 18),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Some activity could not be refreshed. Pull down to try again.',
+                            style: TextStyle(color: colors.textPrimary, height: 1.35),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+              final eventIndex = index - 1 - (loaded.errors.isNotEmpty ? 1 : 0);
+              final event = events[eventIndex];
               if (event.reflection case final reflection?) {
                 return _HistoryTimelineItem(
                   reflection: reflection,
-                  isLast: index == events.length,
+                  isLast: eventIndex == events.length - 1,
                 );
               }
               if (event.history case final item?) {
                 return _HistoryActivityTimelineItem(
                   item: item,
-                  isLast: index == events.length,
+                  isLast: eventIndex == events.length - 1,
                 );
               }
               return _QuranReadingHistoryItem(
                 date: event.date,
-                isLast: index == events.length,
+                isLast: eventIndex == events.length - 1,
               );
             },
           ),
@@ -1549,14 +1576,14 @@ class _HistoryLoad {
     required this.readingDays,
     required this.historyItems,
     required this.pendingItems,
-    this.error,
+    this.errors = const [],
   });
 
   final List<JourneyReflection> reflections;
   final List<DateTime> readingDays;
   final List<JourneyHistoryItem> historyItems;
   final List<JourneyHistoryItem> pendingItems;
-  final Object? error;
+  final List<Object> errors;
 }
 
 class _HistoryEvent {
@@ -2069,6 +2096,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
   final _titleController = TextEditingController();
   final _bodyController = TextEditingController();
   String? _mood;
+  String? _prompt;
   bool _shareWithFamily = false;
   bool _saving = false;
 
@@ -2157,141 +2185,285 @@ class _ComposeSheetState extends State<_ComposeSheet> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final today = MaterialLocalizations.of(context).formatMediumDate(
+      DateTime.now(),
+    );
+    final bodyHint = switch (_prompt) {
+      'What stayed with me?' =>
+        'Write about the thought, verse, or moment that stayed with you...',
+      'What am I grateful for?' =>
+        'Name one thing you received, noticed, or want to thank Allah for...',
+      'What needs care?' =>
+        'Give this feeling or intention a little room on the page...',
+      'A quiet intention' =>
+        'Write one small intention you would like to carry forward...',
+      _ => 'Write freely. This page is yours...',
+    };
     return PopScope(
       canPop: !_hasUnsavedChanges && !_saving,
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop) unawaited(_handleBack());
       },
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          8,
-          20,
-          20 + MediaQuery.viewInsetsOf(context).bottom,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
         ),
         child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(24, 4, 24, 24 + bottomInset),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: colors.primaryContainer,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(
+                      Icons.auto_stories_outlined,
+                      color: colors.onPrimaryContainer,
+                      size: 23,
+                    ),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'PRIVATE JOURNAL',
+                          style: TextStyle(
+                            color: colors.primary,
+                            fontSize: 11,
+                            letterSpacing: 1.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'A page for today',
+                          style: TextStyle(
+                            color: colors.textPrimary,
+                            fontFamily: 'Georgia',
+                            fontSize: 25,
+                            height: 1.12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          today,
+                          style: TextStyle(
+                            color: colors.textSecondary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _saving ? null : _handleBack,
+                    tooltip: 'Close',
+                    icon: Icon(Icons.close_rounded, color: colors.iconSecondary),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
               Text(
-                'New note',
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontFamily: 'Georgia',
-                  fontSize: 25,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 5),
-              Text(
-                'Keep a thought, a lesson, or a quiet intention.',
-                style: TextStyle(color: colors.textSecondary, height: 1.4),
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: _titleController,
-                onChanged: (_) => setState(() {}),
-                textCapitalization: TextCapitalization.sentences,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontFamily: 'Georgia',
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Give this note a title (optional)',
-                  hintStyle: TextStyle(color: colors.textMuted),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(height: 1, color: colors.divider),
-              TextField(
-                controller: _bodyController,
-                onChanged: (_) => setState(() {}),
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
-                minLines: 7,
-                maxLines: 12,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 16,
-                  height: 1.65,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Write freely...',
-                  hintStyle: TextStyle(color: colors.textMuted),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Optional feeling',
+                'What is present for you today?',
                 style: TextStyle(
                   color: colors.textSecondary,
-                  fontSize: 12,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const SizedBox(height: 9),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final mood in ['Grateful', 'Peaceful', 'Hopeful'])
+                  for (final prompt in [
+                    'What stayed with me?',
+                    'What am I grateful for?',
+                    'What needs care?',
+                    'A quiet intention',
+                  ])
+                    _Pill(
+                      prompt,
+                      color: colors.primaryContainer,
+                      textColor: colors.onPrimaryContainer,
+                      selected: _prompt == prompt,
+                      onTap: () => setState(
+                        () => _prompt = _prompt == prompt ? null : prompt,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: colors.border),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _titleController,
+                      onChanged: (_) => setState(() {}),
+                      textCapitalization: TextCapitalization.sentences,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontFamily: 'Georgia',
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Give this page a title',
+                        hintStyle: TextStyle(color: colors.textMuted),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Container(height: 1, color: colors.divider),
+                    TextField(
+                      controller: _bodyController,
+                      onChanged: (_) => setState(() {}),
+                      textCapitalization: TextCapitalization.sentences,
+                      textAlignVertical: TextAlignVertical.top,
+                      minLines: 8,
+                      maxLines: 16,
+                      style: TextStyle(
+                        color: colors.textPrimary,
+                        fontSize: 16,
+                        height: 1.7,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: bodyHint,
+                        hintStyle: TextStyle(
+                          color: colors.textMuted,
+                          height: 1.6,
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.only(top: 16),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 19),
+              Text(
+                'How does this page feel?',
+                style: TextStyle(
+                  color: colors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final mood in [
+                    'Grateful',
+                    'Peaceful',
+                    'Hopeful',
+                    'Tender',
+                  ])
                     _Pill(
                       mood,
                       color: colors.primaryContainer,
                       textColor: colors.onPrimaryContainer,
                       selected: _mood == mood,
-                      onTap:
-                          () => setState(
-                            () => _mood = _mood == mood ? null : mood,
-                          ),
+                      onTap: () => setState(
+                        () => _mood = _mood == mood ? null : mood,
+                      ),
                     ),
                 ],
               ),
-              const SizedBox(height: 12),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  'Share with family',
-                  style: TextStyle(
-                    color: colors.textPrimary,
-                    fontWeight: FontWeight.w700,
-                  ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                decoration: BoxDecoration(
+                  color: colors.surfaceContainer,
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: colors.border),
                 ),
-                subtitle: Text(
-                  'Keep this note private unless you choose otherwise.',
-                  style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                child: Row(
+                  children: [
+                    Icon(
+                      _shareWithFamily
+                          ? Icons.people_alt_outlined
+                          : Icons.lock_outline_rounded,
+                      color: colors.iconSecondary,
+                      size: 21,
+                    ),
+                    const SizedBox(width: 11),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _shareWithFamily
+                                ? 'Visible to your family'
+                                : 'Private journal entry',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _shareWithFamily
+                                ? 'Your family can read this reflection.'
+                                : 'Only you can read this reflection.',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch.adaptive(
+                      value: _shareWithFamily,
+                      onChanged: (value) => setState(
+                        () => _shareWithFamily = value,
+                      ),
+                      activeThumbColor: colors.primary,
+                    ),
+                  ],
                 ),
-                value: _shareWithFamily,
-                onChanged: (v) => setState(() => _shareWithFamily = v),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton(
+                child: FilledButton.icon(
                   onPressed: _saving ? null : _save,
+                  icon: const Icon(Icons.bookmark_add_outlined, size: 19),
+                  label: Text(
+                    _saving ? 'Keeping your note...' : 'Keep this note',
+                  ),
                   style: FilledButton.styleFrom(
                     backgroundColor: colors.primary,
                     foregroundColor: colors.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                   ),
-                  child:
-                      _saving
-                          ? SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: colors.onPrimary,
-                            ),
-                          )
-                          : const Text('Save note'),
                 ),
               ),
             ],

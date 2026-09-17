@@ -608,16 +608,23 @@ class _MizanAppState extends ConsumerState<MizanApp>
       builder: (context, child) {
         final path = router.routeInformationProvider.value.uri.path;
         final atHome = path.isEmpty || path == '/home';
+        final rootNavigator = _rootNavigatorKey.currentState;
+        final rootCanPop = rootNavigator?.canPop() ?? router.canPop();
         final shellNavigator = _shellNavigatorKey.currentState;
         final shellCanPop = shellNavigator?.canPop() ?? false;
         final allowSystemExit =
             atHome || path == '/auth' || path == '/onboarding';
         return PopScope(
-          // Let GoRouter pop first. If its root stack is empty, pop the shell
-          // navigator's drill-down before falling back to Sanctuary.
-          canPop: router.canPop() || (!shellCanPop && allowSystemExit),
+          // Let a real root route pop normally. ShellRoute keeps its own
+          // navigator, so a shell drill-down is handled below instead of
+          // allowing Android to exit the process.
+          canPop: rootCanPop || (!shellCanPop && allowSystemExit),
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) return;
+            if (rootCanPop && rootNavigator != null) {
+              unawaited(rootNavigator.maybePop());
+              return;
+            }
             if (shellCanPop && shellNavigator != null) {
               unawaited(shellNavigator.maybePop());
               return;

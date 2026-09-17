@@ -151,6 +151,11 @@ class QueueSyncService {
           requestId: requestId,
         );
         return;
+      case ActionType.archiveNotification:
+        final notificationId =
+            (item.payload['notification_id'] as num).toInt();
+        await _api.deleteNotification(notificationId);
+        return;
     }
   }
 
