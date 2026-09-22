@@ -12,6 +12,7 @@ enum SessionBootstrapState { none, restored, expired }
 /// publish only after the server accepted them, so listeners can refresh
 /// without forcing a full app rebuild.
 final ValueNotifier<int> reflectionRevision = ValueNotifier<int>(0);
+final ValueNotifier<int> accountRevision = ValueNotifier<int>(0);
 
 class BackendApi {
   BackendApi._();
@@ -670,6 +671,7 @@ class BackendApi {
       email: snapshot.email,
       avatarData: snapshot.avatarData,
     );
+    accountRevision.value++;
     return snapshot;
   }
 
@@ -1479,7 +1481,10 @@ class BackendApi {
     final response = await _get('/broadcasts/active', auth: true);
     final decoded = _handleJson(response);
     return expectListOrEmpty(decoded, context: 'active broadcasts')
-        .map((item) => BroadcastItem.fromJson(expectMap(item, context: 'broadcast')))
+        .map(
+          (item) =>
+              BroadcastItem.fromJson(expectMap(item, context: 'broadcast')),
+        )
         .toList();
   }
 
@@ -1511,7 +1516,10 @@ class BackendApi {
   }
 
   Future<void> recordBroadcastDismissal(int broadcastId) async {
-    final response = await _post('/broadcasts/$broadcastId/dismiss', auth: true);
+    final response = await _post(
+      '/broadcasts/$broadcastId/dismiss',
+      auth: true,
+    );
     _handleJson(response);
   }
 
@@ -1525,7 +1533,11 @@ class BackendApi {
     final decoded = _handleJson(response);
     final map = expectMapWithData(decoded, context: 'admin broadcasts');
     return expectListOrEmpty(map['data'], context: 'admin broadcast items')
-        .map((item) => AdminBroadcast.fromJson(expectMap(item, context: 'admin broadcast')))
+        .map(
+          (item) => AdminBroadcast.fromJson(
+            expectMap(item, context: 'admin broadcast'),
+          ),
+        )
         .toList();
   }
 
@@ -1609,16 +1621,19 @@ class BackendApi {
     final response = await _get(
       '/journey/history',
       auth: true,
-      query: {
-        'limit': limit,
-        'offset': offset,
-      },
+      query: {'limit': limit, 'offset': offset},
     );
     final decoded = _handleJson(response);
-    final items = expectListOrEmpty(decoded, context: 'journey history')
-        .map((item) => JourneyHistoryItem.fromJson(expectMap(item, context: 'history item')))
-        .toList();
-    final meta = decoded is Map<String, dynamic> ? _getEnvelopeMeta(decoded) : null;
+    final items =
+        expectListOrEmpty(decoded, context: 'journey history')
+            .map(
+              (item) => JourneyHistoryItem.fromJson(
+                expectMap(item, context: 'history item'),
+              ),
+            )
+            .toList();
+    final meta =
+        decoded is Map<String, dynamic> ? _getEnvelopeMeta(decoded) : null;
     return JourneyHistoryPage(
       items: items,
       total: (meta?['total'] as num?)?.toInt() ?? items.length,
@@ -2961,6 +2976,13 @@ class BackendApiException implements Exception {
 }
 
 String backendErrorMessage(Object? error, {required String fallback}) {
+  if (error is StateError) {
+    final message = error.message.toString().trim();
+    if (message.isNotEmpty) return message;
+  }
+  if (error is TimeoutException) {
+    return 'The request took too long. Please check your connection and try again.';
+  }
   if (error is! BackendApiException) return fallback;
 
   final message = error.message.trim();
@@ -4393,6 +4415,7 @@ class JourneyReflection {
     required this.createdAt,
     this.date,
     this.updatedAt,
+    this.localRequestId,
   });
 
   final int id;
@@ -4403,6 +4426,10 @@ class JourneyReflection {
   final String createdAt;
   final String? date;
   final String? updatedAt;
+
+  /// Present only for an optimistic reflection that is still in the local
+  /// outbox. It is never sent as part of the backend response model.
+  final String? localRequestId;
 
   factory JourneyReflection.fromJson(Map<String, dynamic> json) {
     return JourneyReflection(

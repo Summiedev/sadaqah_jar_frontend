@@ -104,15 +104,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                         child: _RhythmOfTheDayCard(),
                       ),
                       const SizedBox(height: 10),
-                      const CardEntrance(
-                        index: 4,
-                        child: _HomeQuickActions(),
-                      ),
+                      const CardEntrance(index: 4, child: _HomeQuickActions()),
                       const SizedBox(height: 14),
-                      const CardEntrance(
-                        index: 5,
-                        child: _QuranQuietRhythm(),
-                      ),
+                      const CardEntrance(index: 5, child: _QuranQuietRhythm()),
                       const SizedBox(height: 14),
                       const CardEntrance(
                         index: 6,
@@ -168,46 +162,54 @@ class _HomeQuickActions extends StatelessWidget {
       ),
     ];
     return LayoutBuilder(
-      builder: (context, constraints) => Row(
-        children: [
-          for (var index = 0; index < actions.length; index++) ...[
-            if (index > 0) const SizedBox(width: 8),
-            Expanded(
-              child: InkWell(
-                onTap: actions[index].$3,
-                borderRadius: BorderRadius.circular(14),
-                child: Container(
-                  constraints: const BoxConstraints(minHeight: 70),
-                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: colors.surfaceContainer,
+      builder:
+          (context, constraints) => Row(
+            children: [
+              for (var index = 0; index < actions.length; index++) ...[
+                if (index > 0) const SizedBox(width: 8),
+                Expanded(
+                  child: InkWell(
+                    onTap: actions[index].$3,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: colors.borderSubtle),
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(actions[index].$2, color: colors.primary, size: 21),
-                      const SizedBox(height: 5),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Text(
-                          actions[index].$1,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 70),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 10,
+                        horizontal: 4,
                       ),
-                    ],
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainer,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: colors.borderSubtle),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            actions[index].$2,
+                            color: colors.primary,
+                            size: 21,
+                          ),
+                          const SizedBox(height: 5),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              actions[index].$1,
+                              style: TextStyle(
+                                color: colors.textPrimary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
-        ],
-      ),
+              ],
+            ],
+          ),
     );
   }
 }
@@ -226,7 +228,9 @@ class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
   @override
   void initState() {
     super.initState();
-    _activitySubscription = QuranRepository.instance.readingActivity.listen((_) {
+    _activitySubscription = QuranRepository.instance.readingActivity.listen((
+      _,
+    ) {
       _refresh();
     });
   }
@@ -282,7 +286,10 @@ class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
                       const SizedBox(height: 3),
                       Text(
                         '${stats.$1} reading day${stats.$1 == 1 ? '' : 's'} this month | ${stats.$2} reflection${stats.$2 == 1 ? '' : 's'}',
-                        style: TextStyle(color: colors.textSecondary, fontSize: 12),
+                        style: TextStyle(
+                          color: colors.textSecondary,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
@@ -291,7 +298,11 @@ class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
                   onPressed: _refresh,
                   tooltip: 'Refresh Qur\'an rhythm',
                   visualDensity: VisualDensity.compact,
-                  icon: Icon(Icons.refresh_rounded, color: colors.textSecondary, size: 19),
+                  icon: Icon(
+                    Icons.refresh_rounded,
+                    color: colors.textSecondary,
+                    size: 19,
+                  ),
                 ),
               ],
             ),
@@ -310,8 +321,27 @@ class _PremiumHomeHeader extends StatefulWidget {
 }
 
 class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
-  late final Future<AccountSnapshot?> _profileFuture =
-      BackendApi.instance.getAccountSnapshot();
+  late Future<AccountSnapshot?> _profileFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _profileFuture = BackendApi.instance.getAccountSnapshot();
+    accountRevision.addListener(_refreshProfile);
+  }
+
+  @override
+  void dispose() {
+    accountRevision.removeListener(_refreshProfile);
+    super.dispose();
+  }
+
+  void _refreshProfile() {
+    if (!mounted) return;
+    setState(() {
+      _profileFuture = BackendApi.instance.getAccountSnapshot();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -347,6 +377,7 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
           final name = _firstName(account?.username ?? account?.email ?? '');
           final initial =
               name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'M';
+          final avatarBytes = account?.avatarBytes;
 
           return LayoutBuilder(
             builder: (context, constraints) {
@@ -393,15 +424,47 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
                           child: CircleAvatar(
                             radius: 21,
                             backgroundColor:
-                                dark ? tokens.surfaceContainerHigh : tokens.surface,
-                            child: Text(
-                              initial,
-                              style: TextStyle(
-                                color: dark ? tokens.accent : tokens.primary,
-                                fontWeight: FontWeight.w800,
-                                fontSize: 15,
-                              ),
-                            ),
+                                dark
+                                    ? tokens.surfaceContainerHigh
+                                    : tokens.surface,
+                            child:
+                                avatarBytes == null
+                                    ? Text(
+                                      initial,
+                                      style: TextStyle(
+                                        color:
+                                            dark
+                                                ? tokens.accent
+                                                : tokens.primary,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 15,
+                                      ),
+                                    )
+                                    : ClipOval(
+                                      child: Image.memory(
+                                        avatarBytes,
+                                        width: 42,
+                                        height: 42,
+                                        fit: BoxFit.cover,
+                                        gaplessPlayback: true,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Center(
+                                                  child: Text(
+                                                    initial,
+                                                    style: TextStyle(
+                                                      color:
+                                                          dark
+                                                              ? tokens.accent
+                                                              : tokens.primary,
+                                                      fontWeight:
+                                                          FontWeight.w800,
+                                                      fontSize: 15,
+                                                    ),
+                                                  ),
+                                                ),
+                                      ),
+                                    ),
                           ),
                         ),
                       ),
@@ -450,8 +513,7 @@ class _PremiumHomeHeaderState extends State<_PremiumHomeHeader> {
                       ],
                     ),
                   ),
-                  
-                
+
                   const SizedBox(width: 8),
                   Container(
                     width: 40,
@@ -701,7 +763,7 @@ class _StreakPill extends ConsumerWidget {
         key: ValueKey('streak-$streak'),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
         decoration: BoxDecoration(
-                color: colors.surfaceElevated,
+          color: colors.surfaceElevated,
           borderRadius: BorderRadius.circular(99),
           border: Border.all(color: chipBorder),
         ),
@@ -993,7 +1055,9 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
     isScrollControlled: true,
     backgroundColor: context.colors.surface,
     shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(MizanRadii.sheet)),
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(MizanRadii.sheet),
+      ),
     ),
     builder:
         (sheetContext) => Consumer(
@@ -1038,24 +1102,28 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
                 Future<void> complete() async {
                   final confirmed = await showDialog<bool>(
                     context: sheetContext,
-                    builder: (dialogContext) => AlertDialog(
-                      title: const Text('Complete this goal?'),
-                      content: const Text(
-                        'Your progress will stay in goal history, and you can choose another goal afterwards.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(false),
-                          child: const Text('Keep goal'),
+                    builder:
+                        (dialogContext) => AlertDialog(
+                          title: const Text('Complete this goal?'),
+                          content: const Text(
+                            'Your progress will stay in goal history, and you can choose another goal afterwards.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed:
+                                  () => Navigator.of(dialogContext).pop(false),
+                              child: const Text('Keep goal'),
+                            ),
+                            FilledButton(
+                              onPressed:
+                                  () => Navigator.of(dialogContext).pop(true),
+                              child: const Text('Complete'),
+                            ),
+                          ],
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(true),
-                          child: const Text('Complete'),
-                        ),
-                      ],
-                    ),
                   );
-                  if (confirmed != true || !sheetContext.mounted || saving) return;
+                  if (confirmed != true || !sheetContext.mounted || saving)
+                    return;
                   setSheetState(() {
                     saving = true;
                     error = null;
@@ -1064,9 +1132,14 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
                     await sheetRef.read(actStoreProvider).completeGoal();
                     if (sheetContext.mounted) Navigator.of(sheetContext).pop();
                   } catch (_) {
-                    setSheetState(() => error = 'Could not complete this goal. Please try again.');
+                    setSheetState(
+                      () =>
+                          error =
+                              'Could not complete this goal. Please try again.',
+                    );
                   } finally {
-                    if (sheetContext.mounted) setSheetState(() => saving = false);
+                    if (sheetContext.mounted)
+                      setSheetState(() => saving = false);
                   }
                 }
 
@@ -1076,44 +1149,60 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
                       parsedTarget == null ||
                       parsedTarget <= 0 ||
                       saving) {
-                    setSheetState(() => error = 'Add a title and a valid target.');
+                    setSheetState(
+                      () => error = 'Add a title and a valid target.',
+                    );
                     return;
                   }
                   final confirmed = await showDialog<bool>(
                     context: sheetContext,
-                    builder: (dialogContext) => AlertDialog(
-                      title: const Text('Replace this goal?'),
-                      content: const Text(
-                        'The current goal will remain in your history and this will become your new active goal.',
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(false),
-                          child: const Text('Cancel'),
+                    builder:
+                        (dialogContext) => AlertDialog(
+                          title: const Text('Replace this goal?'),
+                          content: const Text(
+                            'The current goal will remain in your history and this will become your new active goal.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed:
+                                  () => Navigator.of(dialogContext).pop(false),
+                              child: const Text('Cancel'),
+                            ),
+                            FilledButton(
+                              onPressed:
+                                  () => Navigator.of(dialogContext).pop(true),
+                              child: const Text('Replace'),
+                            ),
+                          ],
                         ),
-                        FilledButton(
-                          onPressed: () => Navigator.of(dialogContext).pop(true),
-                          child: const Text('Replace'),
-                        ),
-                      ],
-                    ),
                   );
-                  if (confirmed != true || !sheetContext.mounted || saving) return;
+                  if (confirmed != true || !sheetContext.mounted || saving)
+                    return;
                   setSheetState(() {
                     saving = true;
                     error = null;
                   });
                   try {
-                    await sheetRef.read(actStoreProvider).replaceGoal(
-                      title: title.text.trim(),
-                      subtitle: subtitle.text.trim().isEmpty ? null : subtitle.text.trim(),
-                      actsTarget: parsedTarget,
-                    );
+                    await sheetRef
+                        .read(actStoreProvider)
+                        .replaceGoal(
+                          title: title.text.trim(),
+                          subtitle:
+                              subtitle.text.trim().isEmpty
+                                  ? null
+                                  : subtitle.text.trim(),
+                          actsTarget: parsedTarget,
+                        );
                     if (sheetContext.mounted) Navigator.of(sheetContext).pop();
                   } catch (_) {
-                    setSheetState(() => error = 'Could not replace this goal. Please try again.');
+                    setSheetState(
+                      () =>
+                          error =
+                              'Could not replace this goal. Please try again.',
+                    );
                   } finally {
-                    if (sheetContext.mounted) setSheetState(() => saving = false);
+                    if (sheetContext.mounted)
+                      setSheetState(() => saving = false);
                   }
                 }
 
@@ -1196,7 +1285,9 @@ Future<void> _showEditGoal(BuildContext context, WidgetRef ref) async {
                           const SizedBox(height: 8),
                           OutlinedButton.icon(
                             onPressed: saving ? null : complete,
-                            icon: const Icon(Icons.check_circle_outline_rounded),
+                            icon: const Icon(
+                              Icons.check_circle_outline_rounded,
+                            ),
                             label: const Text('Complete goal'),
                           ),
                           TextButton(

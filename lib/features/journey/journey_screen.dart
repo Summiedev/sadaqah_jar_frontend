@@ -58,6 +58,7 @@ Future<List<JourneyReflection>> _pendingReflections() async {
           isPrivate: item.payload['is_private'] as bool? ?? false,
           createdAt: item.createdAt.toIso8601String(),
           date: item.createdAt.toIso8601String(),
+          localRequestId: item.id,
         ),
   ];
 }
@@ -70,9 +71,7 @@ Future<List<JourneyHistoryItem>> _pendingJourneyHistory() async {
         JourneyHistoryItem(
           id: 'local:${item.id}',
           kind:
-              item.actionType == ActionType.addFamilyAct
-                  ? 'family'
-                  : 'sadaqah',
+              item.actionType == ActionType.addFamilyAct ? 'family' : 'sadaqah',
           title:
               item.actionType == ActionType.addFamilyAct
                   ? 'Family activity saved'
@@ -300,8 +299,12 @@ class _ReflectionsTab extends StatefulWidget {
 
 class _ReflectionsTabState extends State<_ReflectionsTab> {
   List<JourneyReflection> _items = const [];
+  final Set<int> _selectedIds = <int>{};
   bool _loading = true;
+  bool _deleting = false;
   String? _error;
+
+  bool get _selectionMode => _selectedIds.isNotEmpty;
 
   @override
   void initState() {
@@ -317,7 +320,7 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
   }
 
   void _onReflectionRevision() {
-    if (mounted) _load(showSpinner: false);
+    if (mounted && !_deleting) _load(showSpinner: false);
   }
 
   Future<void> _load({bool showSpinner = true}) async {
@@ -336,12 +339,13 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
       final merged = [
         ...pending,
         ...remote.where(
-          (item) => !pending.any(
-            (local) =>
-                local.title == item.title &&
-                local.body == item.body &&
-                local.mood == item.mood,
-          ),
+          (item) =>
+              !pending.any(
+                (local) =>
+                    local.title == item.title &&
+                    local.body == item.body &&
+                    local.mood == item.mood,
+              ),
         ),
       ];
       if (!mounted) return;
@@ -353,7 +357,8 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
                 ? null
                 : backendErrorMessage(
                   remoteError,
-                  fallback: 'We could not reach your journal. Please try again.',
+                  fallback:
+                      'We could not reach your journal. Please try again.',
                 );
       });
     } catch (error) {
@@ -383,6 +388,100 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
         unawaited(showReflectionActionSuggestion(context, reflection));
       }
     });
+  }
+
+  void _toggleSelection(JourneyReflection reflection) {
+    if (_deleting) return;
+    setState(() {
+      if (!_selectedIds.add(reflection.id)) {
+        _selectedIds.remove(reflection.id);
+      }
+    });
+  }
+
+  void _openReflection(JourneyReflection reflection) {
+    if (_selectionMode) {
+      _toggleSelection(reflection);
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _ReflectionDetailPage(reflection: reflection),
+      ),
+    );
+  }
+
+  Future<void> _deleteSelected() async {
+    if (_deleting || _selectedIds.isEmpty) return;
+    final selected =
+        _items.where((item) => _selectedIds.contains(item.id)).toList();
+    if (selected.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: Text(
+              selected.length == 1 ? 'Delete note?' : 'Delete notes?',
+            ),
+            content: Text(
+              selected.length == 1
+                  ? 'This note will be removed from your Journey.'
+                  : 'These ${selected.length} notes will be removed from your Journey.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _deleting = true);
+    final deletedIds = <int>{};
+    Object? firstError;
+    for (final reflection in selected) {
+      try {
+        if (reflection.localRequestId != null) {
+          await OfflineActionQueue.instance.remove(reflection.localRequestId!);
+        } else {
+          await BackendApi.instance.deleteReflection(reflection.id);
+        }
+        deletedIds.add(reflection.id);
+      } catch (error) {
+        firstError ??= error;
+      }
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _items = _items.where((item) => !deletedIds.contains(item.id)).toList();
+      _selectedIds.removeAll(deletedIds);
+      _deleting = false;
+    });
+    if (firstError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${deletedIds.length} deleted. ${backendErrorMessage(firstError, fallback: 'Some notes could not be deleted and remain selected.')}',
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${deletedIds.length} note${deletedIds.length == 1 ? '' : 's'} deleted.',
+          ),
+        ),
+      );
+    }
   }
 
   @override
@@ -430,6 +529,13 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
             children: [
+              if (_selectionMode)
+                _ReflectionSelectionToolbar(
+                  count: _selectedIds.length,
+                  deleting: _deleting,
+                  onCancel: () => setState(_selectedIds.clear),
+                  onDelete: _deleteSelected,
+                ),
               Row(
                 children: [
                   Expanded(
@@ -452,14 +558,25 @@ class _ReflectionsTabState extends State<_ReflectionsTab> {
                   ),
                 ],
               ),
-              for (final day in order) _ReflectionSection(day, grouped[day]!),
+              for (final day in order)
+                _ReflectionSection(
+                  day,
+                  grouped[day]!,
+                  selectedIds: _selectedIds,
+                  selectionMode: _selectionMode,
+                  onTap: _openReflection,
+                  onLongPress: _toggleSelection,
+                ),
             ],
           ),
         ),
         Positioned(
           right: 20,
           bottom: 24,
-          child: _ComposeButton(onTap: () => _composeAndInsert(context)),
+          child:
+              _selectionMode
+                  ? const SizedBox.shrink()
+                  : _ComposeButton(onTap: () => _composeAndInsert(context)),
         ),
       ],
     );
@@ -495,9 +612,20 @@ class _Reflection {
 }
 
 class _ReflectionSection extends StatelessWidget {
-  const _ReflectionSection(this.title, this.entries);
+  const _ReflectionSection(
+    this.title,
+    this.entries, {
+    required this.selectedIds,
+    required this.selectionMode,
+    required this.onTap,
+    required this.onLongPress,
+  });
   final String title;
   final List<JourneyReflection> entries;
+  final Set<int> selectedIds;
+  final bool selectionMode;
+  final ValueChanged<JourneyReflection> onTap;
+  final ValueChanged<JourneyReflection> onLongPress;
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -511,6 +639,10 @@ class _ReflectionSection extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 14),
           child: _ReflectionTile(
             reflection: e,
+            selected: selectedIds.contains(e.id),
+            selectionMode: selectionMode,
+            onTap: () => onTap(e),
+            onLongPress: () => onLongPress(e),
             entry: _Reflection(
               e.mood,
               e.title,
@@ -550,23 +682,31 @@ class _SectionLabel extends StatelessWidget {
 }
 
 class _ReflectionTile extends StatelessWidget {
-  const _ReflectionTile({required this.entry, required this.reflection});
+  const _ReflectionTile({
+    required this.entry,
+    required this.reflection,
+    required this.selected,
+    required this.selectionMode,
+    required this.onTap,
+    required this.onLongPress,
+  });
   final _Reflection entry;
   final JourneyReflection reflection;
+  final bool selected;
+  final bool selectionMode;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     return Material(
-      color: colors.surfaceElevated,
+      color: selected ? colors.primaryContainer : colors.surfaceElevated,
       borderRadius: BorderRadius.circular(MizanRadii.card),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(MizanRadii.card),
-        onTap:
-            () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => _ReflectionDetailPage(reflection: reflection),
-              ),
-            ),
+        onTap: onTap,
+        onLongPress: onLongPress,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 15, 16, 14),
           child: Row(
@@ -642,9 +782,75 @@ class _ReflectionTile extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.chevron_right_rounded, color: colors.iconSecondary),
+              Icon(
+                selectionMode
+                    ? (selected
+                        ? Icons.check_circle_rounded
+                        : Icons.radio_button_unchecked_rounded)
+                    : Icons.chevron_right_rounded,
+                color: selected ? colors.primary : colors.iconSecondary,
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ReflectionSelectionToolbar extends StatelessWidget {
+  const _ReflectionSelectionToolbar({
+    required this.count,
+    required this.deleting,
+    required this.onCancel,
+    required this.onDelete,
+  });
+
+  final int count;
+  final bool deleting;
+  final VoidCallback onCancel;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: colors.surfaceElevated,
+        borderRadius: BorderRadius.circular(MizanRadii.card),
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: 'Cancel selection',
+              onPressed: deleting ? null : onCancel,
+              icon: Icon(Icons.close_rounded, color: colors.iconSecondary),
+            ),
+            Expanded(
+              child: Text(
+                '$count selected',
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Delete selected notes',
+              onPressed: deleting ? null : onDelete,
+              icon:
+                  deleting
+                      ? SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: colors.error,
+                        ),
+                      )
+                      : Icon(Icons.delete_outline_rounded, color: colors.error),
+            ),
+          ],
         ),
       ),
     );
@@ -1358,12 +1564,13 @@ class _HistorialTabState extends State<_HistorialTab> {
       reflections = [
         ...pending,
         ...remote.where(
-          (item) => !pending.any(
-            (local) =>
-                local.title == item.title &&
-                local.body == item.body &&
-                local.mood == item.mood,
-          ),
+          (item) =>
+              !pending.any(
+                (local) =>
+                    local.title == item.title &&
+                    local.body == item.body &&
+                    local.mood == item.mood,
+              ),
         ),
       ];
     } catch (error) {
@@ -1523,20 +1730,32 @@ class _HistorialTabState extends State<_HistorialTab> {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.warningContainer,
                       borderRadius: BorderRadius.circular(MizanRadii.card),
-                      border: Border.all(color: colors.warning.withValues(alpha: 0.35)),
+                      border: Border.all(
+                        color: colors.warning.withValues(alpha: 0.35),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.sync_problem_rounded, color: colors.warning, size: 18),
+                        Icon(
+                          Icons.sync_problem_rounded,
+                          color: colors.warning,
+                          size: 18,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Some activity could not be refreshed. Pull down to try again.',
-                            style: TextStyle(color: colors.textPrimary, height: 1.35),
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              height: 1.35,
+                            ),
                           ),
                         ),
                       ],
@@ -1595,7 +1814,10 @@ class _HistoryEvent {
 }
 
 class _HistoryActivityTimelineItem extends StatelessWidget {
-  const _HistoryActivityTimelineItem({required this.item, required this.isLast});
+  const _HistoryActivityTimelineItem({
+    required this.item,
+    required this.isLast,
+  });
 
   final JourneyHistoryItem item;
   final bool isLast;
@@ -1616,100 +1838,102 @@ class _HistoryActivityTimelineItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final date = DateTime.tryParse(item.occurredAt)?.toLocal();
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          width: 30,
-          child: Column(
-            children: [
-              Container(
-                width: 14,
-                height: 14,
-                margin: const EdgeInsets.only(top: 19),
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colors.background, width: 3),
-                ),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: colors.borderSubtle,
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 30,
+            child: Column(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  margin: const EdgeInsets.only(top: 19),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.background, width: 3),
                   ),
                 ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
-              decoration: BoxDecoration(
-                color: colors.surfaceElevated,
-                borderRadius: BorderRadius.circular(MizanRadii.card),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(_icon, color: colors.primary),
-                  const SizedBox(width: 12),
+                if (!isLast)
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _historyDateLabel(date),
-                          style: TextStyle(
-                            color: colors.textMuted,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          item.title,
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        if (item.description?.trim().isNotEmpty == true) ...[
-                          const SizedBox(height: 5),
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: colors.borderSubtle,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+                decoration: BoxDecoration(
+                  color: colors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(MizanRadii.card),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(_icon, color: colors.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            item.description!,
+                            _historyDateLabel(date),
                             style: TextStyle(
-                              color: colors.textSecondary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
-                        if (item.metadata['pending_sync'] == true) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Waiting to sync',
-                            style: TextStyle(
-                              color: colors.primary,
+                              color: colors.textMuted,
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
+                          const SizedBox(height: 7),
+                          Text(
+                            item.title,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          if (item.description?.trim().isNotEmpty == true) ...[
+                            const SizedBox(height: 5),
+                            Text(
+                              item.description!,
+                              style: TextStyle(
+                                color: colors.textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                          ],
+                          if (item.metadata['pending_sync'] == true) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Waiting to sync',
+                              style: TextStyle(
+                                color: colors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1723,87 +1947,89 @@ class _QuranReadingHistoryItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          width: 30,
-          child: Column(
-            children: [
-              Container(
-                width: 14,
-                height: 14,
-                margin: const EdgeInsets.only(top: 19),
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colors.background, width: 3),
-                ),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: colors.borderSubtle,
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 30,
+            child: Column(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  margin: const EdgeInsets.only(top: 19),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.background, width: 3),
                   ),
                 ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
-              decoration: BoxDecoration(
-                color: colors.surfaceElevated,
-                borderRadius: BorderRadius.circular(MizanRadii.card),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(Icons.menu_book_rounded, color: colors.primary),
-                  const SizedBox(width: 12),
+                if (!isLast)
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _historyDateLabel(date),
-                          style: TextStyle(
-                            color: colors.textMuted,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        Text(
-                          'Quran reading',
-                          style: TextStyle(
-                            color: colors.textPrimary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        Text(
-                          'A day spent with the Mushaf.',
-                          style: TextStyle(
-                            color: colors.textSecondary,
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: colors.borderSubtle,
                     ),
                   ),
-                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+                decoration: BoxDecoration(
+                  color: colors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(MizanRadii.card),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.menu_book_rounded, color: colors.primary),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _historyDateLabel(date),
+                            style: TextStyle(
+                              color: colors.textMuted,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 7),
+                          Text(
+                            'Quran reading',
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'A day spent with the Mushaf.',
+                            style: TextStyle(
+                              color: colors.textSecondary,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -1819,152 +2045,154 @@ class _HistoryTimelineItem extends StatelessWidget {
     final colors = context.colors;
     final date =
         DateTime.tryParse(reflection.date ?? reflection.createdAt)?.toLocal();
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SizedBox(
-          width: 30,
-          child: Column(
-            children: [
-              Container(
-                width: 14,
-                height: 14,
-                margin: const EdgeInsets.only(top: 19),
-                decoration: BoxDecoration(
-                  color: colors.primary,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: colors.background, width: 3),
-                ),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: colors.borderSubtle,
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: 30,
+            child: Column(
+              children: [
+                Container(
+                  width: 14,
+                  height: 14,
+                  margin: const EdgeInsets.only(top: 19),
+                  decoration: BoxDecoration(
+                    color: colors.primary,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: colors.background, width: 3),
                   ),
                 ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 16),
-            child: Material(
-              color: colors.surfaceElevated,
-              borderRadius: BorderRadius.circular(MizanRadii.card),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(MizanRadii.card),
-                onTap:
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder:
-                            (_) =>
-                                _ReflectionDetailPage(reflection: reflection),
-                      ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: colors.borderSubtle,
                     ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              _historyDateLabel(date),
-                              style: TextStyle(
-                                color: colors.textMuted,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          if (reflection.mood.trim().isNotEmpty)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colors.primaryContainer,
-                                borderRadius: BorderRadius.circular(99),
-                              ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Material(
+                color: colors.surfaceElevated,
+                borderRadius: BorderRadius.circular(MizanRadii.card),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(MizanRadii.card),
+                  onTap:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder:
+                              (_) =>
+                                  _ReflectionDetailPage(reflection: reflection),
+                        ),
+                      ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 15),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
                               child: Text(
-                                reflection.mood,
+                                _historyDateLabel(date),
                                 style: TextStyle(
-                                  color: colors.onPrimaryContainer,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w800,
+                                  color: colors.textMuted,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        reflection.title.trim().isEmpty
-                            ? 'Untitled reflection'
-                            : reflection.title,
-                        style: TextStyle(
-                          color: colors.textPrimary,
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
+                            if (reflection.mood.trim().isNotEmpty)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: colors.primaryContainer,
+                                  borderRadius: BorderRadius.circular(99),
+                                ),
+                                child: Text(
+                                  reflection.mood,
+                                  style: TextStyle(
+                                    color: colors.onPrimaryContainer,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                      ),
-                      if (reflection.body.trim().isNotEmpty) ...[
                         const SizedBox(height: 8),
                         Text(
-                          reflection.body,
-                          maxLines: 4,
-                          overflow: TextOverflow.ellipsis,
+                          reflection.title.trim().isEmpty
+                              ? 'Untitled reflection'
+                              : reflection.title,
                           style: TextStyle(
-                            color: colors.textSecondary,
-                            height: 1.5,
+                            color: colors.textPrimary,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Icon(
-                            reflection.isPrivate
-                                ? Icons.lock_outline_rounded
-                                : Icons.people_outline_rounded,
-                            size: 15,
-                            color: colors.textMuted,
-                          ),
-                          const SizedBox(width: 6),
+                        if (reflection.body.trim().isNotEmpty) ...[
+                          const SizedBox(height: 8),
                           Text(
-                            reflection.isPrivate
-                                ? 'Private journal'
-                                : 'Shared with your journey',
+                            reflection.body,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              color: colors.textMuted,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            'Read note',
-                            style: TextStyle(
-                              color: colors.primary,
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
+                              color: colors.textSecondary,
+                              height: 1.5,
                             ),
                           ),
                         ],
-                      ),
-                    ],
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Icon(
+                              reflection.isPrivate
+                                  ? Icons.lock_outline_rounded
+                                  : Icons.people_outline_rounded,
+                              size: 15,
+                              color: colors.textMuted,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              reflection.isPrivate
+                                  ? 'Private journal'
+                                  : 'Shared with your journey',
+                              style: TextStyle(
+                                color: colors.textMuted,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              'Read note',
+                              style: TextStyle(
+                                color: colors.primary,
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -2121,8 +2349,7 @@ class _ComposeSheetState extends State<_ComposeSheet> {
     try {
       final resolvedTitle = title.isEmpty ? 'A note from today' : title;
       final resolvedMood = _mood ?? 'Reflective';
-      final requestId =
-          'reflection_${DateTime.now().microsecondsSinceEpoch}';
+      final requestId = 'reflection_${DateTime.now().microsecondsSinceEpoch}';
       final local = JourneyReflection(
         id: _localReflectionId(requestId),
         title: resolvedTitle,
@@ -2186,9 +2413,9 @@ class _ComposeSheetState extends State<_ComposeSheet> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    final today = MaterialLocalizations.of(context).formatMediumDate(
-      DateTime.now(),
-    );
+    final today = MaterialLocalizations.of(
+      context,
+    ).formatMediumDate(DateTime.now());
     final bodyHint = switch (_prompt) {
       'What stayed with me?' =>
         'Write about the thought, verse, or moment that stayed with you...',
@@ -2271,7 +2498,10 @@ class _ComposeSheetState extends State<_ComposeSheet> {
                   IconButton(
                     onPressed: _saving ? null : _handleBack,
                     tooltip: 'Close',
-                    icon: Icon(Icons.close_rounded, color: colors.iconSecondary),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: colors.iconSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -2300,9 +2530,10 @@ class _ComposeSheetState extends State<_ComposeSheet> {
                       color: colors.primaryContainer,
                       textColor: colors.onPrimaryContainer,
                       selected: _prompt == prompt,
-                      onTap: () => setState(
-                        () => _prompt = _prompt == prompt ? null : prompt,
-                      ),
+                      onTap:
+                          () => setState(
+                            () => _prompt = _prompt == prompt ? null : prompt,
+                          ),
                     ),
                 ],
               ),
@@ -2387,9 +2618,10 @@ class _ComposeSheetState extends State<_ComposeSheet> {
                       color: colors.primaryContainer,
                       textColor: colors.onPrimaryContainer,
                       selected: _mood == mood,
-                      onTap: () => setState(
-                        () => _mood = _mood == mood ? null : mood,
-                      ),
+                      onTap:
+                          () => setState(
+                            () => _mood = _mood == mood ? null : mood,
+                          ),
                     ),
                 ],
               ),
@@ -2439,9 +2671,8 @@ class _ComposeSheetState extends State<_ComposeSheet> {
                     ),
                     Switch.adaptive(
                       value: _shareWithFamily,
-                      onChanged: (value) => setState(
-                        () => _shareWithFamily = value,
-                      ),
+                      onChanged:
+                          (value) => setState(() => _shareWithFamily = value),
                       activeThumbColor: colors.primary,
                     ),
                   ],

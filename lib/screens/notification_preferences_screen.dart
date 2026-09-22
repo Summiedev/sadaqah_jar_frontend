@@ -81,6 +81,20 @@ class _NotificationPreferencesScreenState
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      if (_requiresPrayerLocation) {
+        // Prayer-relative reminders cannot be calculated from a timezone
+        // alone. Resolve the location before changing the backend preference,
+        // otherwise the toggle would appear enabled while no Salah schedule
+        // could ever be created.
+        if (await LocationService.instance.getStoredPosition() == null) {
+          await LocationService.instance.getCurrentPosition();
+        }
+        if (await LocationService.instance.getStoredPosition() == null) {
+          throw StateError(
+            'Location access is needed to schedule Salah and Nawafil reminders at your local prayer times.',
+          );
+        }
+      }
       if (_allEnabled &&
           !await PushNotificationService.instance.enableForReminders()) {
         throw StateError(
@@ -126,6 +140,22 @@ class _NotificationPreferencesScreenState
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  bool get _requiresPrayerLocation {
+    if (!_allEnabled) return false;
+    final salahEnabled = _categories['prayer_fardh'] ?? true;
+    final naflEnabled = _categories['prayer_nafl'] ?? true;
+    final prayers = _nestedPreference('prayer_reminders');
+    const prayerNames = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    final hasEnabledSalah = prayerNames.any((prayer) {
+      final raw = prayers[prayer];
+      if (raw is Map) return raw['enabled'] as bool? ?? true;
+      return raw is! bool || raw;
+    });
+    final nawafilEnabled =
+        _reminderPreferences['nawafil_after_salah'] as bool? ?? false;
+    return (salahEnabled && hasEnabledSalah) || (naflEnabled && nawafilEnabled);
   }
 
   Future<void> _sendTestNotification() async {
