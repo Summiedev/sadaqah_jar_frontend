@@ -26,10 +26,12 @@ class JourneyScreen extends StatefulWidget {
     super.key,
     this.initialTab = 0,
     this.initialQuranSurahId,
+    this.initialQuranPage,
   });
 
   final int initialTab;
   final int? initialQuranSurahId;
+  final int? initialQuranPage;
 
   @override
   State<JourneyScreen> createState() => _JourneyScreenState();
@@ -225,7 +227,10 @@ class _JourneyScreenState extends State<JourneyScreen>
           children: [
             _ReflectionsTab(),
             _AdhkarTab(key: _adhkarTabKey),
-            QuranTab(initialSurahId: widget.initialQuranSurahId),
+            QuranTab(
+              initialSurahId: widget.initialQuranSurahId,
+              initialPage: widget.initialQuranPage,
+            ),
             _ReadingTab(),
             _SavedTab(),
             _HistorialTab(),

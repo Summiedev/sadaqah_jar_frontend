@@ -222,7 +222,7 @@ class _QuranQuietRhythm extends StatefulWidget {
 }
 
 class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
-  late Future<(int, int)> _future = _load();
+  late Future<(int, int, bool, QuranProgress, QuranSurah?)> _future = _load();
   late final StreamSubscription<DateTime> _activitySubscription;
 
   @override
@@ -241,10 +241,17 @@ class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
     super.dispose();
   }
 
-  Future<(int, int)> _load() async => (
-    await QuranRepository.instance.readingDaysLast30(),
-    await QuranRepository.instance.readingReflectionCount(),
-  );
+  Future<(int, int, bool, QuranProgress, QuranSurah?)> _load() async {
+    final repo = QuranRepository.instance;
+    final progress = await repo.loadProgress();
+    return (
+      await repo.readingDaysLast30(),
+      await repo.readingReflectionCount(),
+      await repo.hasSavedProgress(),
+      progress,
+      await repo.surahById(progress.surahId),
+    );
+  }
 
   void _refresh() {
     if (!mounted) return;
@@ -254,12 +261,29 @@ class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    return FutureBuilder<(int, int)>(
+    return FutureBuilder<(int, int, bool, QuranProgress, QuranSurah?)>(
       future: _future,
       builder: (context, snapshot) {
-        final stats = snapshot.data ?? (0, 0);
+        final stats =
+            snapshot.data ??
+            (
+              0,
+              0,
+              false,
+              const QuranProgress(surahId: 1, verseKey: '1:1', page: 1),
+              null,
+            );
+        final hasProgress = stats.$3;
+        final progress = stats.$4;
+        final surah = stats.$5;
         return InkWell(
-          onTap: () => context.push('/journey?tab=quran'),
+          onTap:
+              () => context.push(
+                hasProgress
+                    ? '/journey?tab=quran&surah=${progress.surahId}'
+                        '&page=${progress.page}'
+                    : '/journey?tab=quran',
+              ),
           borderRadius: BorderRadius.circular(16),
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 13, 10, 13),
@@ -277,7 +301,10 @@ class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Your quiet Qur\'an rhythm',
+                        hasProgress
+                            ? 'Continue Qur\'an - '
+                                '${surah?.nameTransliteration ?? 'Page ${progress.page}'}'
+                            : 'Your quiet Qur\'an rhythm',
                         style: TextStyle(
                           color: colors.textPrimary,
                           fontWeight: FontWeight.w800,
@@ -285,7 +312,10 @@ class _QuranQuietRhythmState extends State<_QuranQuietRhythm> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${stats.$1} reading day${stats.$1 == 1 ? '' : 's'} this month | ${stats.$2} reflection${stats.$2 == 1 ? '' : 's'}',
+                        hasProgress
+                            ? '${progress.verseKey} - Mushaf page ${progress.page}'
+                            : '${stats.$1} reading day${stats.$1 == 1 ? '' : 's'} '
+                                'this month | ${stats.$2} reflection${stats.$2 == 1 ? '' : 's'}',
                         style: TextStyle(
                           color: colors.textSecondary,
                           fontSize: 12,

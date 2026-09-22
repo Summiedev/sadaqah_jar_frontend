@@ -985,13 +985,30 @@ class QuranRepository {
     }
   }
 
-  Future<Uri> audioUriFor(QuranVerse verse, QuranSettings _) async {
-    if (verse.audioUrl != null && verse.audioUrl!.startsWith('http')) {
+  Future<Uri> audioUriFor(QuranVerse verse, QuranSettings settings) async {
+    if (_isPlayableAudioUrl(verse.audioUrl)) {
       return Uri.parse(verse.audioUrl!);
     }
-    throw Exception(
-      'Recitation audio for ${verse.key} is not available offline yet.',
+
+    // Older local Quran caches may contain valid ayah text from before audio
+    // metadata was imported. Refresh this surah once from Mizan instead of
+    // leaving the player permanently unusable on that device.
+    final remote = await BackendApi.instance.getQuranSurahAyahs(verse.surahId);
+    final remoteAyah = remote.firstWhere(
+      (ayah) => ayah['verse_key']?.toString() == verse.key,
+      orElse: () => const <String, dynamic>{},
     );
+    final refreshedUrl = _audioUrlFromBackendAyah(
+      remoteAyah,
+      reciters[settings.reciter] ?? reciters.values.first,
+    );
+    if (!_isPlayableAudioUrl(refreshedUrl)) {
+      throw Exception(
+        'Recitation audio for ${verse.key} is not available from Mizan yet.',
+      );
+    }
+    await _persistBackendAyahs(remote);
+    return Uri.parse(refreshedUrl!);
   }
 
   Future<int> downloadSurahAudio(int surahId, QuranSettings settings) async {
@@ -1095,6 +1112,11 @@ class QuranRepository {
       return remote;
     }
     return const QuranProgress(surahId: 1, verseKey: '1:1', page: 1);
+  }
+
+  Future<bool> hasSavedProgress() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.containsKey(_progressKey);
   }
 
   Future<void> saveProgress(QuranProgress progress) async {
@@ -1287,7 +1309,6 @@ class QuranRepository {
         final translation = Map<String, dynamic>.from(
           (ayah['translation'] as Map?) ?? {},
         );
-        final audio = _mapList(ayah['audio']);
         await txn.insert('verses', {
           'verse_key': verseKey,
           'surah_id': _asInt(
@@ -1305,11 +1326,36 @@ class QuranRepository {
           'transliteration': (ayah['transliteration'] ?? '').toString(),
           'translation': _stripHtml((translation['text'] ?? '').toString()),
           'tafsir': '',
-          'audio_url':
-              audio.isEmpty ? null : (audio.first['url'] ?? '').toString(),
+          'audio_url': _audioUrlFromBackendAyah(
+            ayah,
+            reciters.values.first,
+          ),
         }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
     });
+  }
+
+  String? _audioUrlFromBackendAyah(
+    Map<String, dynamic> ayah,
+    int reciterId,
+  ) {
+    final audio = _mapList(ayah['audio']);
+    final matching = audio.firstWhere(
+      (item) => item['reciter_id']?.toString() == '$reciterId',
+      orElse: () => const <String, dynamic>{},
+    );
+    final selected =
+        matching.isEmpty ? (audio.isEmpty ? null : audio.first) : matching;
+    final candidate = selected?['url']?.toString();
+    return _isPlayableAudioUrl(candidate) ? candidate : null;
+  }
+
+  bool _isPlayableAudioUrl(String? value) {
+    if (value == null || value.isEmpty) return false;
+    final uri = Uri.tryParse(value);
+    return uri != null &&
+        uri.host.isNotEmpty &&
+        (uri.scheme == 'https' || uri.scheme == 'http');
   }
 
   Future<void> _downloadPageImage(int page) async {

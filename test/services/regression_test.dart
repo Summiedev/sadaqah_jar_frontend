@@ -70,6 +70,24 @@ void main() {
       expect(activityUpdates, 1);
       await subscription.cancel();
     });
+
+    test('saved progress restores the exact Quran reader location', () async {
+      SharedPreferences.setMockInitialValues({});
+      const expected = QuranProgress(
+        surahId: 18,
+        verseKey: '18:10',
+        page: 295,
+      );
+
+      await QuranRepository.instance.saveProgress(expected);
+
+      expect(await QuranRepository.instance.hasSavedProgress(), isTrue);
+      final restored = await QuranRepository.instance.loadProgress();
+      expect(restored, isA<QuranProgress>());
+      expect(restored.surahId, expected.surahId);
+      expect(restored.verseKey, expected.verseKey);
+      expect(restored.page, expected.page);
+    });
   });
 
   group('C4: API response parsing safety', () {

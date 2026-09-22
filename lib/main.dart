@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:home_widget/home_widget.dart';
 
 import 'core/act_store.dart';
+import 'core/back_navigation.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_extensions.dart';
 import 'core/theme/theme_mode_provider.dart';
@@ -309,9 +310,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               final surah = int.tryParse(
                 state.uri.queryParameters['surah'] ?? '',
               );
+              final page = int.tryParse(
+                state.uri.queryParameters['page'] ?? '',
+              );
               return JourneyScreen(
                 initialTab: initialTab,
                 initialQuranSurahId: surah,
+                initialQuranPage:
+                    page != null && page >= 1 && page <= 604 ? page : null,
               );
             },
           ),
@@ -535,7 +541,7 @@ class _MizanAppState extends ConsumerState<MizanApp>
                         label: 'Open',
                         onPressed: () {
                           if (mounted && path.isNotEmpty) {
-                            ref.read(routerProvider).go(path);
+                            ref.read(routerProvider).push(path);
                           }
                         },
                       )
@@ -585,6 +591,38 @@ class _MizanAppState extends ConsumerState<MizanApp>
     }
   }
 
+  Future<bool> _handleSystemBack() async {
+    // Give the live navigator stacks first chance to handle Android back.
+    // This also preserves page-specific PopScopes, such as unsaved-form
+    // discard confirmation, and dialog/bottom-sheet dismissal.
+    final rootNavigator = _rootNavigatorKey.currentState;
+    if (rootNavigator?.canPop() ?? false) {
+      if (await rootNavigator!.maybePop()) return true;
+    }
+
+    final shellNavigator = _shellNavigatorKey.currentState;
+    if (shellNavigator?.canPop() ?? false) {
+      if (await shellNavigator!.maybePop()) return true;
+    }
+
+    final router = ref.read(routerProvider);
+    if (router.canPop()) {
+      router.pop();
+      return true;
+    }
+
+    final session = ref.read(sessionProvider);
+    final fallback = systemBackFallback(
+      path: router.routeInformationProvider.value.uri.path,
+      isAuthenticated: session.isAuthenticated,
+      onboardingComplete: session.onboardingComplete,
+    );
+    if (fallback == null) return false;
+
+    router.go(fallback);
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<ActStore>(actStoreProvider, (_, store) {
@@ -606,35 +644,8 @@ class _MizanAppState extends ConsumerState<MizanApp>
       routerConfig: router,
       scaffoldMessengerKey: _rootScaffoldMessengerKey,
       builder: (context, child) {
-        final path = router.routeInformationProvider.value.uri.path;
-        final atHome = path.isEmpty || path == '/home';
-        final rootNavigator = _rootNavigatorKey.currentState;
-        final rootCanPop = rootNavigator?.canPop() ?? router.canPop();
-        final shellNavigator = _shellNavigatorKey.currentState;
-        final shellCanPop = shellNavigator?.canPop() ?? false;
-        final allowSystemExit =
-            atHome || path == '/auth' || path == '/onboarding';
-        return PopScope(
-          // Let a real root route pop normally. ShellRoute keeps its own
-          // navigator, so a shell drill-down is handled below instead of
-          // allowing Android to exit the process.
-          canPop: rootCanPop || (!shellCanPop && allowSystemExit),
-          onPopInvokedWithResult: (didPop, _) {
-            if (didPop) return;
-            if (rootCanPop && rootNavigator != null) {
-              unawaited(rootNavigator.maybePop());
-              return;
-            }
-            if (shellCanPop && shellNavigator != null) {
-              unawaited(shellNavigator.maybePop());
-              return;
-            }
-            if (ref.read(sessionProvider).isAuthenticated) {
-              if (!atHome) router.go('/home');
-            } else if (path != '/onboarding') {
-              router.go('/onboarding');
-            }
-          },
+        return BackButtonListener(
+          onBackButtonPressed: _handleSystemBack,
           child: BroadcastHost(
             navigatorKey: _rootNavigatorKey,
             onDeepLink: (path) => router.push(path),

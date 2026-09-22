@@ -242,7 +242,7 @@ class _NotificationCenterScreenState extends State<NotificationCenterScreen> {
             ? null
             : () {
                 Navigator.of(sheetContext).pop();
-                GoRouter.of(context).go(path);
+                GoRouter.of(context).push(path);
               },
       ),
     );

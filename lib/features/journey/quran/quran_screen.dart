@@ -13,9 +13,10 @@ import 'quran_data.dart';
 import '../reflection_action_suggestion.dart';
 
 class QuranTab extends StatefulWidget {
-  const QuranTab({super.key, this.initialSurahId});
+  const QuranTab({super.key, this.initialSurahId, this.initialPage});
 
   final int? initialSurahId;
+  final int? initialPage;
 
   @override
   State<QuranTab> createState() => _QuranTabState();
@@ -101,7 +102,7 @@ class _QuranTabState extends State<QuranTab>
     if (_openedInitialSurah || surahId == null) return;
     _openedInitialSurah = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _openSurah(surahId);
+      if (mounted) _openSurah(surahId, page: widget.initialPage);
     });
   }
 
@@ -144,7 +145,8 @@ class _QuranTabState extends State<QuranTab>
             ),
       ),
     );
-    if (progress != null && mounted) setState(() => _progress = progress);
+    final updatedProgress = progress ?? await _repo.loadProgress();
+    if (mounted) setState(() => _progress = updatedProgress);
   }
 
   @override
@@ -788,10 +790,12 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
   bool _translationRevealed = false;
   List<QuranVerse> _currentVerses = const [];
   bool _continuousPlayback = false;
+  bool _audioPaused = false;
   bool _audioTrayOpen = false;
   bool _audioDownloading = false;
   Timer? _settingsSaveTimer;
   StreamSubscription<void>? _playerCompleteSubscription;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
   late final Future<(QuranSurah?, List<QuranVerse>)> _readerFuture;
 
   @override
@@ -804,12 +808,19 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
     _playerCompleteSubscription = _player.onPlayerComplete.listen(
       (_) => _playNextVerse(),
     );
+    _playerStateSubscription = _player.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
+      if (state == PlayerState.stopped || state == PlayerState.completed) {
+        setState(() => _audioPaused = false);
+      }
+    });
   }
 
   @override
   void dispose() {
     _settingsSaveTimer?.cancel();
     _playerCompleteSubscription?.cancel();
+    _playerStateSubscription?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -856,6 +867,7 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
         reciter: _settings.reciter,
         playingVerse: _playingVerse,
         continuousPlayback: _continuousPlayback,
+        paused: _audioPaused,
         downloading: _audioDownloading,
         floating: isMushaf,
         onToggle: verses.isEmpty ? null : _toggleSurahPlayback,
@@ -945,7 +957,17 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
     final verses = await _repo.versesForSurah(widget.surahId);
     if (verses.isNotEmpty) {
       _page = widget.initialPage ?? verses.first.page;
-      await _repo.recordPageRead(_page);
+      unawaited(
+        _repo
+            .saveProgress(
+              QuranProgress(
+                surahId: widget.surahId,
+                verseKey: verses.first.key,
+                page: _page,
+              ),
+            )
+            .catchError((_) {}),
+      );
     }
     return (surah, verses);
   }
@@ -1009,6 +1031,7 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
       _playingVerse = verse.key;
       _page = verse.page;
       _audioTrayOpen = true;
+      _audioPaused = false;
     });
     try {
       await _repo.saveProgress(
@@ -1031,8 +1054,8 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            error.toString().contains('not available offline')
-                ? 'Recitation audio is unavailable for this ayah right now.'
+            error.toString().contains('not available')
+                ? 'Recitation audio is not ready for this ayah yet.'
                 : 'Could not play recitation. Check your connection and try again.',
           ),
         ),
@@ -1042,11 +1065,22 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
 
   Future<void> _toggleSurahPlayback() async {
     if (_continuousPlayback) {
-      setState(() => _continuousPlayback = false);
+      setState(() {
+        _continuousPlayback = false;
+        _audioPaused = true;
+      });
       await _player.pause();
       return;
     }
     if (_currentVerses.isEmpty) return;
+    if (_audioPaused) {
+      setState(() {
+        _continuousPlayback = true;
+        _audioPaused = false;
+      });
+      await _player.resume();
+      return;
+    }
     setState(() => _continuousPlayback = true);
     final start =
         _playingVerse == null
@@ -1068,7 +1102,12 @@ class _QuranReaderOverlayState extends State<QuranReaderOverlay> {
       (verse) => verse.key == _playingVerse,
     );
     if (index == -1 || index >= _currentVerses.length - 1) {
-      if (mounted) setState(() => _continuousPlayback = false);
+      if (mounted) {
+        setState(() {
+          _continuousPlayback = false;
+          _audioPaused = false;
+        });
+      }
       return;
     }
     await _playVerse(_currentVerses[index + 1]);
@@ -2012,6 +2051,7 @@ class _MiniPlayer extends StatelessWidget {
     required this.reciter,
     required this.playingVerse,
     required this.continuousPlayback,
+    required this.paused,
     required this.downloading,
     required this.floating,
     required this.onToggle,
@@ -2020,6 +2060,7 @@ class _MiniPlayer extends StatelessWidget {
   final String reciter;
   final String? playingVerse;
   final bool continuousPlayback;
+  final bool paused;
   final bool downloading;
   final bool floating;
   final VoidCallback? onToggle;
@@ -2057,7 +2098,8 @@ class _MiniPlayer extends StatelessWidget {
                 continuousPlayback
                     ? Icons.pause_rounded
                     : Icons.play_arrow_rounded,
-            tooltip: 'Play surah',
+            tooltip:
+                continuousPlayback ? 'Pause recitation' : 'Play recitation',
             onTap: onToggle,
           ),
           const SizedBox(width: 12),
@@ -2069,6 +2111,8 @@ class _MiniPlayer extends StatelessWidget {
                 Text(
                   playingVerse == null
                       ? 'Ready to recite'
+                      : paused
+                      ? 'Recitation paused at $playingVerse'
                       : 'Now reciting $playingVerse',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
