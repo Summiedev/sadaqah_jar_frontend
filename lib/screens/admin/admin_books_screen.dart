@@ -401,6 +401,7 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
   PlatformFile? _coverFile;
   List<PlatformFile> _pageFiles = [];
   String _status = 'Ready';
+  String? _formError;
   bool _saving = false;
 
   @override
@@ -432,7 +433,12 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
       type: FileType.custom,
       allowedExtensions: const ['jpg', 'jpeg', 'png'],
     );
-    if (result != null) setState(() => _coverFile = result.files.single);
+    if (result != null) {
+      setState(() {
+        _coverFile = result.files.single;
+        _formError = null;
+      });
+    }
   }
 
   Future<void> _pickBookFile() async {
@@ -445,6 +451,7 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
     );
     if (result == null) return;
     setState(() {
+      _formError = null;
       if (_format == 'images') {
         _pageFiles = result.files;
         _bookFile = null;
@@ -460,12 +467,10 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
     final author = _author.text.trim();
     final category = _category.text.trim();
     if (title.isEmpty || author.isEmpty || category.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Title, author, and category are required.'),
-          backgroundColor: context.colors.error,
-        ),
-      );
+      setState(() {
+        _formError = 'Add a title, author, and category before saving.';
+        _status = 'Details need attention';
+      });
       return;
     }
     final selectedReadableFile =
@@ -476,27 +481,23 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
         widget.book?.fileUrl?.isNotEmpty == true ||
         (widget.book?.pageCount ?? 0) > 0;
     if (widget.book == null && !selectedReadableFile) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Select a PDF, EPUB, or ordered page images before creating a book.',
-          ),
-          backgroundColor: context.colors.error,
-        ),
-      );
+      setState(() {
+        _formError =
+            'Select a PDF, EPUB, or ordered page images before creating a book.';
+        _status = 'Reading file required';
+      });
       return;
     }
     if (_published && !selectedReadableFile && !existingReadableFile) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Upload readable content before publishing this book.'),
-          backgroundColor: context.colors.error,
-        ),
-      );
+      setState(() {
+        _formError = 'Upload readable content before publishing this book.';
+        _status = 'Reading file required';
+      });
       return;
     }
     setState(() {
       _saving = true;
+      _formError = null;
       _status = 'Saving book details';
     });
     try {
@@ -571,15 +572,13 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
-        setState(() => _status = 'Failed. Check the file type and try again.');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              backendErrorMessage(e, fallback: 'Could not save book.'),
-            ),
-            backgroundColor: context.colors.error,
-          ),
-        );
+        setState(() {
+          _status = 'Upload needs attention';
+          _formError = backendErrorMessage(
+            e,
+            fallback: 'Could not save this book. Please try again.',
+          );
+        });
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -632,6 +631,10 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
+                if (_formError != null) ...[
+                  const SizedBox(height: 12),
+                  _EditorErrorNotice(message: _formError!),
+                ],
                 const SizedBox(height: 16),
                 _Field(
                   controller: _title,
@@ -683,7 +686,11 @@ class _BookEditorSheetState extends State<_BookEditorSheet> {
                       ChoiceChip(
                         label: Text(format.toUpperCase()),
                         selected: _format == format,
-                        onSelected: (_) => setState(() => _format = format),
+                        onSelected:
+                            (_) => setState(() {
+                              _format = format;
+                              _formError = null;
+                            }),
                       ),
                   ],
                 ),
@@ -961,6 +968,46 @@ class _Field extends StatelessWidget {
           labelText: label,
           prefixIcon: Icon(icon, color: colors.primary),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditorErrorNotice extends StatelessWidget {
+  const _EditorErrorNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: colors.error.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.error.withValues(alpha: 0.38)),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.error_outline_rounded, color: colors.error),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  height: 1.35,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

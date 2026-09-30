@@ -499,10 +499,14 @@ class MizanApp extends ConsumerStatefulWidget {
 class _MizanAppState extends ConsumerState<MizanApp>
     with WidgetsBindingObserver {
   Timer? _splashTimer;
+  late final _MizanBackButtonDispatcher _backButtonDispatcher;
 
   @override
   void initState() {
     super.initState();
+    _backButtonDispatcher = _MizanBackButtonDispatcher(
+      onUnhandledBack: _handleUnhandledSystemBack,
+    );
     // Start the minimum-splash-duration clock the moment the app launches,
     // independent of how fast session/auth resolution completes.
     _splashTimer = Timer(splashMinDuration, () {
@@ -591,10 +595,10 @@ class _MizanAppState extends ConsumerState<MizanApp>
     }
   }
 
-  Future<bool> _handleSystemBack() async {
-    // Give the live navigator stacks first chance to handle Android back.
-    // This also preserves page-specific PopScopes, such as unsaved-form
-    // discard confirmation, and dialog/bottom-sheet dismissal.
+  Future<bool> _handleUnhandledSystemBack() async {
+    // The router has already declined this back request. Check live nested
+    // navigators once more before choosing a logical parent for deep links.
+    // This preserves page-specific PopScopes, including unsaved-form dialogs.
     final rootNavigator = _rootNavigatorKey.currentState;
     if (rootNavigator?.canPop() ?? false) {
       if (await rootNavigator!.maybePop()) return true;
@@ -641,16 +645,16 @@ class _MizanAppState extends ConsumerState<MizanApp>
       theme: buildAppTheme(),
       darkTheme: buildDarkTheme(),
       themeMode: ref.watch(themeModeProvider),
-      routerConfig: router,
+      routeInformationProvider: router.routeInformationProvider,
+      routeInformationParser: router.routeInformationParser,
+      routerDelegate: router.routerDelegate,
+      backButtonDispatcher: _backButtonDispatcher,
       scaffoldMessengerKey: _rootScaffoldMessengerKey,
       builder: (context, child) {
-        return BackButtonListener(
-          onBackButtonPressed: _handleSystemBack,
-          child: BroadcastHost(
-            navigatorKey: _rootNavigatorKey,
-            onDeepLink: (path) => router.push(path),
-            child: child ?? const SizedBox.shrink(),
-          ),
+        return BroadcastHost(
+          navigatorKey: _rootNavigatorKey,
+          onDeepLink: (path) => router.push(path),
+          child: child ?? const SizedBox.shrink(),
         );
       },
     );
@@ -672,5 +676,20 @@ class _MizanAppState extends ConsumerState<MizanApp>
         }
       }
     } catch (_) {}
+  }
+}
+
+/// Lets GoRouter and nested navigators consume Back first. Only an unhandled
+/// platform Back reaches Mizan's logical parent/root fallback.
+class _MizanBackButtonDispatcher extends RootBackButtonDispatcher {
+  _MizanBackButtonDispatcher({required this.onUnhandledBack});
+
+  final Future<bool> Function() onUnhandledBack;
+
+  @override
+  Future<bool> didPopRoute() async {
+    final handledByRouter = await invokeCallback(Future<bool>.value(false));
+    if (handledByRouter) return true;
+    return onUnhandledBack();
   }
 }
